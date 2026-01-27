@@ -1,41 +1,110 @@
+from abc import abstractmethod
 from typing import Tuple
 
+import jax.numpy as jnp
+from equinox import Module
 from jax.lax import linalg, scan
-from jaxtyping import Array, Float
+from jaxtyping import Array, Scalar
 
 from src.common import compute_current
-from src.electrode_kinetics import ButlerVolmerElectrodeKinetics, ButlerVolmerParameters
+from src.pde_parameters import ButlerVolmerParameters
+
+
+class AbstractFDMDiscretisation(Module):
+    @abstractmethod
+    def operator(
+        self, c_prev: Scalar, theta: Scalar, params: ButlerVolmerParameters
+    ) -> Tuple[Scalar, Scalar, Scalar]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def rhs(
+        self, c_prev: Scalar, theta: Scalar, params: ButlerVolmerParameters
+    ) -> Array:
+        raise NotImplementedError
+
+    def operator_and_rhs(
+        self, c_prev: Scalar, theta: Scalar, params: ButlerVolmerParameters
+    ) -> Tuple[Tuple[Scalar, Scalar, Scalar], Scalar]:
+        A = self.operator(c_prev, theta, params)
+        b = self.rhs(c_prev, theta, params)
+        return A, b
+
+
+class ButlerVolmerFDMDiscretisation1D(AbstractFDMDiscretisation):
+    h: Scalar
+    lambda_: Scalar
+
+    def __init__(self, X: Array):
+        self.h = X[1] - X[0]
+        self.lambda_ = self.h / (X[1:-1] - X[:-2]) ** 2
+
+    def operator(
+        self, c_prev: Scalar, theta: Scalar, params: ButlerVolmerParameters
+    ) -> Tuple[Scalar, Scalar, Scalar]:
+        dl = jnp.concatenate(
+            [
+                jnp.array([0.0]),
+                -self.lambda_,
+                jnp.array([0.0]),
+            ]
+        )
+
+        b0 = 1 + self.h * jnp.exp(-params.alpha * theta) * params.k0 * (
+            1 + jnp.exp(theta)
+        )
+        d = jnp.concatenate(
+            [
+                b0,
+                1 + 2 * self.lambda_,
+                jnp.array([1.0]),
+            ],
+        )
+
+        du = jnp.concatenate(
+            [
+                jnp.array([-1.0]),
+                -self.lambda_,
+                jnp.array([0.0]),
+            ]
+        )
+
+        return dl, d, du
+
+    def rhs(
+        self, c_prev: Scalar, theta: Scalar, params: ButlerVolmerParameters
+    ) -> Array:
+        inner = c_prev[1:-1]
+        d0 = self.h * jnp.exp(-params.alpha * theta) * params.k0 * jnp.exp(theta)
+        return jnp.concatenate(
+            [
+                d0,
+                inner,
+                jnp.array([1.0]),
+            ]
+        )
 
 
 def tridiagonal_solve(dl: Array, d: Array, du: Array, b: Array) -> Array:
     return linalg.tridiagonal_solve(dl, d, du, b[:, None]).flatten()
 
 
-class ImplicitFDSolver1D:
-    def __init__(self):
-        pass
+def fdm_implicit_solve(
+    c_init: Scalar,
+    pde_discretisation: AbstractFDMDiscretisation,
+    params: ButlerVolmerParameters,
+    dx: float,
+    potentials: Scalar,
+):
+    def fdm_stepper(ck: Array, theta: Scalar):
+        (dl, d, du), b = pde_discretisation.operator_and_rhs(ck, theta, params)
 
-    def solve(
-        self,
-        c_init: Float[Array, "space"],
-        X: Float[Array, "space"],
-        potentials: Float[Array, "time"],
-        electrode_kinetics: ButlerVolmerElectrodeKinetics,
-        dx: float,
-        params: ButlerVolmerParameters,
-    ) -> Tuple[Float[Array, "time space"], Float[Array, "time"]]:
-        def fdm_stepper(c_prev, theta):
-            dl = electrode_kinetics.alpha(X, theta, params)
-            d = electrode_kinetics.beta(X, theta, params)
-            du = electrode_kinetics.sigma(X, theta, params)
-            rhs = electrode_kinetics.delta(c_prev, X, theta, params)
+        ck = tridiagonal_solve(dl, d, du, b)
 
-            ck = tridiagonal_solve(dl, d, du, rhs)
+        current = compute_current(ck, dx)
 
-            current = compute_current(ck, dx)
+        return ck, (ck, current)
 
-            return ck, (ck, current)
+    _, (solution, current) = scan(fdm_stepper, c_init, potentials)
 
-        _, (solution, current) = scan(fdm_stepper, c_init, potentials)
-
-        return solution, current
+    return solution, current

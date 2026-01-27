@@ -8,8 +8,7 @@ from jax import debug, vmap
 from jaxtyping import Scalar
 
 from src.experiment import CyclicMacroBand1D
-from src.fdm import fdm_implicit_solve
-from src.fdm_discretisation import ButlerVolmerFDMDiscretisation1D
+from src.fdm import ButlerVolmerFDMDiscretisation1D, fdm_implicit_solve
 from src.pde_parameters import ButlerVolmerParameters
 
 theta_i = 20.0
@@ -58,16 +57,15 @@ opt = optax.adam(1e-2)
 @filter_jit
 def make_step(params, opt_state, target):
     loss, grads = filter_value_and_grad(loss_fn)(params, target)
-    debug.print("{x}", x=grads)
     updates, opt_state = opt.update(grads, opt_state, params)
     params = apply_updates(params, updates)
     return loss, params, opt_state
 
 
-target_current = simulate(ButlerVolmerParameters(alpha=0.8, k0=10.0))
+target_current = simulate(ButlerVolmerParameters(alpha=0.6, k0=10.0))
 
-params = ButlerVolmerParameters(alpha=0.5, k0=100.0)
-ini_current = simulate(params)
+
+params = ButlerVolmerParameters(alpha=0.8, k0=100.0)
 opt_state = opt.init(filter(params, is_array))
 
 start = perf_counter()
@@ -78,11 +76,4 @@ for i in range(10):
 end = perf_counter()
 
 print("Avg:", (end - start) / 10)
-
 debug.print("{x}", x=params)
-pred_current = simulate(params)
-plt.plot(potentials, target_current, label="Target")
-plt.plot(potentials, ini_current, label="Init")
-plt.plot(potentials, pred_current, label="Pred")
-plt.legend()
-plt.show()
