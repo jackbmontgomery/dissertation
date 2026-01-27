@@ -1,0 +1,20 @@
+# Python-generated files
+**/__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+dissertation.egg-info
+
+.DS_Store
+# Virtual environments
+
+.venv
+
+# Write Up
+write_up/*
+!write_up/
+!write_up/main.pdf
+!write_up/*.tex
+!write_up/ociamthesis.cls
+!write_up/oxlogo.png

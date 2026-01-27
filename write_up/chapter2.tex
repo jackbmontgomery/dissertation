@@ -1,0 +1,38 @@
+\chapter{Electrochemical Systems}\label{eq:electrochemistry}
+Electrochemists study chemical reactions that involve electron
+transfer for many reasons such as biochemical sensing,
+electroplating, energy storage, imaging etc. A popular technique to
+understand the diffusive or absortive nature, thermodynamic
+parameters, as well as the existence of coupled homogenous chemical
+reactions is cyclic voltammetry.
+
+\section{Mathematical model of an electrochemical system}
+
+We can represent a general reduction-oxidation (redox) process at the
+electrode as:
+\begin{equation}\label{eq:redox}
+  \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B}
+\end{equation}
+In a typical experiment, the potential is swept from some starting
+potential, $\mathrm{E}_i$ where the species A is not electroreduced,
+to some -- more negative -- vertex potential, $\mathrm{E}_v$, at
+which the electron transfer between the species A and the electrode
+is rapid and the species B is formed. The potential is then swept
+back to $E_i$ causing electron transfer in the opposite direction and
+thus the reformation of A. Throughout this process the current, $I$,
+is recorded. Plotting the current against the potential gives the
+characteristic cyclic voltammagram in
+
+\begin{equation}\label{eq:bv_equation}
+  \frac{\partial \mathrm{C}(X, T)}{\partial T} = \frac{\partial^2
+  C(X, T)}{\partial X^2}
+\end{equation}
+Subject to:
+\begin{equation}
+  \begin{split}
+    C(X,0) &= 1 \\
+    \left.\frac{\partial C(X,T)}{\partial X}\right|_{X=0}
+    &= K_0\!\left( C(0,T)e^{-\alpha\theta} -
+    \big(1-C(0,T)\big)e^{(1-\alpha)\theta}\right)
+  \end{split}
+\end{equation}
