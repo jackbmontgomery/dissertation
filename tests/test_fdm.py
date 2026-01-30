@@ -1,79 +1,42 @@
-from time import perf_counter
-
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
-import optax
-from equinox import apply_updates, filter, filter_jit, filter_value_and_grad, is_array
 from jax import vmap
-from jaxtyping import Scalar
 
 from src.experiment import CyclicMacroBand1D
-from src.fdm import ButlerVolmerFDMDiscretisation1D, fdm_implicit_solve
-from src.pde_parameters import ButlerVolmerParameters
-
-theta_i = 20.0
-theta_v = -20.0
-sigma = 100.0
-
-dtheta = 0.05
-dx = 1e-3
-dt = dtheta / sigma
-
-experiment = CyclicMacroBand1D(theta_i, theta_v, sigma)
-
-X = jnp.linspace(
-    experiment.x_min, experiment.x_max, int((experiment.x_max - experiment.x_min) / dx)
+from src.fdm_discretisation import (
+    ButlerVolmerFDMDiscretisation1D,
+    discretise_experiment,
 )
-
-T = jnp.linspace(
-    experiment.t_min, experiment.t_max, int((experiment.t_max - experiment.t_min) / dt)
-)
-
-print(X.shape, T.shape)
-
-potentials = vmap(experiment.potential)(T)
-
-pde_discretisation = ButlerVolmerFDMDiscretisation1D(X)
-c_init = jnp.ones_like(X)
+from src.pde_parameters import ButlerVolmerPhysicalParameters
+from src.simulate import create_fdm_current_simulator
 
 
-def simulate(
-    params: ButlerVolmerParameters,
-    c_init=c_init,
-    pde_discretisation=pde_discretisation,
-    dx=dx,
-    potentials=potentials,
-):
-    _, current = fdm_implicit_solve(params, c_init, pde_discretisation, dx, potentials)
-    return current
+def test_butler_volmer_model():
+    experiment = CyclicMacroBand1D()
+    dx = 5e-2
+    T, X = discretise_experiment(experiment, dx=dx)
 
+    potentials = vmap(experiment.potential)(T)
 
-def loss_fn(params: ButlerVolmerParameters, target_current: Scalar):
-    pred_current = simulate(params)
-    return jnp.mean(jnp.square(pred_current - target_current))
+    fdm_discretisation = ButlerVolmerFDMDiscretisation1D(X)
+    c_init = jnp.ones_like(X)
 
+    simulate_current = create_fdm_current_simulator(
+        c_init, potentials, fdm_discretisation, dx
+    )
+    params = ButlerVolmerPhysicalParameters(
+        alpha=jnp.array(0.75), kappa0=jnp.array(1.0)
+    )
 
-opt = optax.adam(1e-2)
+    current_sim = simulate_current(params)
+    max_current_estimate = jnp.min(current_sim)
 
+    max_current = (
+        -0.496 * jnp.sqrt(params.alpha) * jnp.sqrt(experiment.sigma)
+    )  # Randles-Sevcik Equation
 
-@filter_jit
-def make_step(params, opt_state, target):
-    loss, grads = filter_value_and_grad(loss_fn)(params, target)
-    updates, opt_state = opt.update(grads, opt_state, params)
-    params = apply_updates(params, updates)
-    return loss, params, opt_state
+    tolerance = -0.05
 
+    lower_max_current = max_current - tolerance * max_current
+    upper_max_current = max_current + tolerance * max_current
 
-target_current = simulate(ButlerVolmerParameters(alpha=0.6, k0=10.0))
-
-
-params = ButlerVolmerParameters(alpha=0.8, k0=20.0)
-init_current = simulate(params)
-opt_state = opt.init(filter(params, is_array))
-
-
-for i in range(10):
-    start = perf_counter()
-    loss, params, opt_state = make_step(params, opt_state, target_current)
-    end = perf_counter()
-    print(i, end - start)
+    assert lower_max_current <= max_current_estimate <= upper_max_current
