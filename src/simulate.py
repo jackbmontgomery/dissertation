@@ -1,5 +1,6 @@
 from typing import Callable
 
+from jax import jit
 from jaxtyping import Array, Scalar
 
 from src.fdm_discretisation import AbstractFDMDiscretisation, fdm_implicit_solve
@@ -19,6 +20,7 @@ def create_fdm_current_simulator(
     fdm_discretisation: AbstractFDMDiscretisation,
     dx: float,
 ) -> Callable[[AbstractPDEParameters], Scalar]:
+    @jit
     def simulate(
         params: AbstractPDEParameters,
     ):

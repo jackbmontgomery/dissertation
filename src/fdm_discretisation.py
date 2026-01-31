@@ -6,12 +6,16 @@ from equinox import Module, filter_jit
 from jax.lax import linalg, scan
 from jaxtyping import Array, Scalar
 
-from src.experiment import CyclicMacroBand1D, LinearSweepMacroBand
+from src.experiment import (
+    CyclicMacroBand1D,
+    LinearSweepACMacroBand,
+    LinearSweepDCMacroBand,
+)
 from src.pde_parameters import AbstractPDEParameters, ButlerVolmerPhysicalParameters
 
 
-def discretise_experiment(
-    experiment: CyclicMacroBand1D | LinearSweepMacroBand,
+def uniform_discretise(
+    experiment: CyclicMacroBand1D | LinearSweepDCMacroBand | LinearSweepACMacroBand,
     dx: float = 1e-3,
     dtheta: float = 0.05,
 ) -> Tuple[Scalar, Scalar]:
@@ -57,9 +61,9 @@ class ButlerVolmerFDMDiscretisation1D(AbstractFDMDiscretisation):
     h: Scalar
     lambda_: Scalar
 
-    def __init__(self, X: Array):
+    def __init__(self, X: Array, dt: Scalar):
         self.h = X[1] - X[0]
-        self.lambda_ = self.h / (X[1:-1] - X[:-2]) ** 2
+        self.lambda_ = dt / (X[1:-1] - X[:-2]) ** 2
 
     def operator(
         self, c_prev: Scalar, theta: Scalar, params: ButlerVolmerPhysicalParameters

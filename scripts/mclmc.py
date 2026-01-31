@@ -17,10 +17,10 @@ import matplotlib.pyplot as plt
 from jax import jit, pmap, vmap
 from jaxtyping import Array, PRNGKeyArray
 
-from src.experiment import LinearSweepMacroBand
+from src.experiment import LinearSweepDCMacroBand
 from src.fdm_discretisation import (
     ButlerVolmerFDMDiscretisation1D,
-    discretise_experiment,
+    uniform_discretise,
 )
 from src.pde_parameters import ButlerVolmerInverseParameters, bv_inverse_to_physical
 from src.sampling import _inference_loop, generate_noisy_samples
@@ -53,15 +53,17 @@ def parallel_mclmc_sampling(
 
 key = jr.key(0)
 
-experiment = LinearSweepMacroBand()
+experiment = LinearSweepDCMacroBand()
 dx = 1e-2
-T, X = discretise_experiment(experiment, dx=dx)
+
+T, X = uniform_discretise(experiment, dx=dx)
+dt = T[1] - T[0]
 
 print(f"T:{X.shape},X:{T.shape}")
 
 potentials = vmap(experiment.potential)(T)
 
-fdm_discretisation = ButlerVolmerFDMDiscretisation1D(X)
+fdm_discretisation = ButlerVolmerFDMDiscretisation1D(X, dt)
 c_init = jnp.ones_like(X)
 
 simulate_current = create_fdm_current_simulator(
