@@ -1,38 +1,83 @@
 \chapter{Electrochemical Systems}\label{eq:electrochemistry}
-Electrochemists study chemical reactions that involve electron
-transfer for many reasons such as biochemical sensing,
-electroplating, energy storage, imaging etc. A popular technique to
-understand the diffusive or absortive nature, thermodynamic
-parameters, as well as the existence of coupled homogenous chemical
-reactions is cyclic voltammetry.
 
-\section{Mathematical model of an electrochemical system}
+The reaction happens at the electrode surface.
+Include diagram of macroelectode
 
-We can represent a general reduction-oxidation (redox) process at the
-electrode as:
-\begin{equation}\label{eq:redox}
+\begin{equation}\label{eq:single_electron_redox}
   \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B}
 \end{equation}
-In a typical experiment, the potential is swept from some starting
-potential, $\mathrm{E}_i$ where the species A is not electroreduced,
-to some -- more negative -- vertex potential, $\mathrm{E}_v$, at
-which the electron transfer between the species A and the electrode
-is rapid and the species B is formed. The potential is then swept
-back to $E_i$ causing electron transfer in the opposite direction and
-thus the reformation of A. Throughout this process the current, $I$,
-is recorded. Plotting the current against the potential gives the
-characteristic cyclic voltammagram in
 
-\begin{equation}\label{eq:bv_equation}
-  \frac{\partial \mathrm{C}(X, T)}{\partial T} = \frac{\partial^2
-  C(X, T)}{\partial X^2}
-\end{equation}
-Subject to:
+\section{Mass Transport}
+
+For a macroband electrode:
+
 \begin{equation}
-  \begin{split}
-    C(X,0) &= 1 \\
-    \left.\frac{\partial C(X,T)}{\partial X}\right|_{X=0}
-    &= K_0\!\left( C(0,T)e^{-\alpha\theta} -
-    \big(1-C(0,T)\big)e^{(1-\alpha)\theta}\right)
-  \end{split}
+  \frac{\partial c_j}{\partial t} = D_j \frac{\partial^2 c_j}{\partial x^2}
+  \label{eq:masstransport_macroband}
 \end{equation}
+
+\section{Equal Diffusion Coefficients}
+
+Fick's first law states that the diffusive flux, $j_{x_1}$, through a
+plane normal to the $x$-axis at the point $x_1$ is equal to the
+product of the diffusion coefficient and the concerntration gradient
+at that point.
+
+\begin{equation}
+  j_{x_1} = -D \left( \frac{\partial c}{\partial x} \right)_{x=x_1}
+\end{equation}
+
+Where the minus sign indicates the flux is down the local
+concerntation gradient. We assume that initially the experiment
+contains only species A at a uniform concerntration, the bulk
+concerntration indicated by $c^*_A$. By conservation of mass, the
+amount of A lost at the electrode surface equals the amount of B gained:
+
+\begin{equation}
+  \left( -D_A \frac{\partial c_A}{\partial x} \right)_{x=0}  = \left( D_B
+  \frac{\partial c_B}{\partial x} \right)_{x=0}
+\end{equation}
+
+If we assume equal diffusion coefficients $D = D_A = D_B$. Then the
+problem simplifies to:
+
+\begin{equation}
+  \left( - \frac{\partial c_A}{\partial x} \right)_{x=0}  = \left(
+  \frac{\partial c_B}{\partial x} \right)_{x=0}
+\end{equation}
+
+Therefore it is necessarily true that: $c^*_A = c_A + c_B$. So we can
+only model the concerntration of A and automatically recover the
+concerntration of B. We will now be dropping the subscript of the
+species and assume we are always referring to A.
+
+\section{Initial Conditions}
+As already mentioned, we are assuming that initially there is only A
+present in the solution. Thus the initial conditions are:
+\begin{equation}
+  c(x, t = 0) = c^*
+\end{equation}
+
+\section{Boundary Conditions}
+In the spacial dimension we use Einstein's work on Brownian motion.
+$0 \geq x \geq 6 \sqrt{D t_{\text{max}}}$.
+
+The first boundary condition we say that there is no change in the
+concerntration when we are sufficiently far away from the surface of
+the working electrode:
+
+\begin{equation}
+  c(x = x_{\text{max}}, t) = c^*
+\end{equation}
+
+At the surface electrode we have the Butler-Volmer equation:
+\begin{equation}
+  \begin{aligned}
+    \left(-\frac{\partial c}{\partial x}\right)_{x=0}
+    &= k_0\Bigg[
+      c_A\exp\!\left((-\alpha\frac{F}{RT}\left(E_{\mathrm{eff}}(t)-E_0\right)\right)\\
+        &\qquad-
+        (1-c)\exp\!\left((1-\alpha)\frac{F}{RT}\left(E_{\mathrm{eff}}(t)-E_0\right)\right)
+      \Bigg]
+    \end{aligned}
+  \end{equation}
