@@ -13,7 +13,7 @@ import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
 import optimistix as optx
-from jax import checkpoint, vmap
+from jax import vmap
 from jax.scipy.special import logit
 
 from src.experiment import LinearSweepACMacroBand, LinearSweepDCMacroBand
@@ -32,7 +32,9 @@ def main(
     print(f"Sampling: {sampling_algorithm}, Experiment: {experiment_type}")
     key = jr.key(seed)
 
-    true_params = ButlerVolmerInverseParameters(a=logit(0.6), k0=jnp.log(100.0))
+    true_params = ButlerVolmerInverseParameters(
+        a=logit(0.6), k0=jnp.log(100.0), e0=5.0 * jnp.arctanh(2.0 / 10.0)
+    )
 
     phy_params = bv_inverse_to_physical(true_params)
 
@@ -63,31 +65,32 @@ def main(
         return -jnp.sum((samples - pred) ** 2)
 
     bfgs = optx.BFGS(rtol=1e-4, atol=1e-4)
-    init_params = ButlerVolmerInverseParameters(a=logit(0.3), k0=jnp.log(80.0))
+    init_params = ButlerVolmerInverseParameters(
+        a=logit(0.3), k0=jnp.log(80.0), e0=jnp.arctanh(0.0)
+    )
     solution = optx.minimise(lambda params, _: -log_density(params), bfgs, init_params)
     sampling_params = solution.value
 
-    # x = bv_inverse_to_physical(solution.value)
-    # print("Params", "alpha", x.alpha, "kappa", x.kappa0)
+    x = bv_inverse_to_physical(solution.value)
+    print("Params", "alpha", x.alpha, "kappa", x.kappa0, "eps", x.eps0)
 
     if sampling_algorithm == "rw":
-        sample_key, _ = jr.split(key, 2)
-
-        sampling_params = ButlerVolmerInverseParameters(
-            a=logit(0.6),
-            k0=jnp.log(100.0),
-        )
+        sample_key, key = jr.split(key, 2)
 
         sampling_fn = rw_sampling
+
     elif sampling_algorithm == "mclmc":
         num_cpus = multiprocessing.cpu_count()
 
         sample_key = jr.split(key, num_cpus)
 
         sampling_params = ButlerVolmerInverseParameters(
-            a=jnp.full((num_cpus,), logit(0.6)),
-            k0=jnp.full((num_cpus,), jnp.log(100.0)),
+            a=jnp.full((num_cpus,), sampling_params.a),
+            k0=jnp.full((num_cpus,), sampling_params.k0),
+            e0=jnp.full((num_cpus,), sampling_params.e0),
         )
+
+        n_samples = n_samples // num_cpus
 
         sampling_fn = mclmc_sampling
     else:
@@ -104,14 +107,18 @@ def main(
 
     alpha = jnn.sigmoid(states.position.a.flatten())
     kappa0 = jnp.exp(states.position.k0.flatten())
+    eps0 = 10.0 * jnp.tanh(states.position.e0.flatten() / 5.0)
 
     np.savez_compressed(
-        f"./data/{sampling_algorithm}_{experiment_type}.npz", alpha=alpha, kappa0=kappa0
+        f"./data/{sampling_algorithm}_{experiment_type}.npz",
+        alpha=alpha,
+        kappa0=kappa0,
+        eps0=eps0,
     )
 
 
 if __name__ == "__main__":
     # main(experiment_type="ac", sampling_algorithm="rw", n_samples=40_000)
-    # main(experiment_type="ac", sampling_algorithm="mclmc", n_samples=2_000)
+    main(experiment_type="ac", sampling_algorithm="mclmc", n_samples=8_000)
     # main(experiment_type="dc", sampling_algorithm="rw", n_samples=40_000)
-    main(experiment_type="dc", sampling_algorithm="mclmc", n_samples=2_000)
+    main(experiment_type="dc", sampling_algorithm="mclmc", n_samples=8_000)

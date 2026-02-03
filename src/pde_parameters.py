@@ -9,11 +9,13 @@ AbstractPDEParameters = Module
 class ButlerVolmerInverseParameters(AbstractPDEParameters):
     a: Scalar
     k0: Scalar
+    e0: Scalar
 
 
 class ButlerVolmerPhysicalParameters(AbstractPDEParameters):
     alpha: Scalar
     kappa0: Scalar
+    eps0: Scalar
 
 
 def bv_inverse_to_physical(
@@ -21,5 +23,6 @@ def bv_inverse_to_physical(
 ) -> ButlerVolmerPhysicalParameters:
     alpha = jnn.sigmoid(inv.a)
     kappa0 = jnp.exp(inv.k0)
-    phy = ButlerVolmerPhysicalParameters(alpha=alpha, kappa0=kappa0)
+    eps0 = 10 * jnp.tanh(inv.e0 / 5.0)
+    phy = ButlerVolmerPhysicalParameters(alpha=alpha, kappa0=kappa0, eps0=eps0)
     return phy

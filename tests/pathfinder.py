@@ -18,11 +18,13 @@ from src.simulate import create_fdm_current_simulator
 
 key = jr.key(0)
 
-true_params = ButlerVolmerInverseParameters(a=logit(0.6), k0=jnp.log(100.0))
+true_params = ButlerVolmerInverseParameters(
+    a=logit(0.6), k0=jnp.log(100.0), e0=5.0 * jnp.arctanh(2.0 / 10.0)
+)
 
 phy_params = bv_inverse_to_physical(true_params)
 
-experiment = LinearSweepDCMacroBand()
+experiment = LinearSweepACMacroBand()
 
 T, X = uniform_discretise(experiment)
 print(f"T:{T.shape},X:{X.shape}")
@@ -45,7 +47,9 @@ def log_density(params: ButlerVolmerInverseParameters, samples=samples):
     return -jnp.sum((samples - pred) ** 2)
 
 
-init_params = ButlerVolmerInverseParameters(a=logit(0.3), k0=jnp.log(80.0))
+init_params = ButlerVolmerInverseParameters(
+    a=logit(0.3), k0=jnp.log(80.0), e0=jnp.arctanh(0.0)
+)
 
 approx_key, sample_key, key = jr.split(key, 3)
 pathfinder = blackjax.pathfinder(log_density)
@@ -62,10 +66,11 @@ print("Finished... Time taken", end - start)
 
 alpha = sigmoid(samples.a)
 kappa0 = jnp.exp(samples.k0)
+eps0 = 10.0 * jnp.tanh(samples.e0 / 5.0)
 
 fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(20, 5))
 n_bins = 50
 ax1.hist(alpha, bins=n_bins)
 ax2.hist(kappa0, bins=n_bins)
 plt.show()
-np.savez_compressed("./data/vi_dc.npz", alpha=alpha, kappa0=kappa0)
+np.savez_compressed("./data/vi_ac.npz", alpha=alpha, kappa0=kappa0, eps0=eps0)
