@@ -1,11 +1,26 @@
+from abc import abstractmethod
 from math import sqrt
 
 import jax.numpy as jnp
-from equinox import Module, field
+from equinox import AbstractVar, Module, field
 from jax.lax import cond
 
 
-class LinearSweepACMacroBand(Module):
+class AbstractExperiment(Module):
+    theta_i: AbstractVar[float]
+    theta_v: AbstractVar[float]
+    sigma: AbstractVar[float]
+    t_min: AbstractVar[float]
+    t_max: AbstractVar[float]
+    x_min: AbstractVar[float]
+    x_max: AbstractVar[float]
+
+    @abstractmethod
+    def potential(self, t: float) -> float:
+        raise NotImplementedError
+
+
+class LinearSweepACMacroBand(AbstractExperiment):
     theta_i: float = field(static=True)
     theta_v: float = field(static=True)
     sigma: float = field(static=True)
@@ -20,7 +35,7 @@ class LinearSweepACMacroBand(Module):
         self,
         theta_i: float = 10.0,
         theta_v: float = -10.0,
-        sigma: float = 100.0,
+        sigma: float = 1000.0,
         amplitude: float = 0.25,
         num_oscillations: int = 32,
     ):
@@ -40,7 +55,7 @@ class LinearSweepACMacroBand(Module):
         return self.theta_i - self.sigma * t - self.e0 * jnp.sin(self.omega * t)
 
 
-class LinearSweepDCMacroBand(Module):
+class LinearSweepDCMacroBand(AbstractExperiment):
     theta_i: float = field(static=True)
     theta_v: float = field(static=True)
     sigma: float = field(static=True)
@@ -50,7 +65,7 @@ class LinearSweepDCMacroBand(Module):
     x_max: float = field(static=True)
 
     def __init__(
-        self, theta_i: float = 10.0, theta_v: float = -10.0, sigma: float = 100.0
+        self, theta_i: float = 10.0, theta_v: float = -10.0, sigma: float = 1000.0
     ):
         self.theta_i = theta_i
         self.theta_v = theta_v
@@ -65,7 +80,7 @@ class LinearSweepDCMacroBand(Module):
         return self.theta_i - self.sigma * t
 
 
-class CyclicMacroBand1D(Module):
+class CyclicMacroBand1D(AbstractExperiment):
     theta_i: float = field(static=True)
     theta_v: float = field(static=True)
     sigma: float = field(static=True)
@@ -75,7 +90,7 @@ class CyclicMacroBand1D(Module):
     x_max: float = field(static=True)
 
     def __init__(
-        self, theta_i: float = 10.0, theta_v: float = -10.0, sigma: float = 100.0
+        self, theta_i: float = 10.0, theta_v: float = -10.0, sigma: float = 1000.0
     ):
         self.theta_i = theta_i
         self.theta_v = theta_v

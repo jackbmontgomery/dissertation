@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 from jax import vmap
 
 from src.experiment import LinearSweepDCMacroBand
@@ -10,10 +11,7 @@ from src.pde_parameters import ButlerVolmerPhysicalParameters
 from src.simulate import create_fdm_current_simulator
 
 
-def test_butler_volmer_model():
-    alpha = jnp.array(0.7)
-    kappa0 = jnp.array(1.0)
-
+def main():
     experiment = LinearSweepDCMacroBand()
     T, X = uniform_discretise(experiment)
 
@@ -29,14 +27,20 @@ def test_butler_volmer_model():
         c_init, potentials, fdm_discretisation, X
     )
 
-    params = ButlerVolmerPhysicalParameters(alpha=alpha, kappa0=kappa0)
+    kappas = jnp.linspace(1, 5, 5)
+    for k in kappas:
+        params = ButlerVolmerPhysicalParameters(
+            alpha=jnp.array(1.0), kappa0=jnp.power(10.0, k)
+        )
+        current = simulate_current(params)
 
-    current = simulate_current(params)
+        plt.plot(potentials, current, label=f"{jnp.power(10.0, k):.1f}")
 
-    max_current_estimate = jnp.min(current)
+    plt.gca().invert_yaxis()
+    plt.gca().invert_xaxis()
+    plt.legend()
+    plt.show()
 
-    max_current = (
-        -0.496 * jnp.sqrt(params.alpha) * jnp.sqrt(experiment.sigma)
-    )  # Randles-Sevcik Equation
 
-    assert jnp.isclose(max_current_estimate, max_current, rtol=0.02)
+if __name__ == "__main__":
+    main()

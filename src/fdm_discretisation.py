@@ -7,16 +7,40 @@ from jax.lax import linalg, scan
 from jaxtyping import Array, Scalar
 
 from src.experiment import (
-    CyclicMacroBand1D,
-    LinearSweepACMacroBand,
-    LinearSweepDCMacroBand,
+    AbstractExperiment,
 )
 from src.pde_parameters import AbstractPDEParameters, ButlerVolmerPhysicalParameters
 
 
+def exponentially_expanding_discretise(
+    experiment: AbstractExperiment,
+    h: float = 1e-2,
+    dtheta: float = 0.05,
+    omega: float = 1.01,
+) -> Tuple[Scalar, Scalar]:
+    dt = dtheta / experiment.sigma
+
+    T = jnp.linspace(
+        experiment.t_min,
+        experiment.t_max,
+        int((experiment.t_max - experiment.t_min) / dt),
+    )
+
+    X = [0.0]
+    while X[-1] < experiment.x_max:
+        X.append(X[-1] + h)
+        h *= omega
+
+    X[-1] = experiment.x_max
+
+    X = jnp.array(X)
+
+    return T, X
+
+
 def uniform_discretise(
-    experiment: CyclicMacroBand1D | LinearSweepDCMacroBand | LinearSweepACMacroBand,
-    dx: float = 1e-3,
+    experiment: AbstractExperiment,
+    dx: float = 1e-2,
     dtheta: float = 0.05,
 ) -> Tuple[Scalar, Scalar]:
     dt = dtheta / experiment.sigma
@@ -59,11 +83,19 @@ class AbstractFDMDiscretisation(Module):
 
 class ButlerVolmerFDMDiscretisation1D(AbstractFDMDiscretisation):
     h: Scalar
-    lambda_: Scalar
+    dl_inner: Scalar
+    d_inner: Scalar
+    du_inner: Scalar
 
-    def __init__(self, X: Array, dt: Scalar):
+    def __init__(self, X: Array, T: Array):
+        dt = T[1] - T[0]
+        X_plus = X[1:-1] - X[:-2]
+        X_minus = X[2:] - X[1:-1]
+
         self.h = X[1] - X[0]
-        self.lambda_ = dt / (X[1:-1] - X[:-2]) ** 2
+        self.dl_inner = -(2.0 * dt) / (X_minus * (X_minus + X_plus))
+        self.du_inner = -(2.0 * dt) / (X_plus * (X_minus + X_plus))
+        self.d_inner = 1 - self.dl_inner - self.du_inner
 
     def operator(
         self, c_prev: Scalar, theta: Scalar, params: ButlerVolmerPhysicalParameters
@@ -71,7 +103,7 @@ class ButlerVolmerFDMDiscretisation1D(AbstractFDMDiscretisation):
         dl = jnp.concatenate(
             [
                 jnp.array([0.0]),
-                -self.lambda_,
+                self.dl_inner,
                 jnp.array([0.0]),
             ]
         )
@@ -82,7 +114,7 @@ class ButlerVolmerFDMDiscretisation1D(AbstractFDMDiscretisation):
         d = jnp.concatenate(
             [
                 jnp.array([b0]),
-                1 + 2 * self.lambda_,
+                self.d_inner,
                 jnp.array([1.0]),
             ],
         )
@@ -90,7 +122,7 @@ class ButlerVolmerFDMDiscretisation1D(AbstractFDMDiscretisation):
         du = jnp.concatenate(
             [
                 jnp.array([-1.0]),
-                -self.lambda_,
+                self.du_inner,
                 jnp.array([0.0]),
             ]
         )

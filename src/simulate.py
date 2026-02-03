@@ -7,18 +7,24 @@ from src.fdm_discretisation import AbstractFDMDiscretisation, fdm_implicit_solve
 from src.pde_parameters import AbstractPDEParameters
 
 
-def compute_solution_current(solution: Array, dx: float) -> Array:
+def compute_solution_current(solution: Array, X: Scalar) -> Array:
     c0 = solution[:, 0]
     c1 = solution[:, 1]
     c2 = solution[:, 2]
-    return -(-c2 + 4.0 * c1 - 3.0 * c0) / (2.0 * dx)
+
+    h1 = X[1] - X[0]
+    h2 = X[2] - X[0]
+
+    dcdx = (h2**2 * (c0 - c1) + h1**2 * (c2 - c0)) / (h1 * h2 * (h1 - h2))
+
+    return -dcdx
 
 
 def create_fdm_current_simulator(
     c_init: Scalar,
     forcing: Scalar,
     fdm_discretisation: AbstractFDMDiscretisation,
-    dx: float,
+    X: Scalar,
 ) -> Callable[[AbstractPDEParameters], Scalar]:
     @jit
     def simulate(
@@ -30,7 +36,7 @@ def create_fdm_current_simulator(
             fdm_discretisation=fdm_discretisation,
             fdm_params=params,
         )
-        current = compute_solution_current(fdm_solution, dx=dx)
+        current = compute_solution_current(fdm_solution, X=X)
         return current
 
     return simulate
