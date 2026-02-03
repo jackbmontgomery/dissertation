@@ -108,9 +108,9 @@ class ButlerVolmerFDMDiscretisation1D(AbstractFDMDiscretisation):
             ]
         )
 
-        b0 = 1 + self.h * jnp.exp(-params.alpha * theta) * params.kappa0 * (
-            1 + jnp.exp(theta)
-        )
+        b0 = 1 + self.h * jnp.exp(
+            -params.alpha * (theta - params.eps0)
+        ) * params.kappa0 * (1 + jnp.exp(theta - params.eps0))
         d = jnp.concatenate(
             [
                 jnp.array([b0]),
@@ -133,7 +133,12 @@ class ButlerVolmerFDMDiscretisation1D(AbstractFDMDiscretisation):
         self, c_prev: Scalar, theta: Scalar, params: ButlerVolmerPhysicalParameters
     ) -> Array:  # ty: ignore[invalid-method-override]
         inner = c_prev[1:-1]
-        d0 = self.h * jnp.exp(-params.alpha * theta) * params.kappa0 * jnp.exp(theta)
+        d0 = (
+            self.h
+            * jnp.exp(-params.alpha * (theta - params.eps0))
+            * params.kappa0
+            * jnp.exp(theta - params.eps0)
+        )
         return jnp.concatenate(
             [
                 jnp.array([d0]),

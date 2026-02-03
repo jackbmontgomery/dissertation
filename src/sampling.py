@@ -46,7 +46,7 @@ def _inference_loop(
     return states, infos
 
 
-inference_loop_multiple_chains = pmap(
+inference_loop_multiple_chains: Callable = pmap(
     _inference_loop, in_axes=(0, None, 0, None), static_broadcasted_argnums=(1, 3)
 )
 
@@ -56,7 +56,7 @@ def rw_sampling(
     n_samples: int,
     initial_parameters: AbstractPDEParameters,
     log_density: Callable[[AbstractPDEParameters, Array], Array],
-    sigma: Array = jnp.array([0.1, 0.1]),
+    sigma: Array = jnp.array([0.01, 0.01, 0.01]),
 ):
     rw = blackjax.additive_step_random_walk(
         log_density, blackjax.mcmc.random_walk.normal(sigma)
