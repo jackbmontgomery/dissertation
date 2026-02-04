@@ -3,6 +3,7 @@
 ## Notes
 - I am happy with a comparison on the use of more exotic / gradient based sampling for the inverse problem.
 - This is also a good way to try and get some other experiments into the mix and see how the method fairs in those experiments
+- ISSUE: I cannot get the 2D FDM code to fun on f32. This will make that simulation really long and the gradient based HMC almost unusable
 
 ## Ideas
 - There will be some relationship between the amount of noise that is added and the feasible range of alpha

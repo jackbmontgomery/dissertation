@@ -1,37 +1,31 @@
-from typing import Callable, NamedTuple, Tuple
+import multiprocessing
+from typing import Callable, Dict, NamedTuple, Tuple
 
 import blackjax
 import jax.numpy as jnp
 import jax.random as jr
+import optimistix as optx
 from jax import jit, pmap, vmap
 from jax.lax import scan
 from jaxtyping import Array, PRNGKeyArray, PyTree
 
-from src.pde_parameters import AbstractPDEParameters
+from src.params import ElectrodeKineticsParameters
 
+NUM_CPUS = multiprocessing.cpu_count()
 
-def generate_noisy_samples(
-    num_samples: int,
-    simulate: Callable[[AbstractPDEParameters], Array],
-    params: AbstractPDEParameters,
-    sigma: float,
-    *,
-    key: PRNGKeyArray,
-):
-    base = simulate(params)
+LogDensity = Callable[[ElectrodeKineticsParameters], Array]
 
-    def add_noise(r_key: PRNGKeyArray, base=base):
-        noisy_current = base + jr.normal(r_key, shape=base.shape) * sigma
-        return noisy_current
-
-    keys = jr.split(key, num_samples)
-    samples = vmap(add_noise)(keys)
-    return samples
+SamplingFunction = Callable[
+    [PRNGKeyArray, ElectrodeKineticsParameters, LogDensity],
+    Tuple[ElectrodeKineticsParameters, Dict],
+]
 
 
 def _inference_loop(
     key: PRNGKeyArray,
-    kernel: Callable[[PRNGKeyArray, AbstractPDEParameters], Tuple[PyTree, PyTree]],
+    kernel: Callable[
+        [PRNGKeyArray, ElectrodeKineticsParameters], Tuple[PyTree, PyTree]
+    ],
     initial_state: NamedTuple,
     num_samples: int,
 ):
@@ -51,36 +45,67 @@ inference_loop_multiple_chains: Callable = pmap(
 )
 
 
-def rw_sampling(
+def _bfgs_minimise(initial_parameters, log_density: LogDensity):
+    bfgs = optx.BFGS(rtol=1e-4, atol=1e-4)
+    solution = optx.minimise(
+        lambda params, _: -log_density(params), bfgs, initial_parameters
+    )
+    sampling_init_params = solution.value
+    return sampling_init_params
+
+
+def metropolis_hastings_sampling(
     key: PRNGKeyArray,
-    n_samples: int,
-    initial_parameters: AbstractPDEParameters,
-    log_density: Callable[[AbstractPDEParameters, Array], Array],
+    initial_parameters: ElectrodeKineticsParameters,
+    log_density: LogDensity,
+    *,
+    n_samples: int = 40_000,
     sigma: Array = jnp.array([0.01, 0.01, 0.01]),
-):
+) -> Tuple[ElectrodeKineticsParameters, Dict]:
     rw = blackjax.additive_step_random_walk(
         log_density, blackjax.mcmc.random_walk.normal(sigma)
     )
 
-    initial_state = rw.init(initial_parameters, key)
+    sampling_init_params = _bfgs_minimise(initial_parameters, log_density)
+
+    initial_state = rw.init(sampling_init_params, key)
 
     jit_step = jit(rw.step)
 
     states, infos = _inference_loop(key, jit_step, initial_state, n_samples)
 
-    return states, infos
+    avg_acceptance = jnp.mean(infos.is_accepted)
+
+    sampling_info = {"Average Acceptance": avg_acceptance}
+
+    samples: ElectrodeKineticsParameters = states.position
+
+    return samples, sampling_info
 
 
 def mclmc_sampling(
-    keys: PRNGKeyArray,
-    n_samples_per_chain: int,
-    initial_parameters: AbstractPDEParameters,
-    log_density: Callable[[AbstractPDEParameters, Array], Array],
-    step_size: float = 1e-2,
-):
+    key: PRNGKeyArray,
+    initial_parameters: ElectrodeKineticsParameters,
+    log_density: LogDensity,
+    *,
+    n_samples: int = 8_000,
+    step_size: float = 5e-2,
+) -> Tuple[ElectrodeKineticsParameters, Dict]:
     mclmc = blackjax.adjusted_mclmc_dynamic(log_density, step_size)
 
-    initial_states = vmap(mclmc.init, in_axes=(0, 0))(initial_parameters, keys)
+    sampling_init_params = _bfgs_minimise(initial_parameters, log_density)
+
+    sampling_init_params = ElectrodeKineticsParameters(
+        alpha=jnp.full((NUM_CPUS,), initial_parameters.alpha),
+        kappa=jnp.full((NUM_CPUS,), initial_parameters.kappa),
+        epsilon=jnp.full((NUM_CPUS,), initial_parameters.epsilon),
+    )
+
+    keys = jr.split(key, NUM_CPUS)
+
+    initial_states = vmap(mclmc.init, in_axes=(0, 0))(sampling_init_params, keys)
+
+    n_samples_per_chain = n_samples // NUM_CPUS
 
     jit_step = jit(mclmc.step)
 
@@ -88,4 +113,30 @@ def mclmc_sampling(
         keys, jit_step, initial_states, n_samples_per_chain
     )
 
-    return states, infos
+    avg_acceptance = jnp.mean(infos.is_accepted)
+
+    sampling_info = {"Average Acceptance": avg_acceptance}
+
+    samples: ElectrodeKineticsParameters = states.position
+
+    return samples, sampling_info
+
+
+def pathfinder_sampling(
+    key: PRNGKeyArray,
+    initial_parameters: ElectrodeKineticsParameters,
+    log_density: LogDensity,
+    *,
+    n_samples: int = 40_000,
+    step_size: float = 1e-2,
+) -> Tuple[ElectrodeKineticsParameters, Dict]:
+    approx_key, sample_key = jr.split(key)
+    pathfinder = blackjax.pathfinder(log_density)
+
+    state, info = pathfinder.approximate(approx_key, initial_parameters, ftol=1e-8)
+
+    info = {"Elbo Path": info.path.elbo}
+
+    samples, _ = pathfinder.sample(sample_key, state, n_samples)
+
+    return samples, info
