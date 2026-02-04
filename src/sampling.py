@@ -1,3 +1,5 @@
+import multiprocessing
+from time import perf_counter
 from typing import Callable, NamedTuple, Tuple
 
 import blackjax
@@ -7,31 +9,14 @@ from jax import jit, pmap, vmap
 from jax.lax import scan
 from jaxtyping import Array, PRNGKeyArray, PyTree
 
-from src.pde_parameters import AbstractPDEParameters
+from src.params import MacroElectrodeParams
 
-
-def generate_noisy_samples(
-    num_samples: int,
-    simulate: Callable[[AbstractPDEParameters], Array],
-    params: AbstractPDEParameters,
-    sigma: float,
-    *,
-    key: PRNGKeyArray,
-):
-    base = simulate(params)
-
-    def add_noise(r_key: PRNGKeyArray, base=base):
-        noisy_current = base + jr.normal(r_key, shape=base.shape) * sigma
-        return noisy_current
-
-    keys = jr.split(key, num_samples)
-    samples = vmap(add_noise)(keys)
-    return samples
+NUM_CPUS = multiprocessing.cpu_count()
 
 
 def _inference_loop(
     key: PRNGKeyArray,
-    kernel: Callable[[PRNGKeyArray, AbstractPDEParameters], Tuple[PyTree, PyTree]],
+    kernel: Callable[[PRNGKeyArray, MacroElectrodeParams], Tuple[PyTree, PyTree]],
     initial_state: NamedTuple,
     num_samples: int,
 ):
@@ -51,11 +36,11 @@ inference_loop_multiple_chains: Callable = pmap(
 )
 
 
-def rw_sampling(
+def metropolis_hastings_sampling(
     key: PRNGKeyArray,
     n_samples: int,
-    initial_parameters: AbstractPDEParameters,
-    log_density: Callable[[AbstractPDEParameters, Array], Array],
+    initial_parameters: MacroElectrodeParams,
+    log_density: Callable[[MacroElectrodeParams, Array], Array],
     sigma: Array = jnp.array([0.01, 0.01, 0.01]),
 ):
     rw = blackjax.additive_step_random_walk(
@@ -72,15 +57,25 @@ def rw_sampling(
 
 
 def mclmc_sampling(
-    keys: PRNGKeyArray,
-    n_samples_per_chain: int,
-    initial_parameters: AbstractPDEParameters,
-    log_density: Callable[[AbstractPDEParameters, Array], Array],
+    key: PRNGKeyArray,
+    n_samples: int,
+    initial_parameters: MacroElectrodeParams,
+    log_density: Callable[[MacroElectrodeParams, Array], Array],
     step_size: float = 1e-2,
 ):
     mclmc = blackjax.adjusted_mclmc_dynamic(log_density, step_size)
 
-    initial_states = vmap(mclmc.init, in_axes=(0, 0))(initial_parameters, keys)
+    sampling_init_params = MacroElectrodeParams(
+        alpha=jnp.full((NUM_CPUS,), initial_parameters.alpha),
+        kappa=jnp.full((NUM_CPUS,), initial_parameters.kappa),
+        epsilon=jnp.full((NUM_CPUS,), initial_parameters.epsilon),
+    )
+
+    keys = jr.split(key, NUM_CPUS)
+
+    initial_states = vmap(mclmc.init, in_axes=(0, 0))(sampling_init_params, keys)
+
+    n_samples_per_chain = n_samples // NUM_CPUS
 
     jit_step = jit(mclmc.step)
 

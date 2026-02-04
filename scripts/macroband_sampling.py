@@ -16,7 +16,7 @@ import optimistix as optx
 from jax import vmap
 from jax.scipy.special import logit
 
-from src.experiment import LinearSweepACMacroBand, LinearSweepDCMacroBand
+from src.voltammetry import LinearSweepAC, LinearSweepDC
 from src.fdm_discretisation import ButlerVolmerFDMDiscretisation1D, uniform_discretise
 from src.pde_parameters import ButlerVolmerInverseParameters, bv_inverse_to_physical
 from src.sampling import generate_noisy_samples, mclmc_sampling, rw_sampling
@@ -39,9 +39,9 @@ def main(
     phy_params = bv_inverse_to_physical(true_params)
 
     if experiment_type == "dc":
-        experiment = LinearSweepDCMacroBand()
+        experiment = LinearSweepDC()
     elif experiment_type == "ac":
-        experiment = LinearSweepACMacroBand()
+        experiment = LinearSweepAC()
     else:
         raise Exception("Invalid Experiment Choice")
 

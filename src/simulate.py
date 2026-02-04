@@ -3,6 +3,7 @@ from typing import Callable
 from jax import jit
 from jaxtyping import Array, Scalar
 
+from src.fdm_dep import AbstractFDMSolver
 from src.fdm_discretisation import AbstractFDMDiscretisation, fdm_implicit_solve
 from src.pde_parameters import AbstractPDEParameters
 
@@ -20,23 +21,16 @@ def compute_solution_current(solution: Array, X: Scalar) -> Array:
     return -dcdx
 
 
-def create_fdm_current_simulator(
-    c_init: Scalar,
-    forcing: Scalar,
-    fdm_discretisation: AbstractFDMDiscretisation,
-    X: Scalar,
+def create_current_simulator(
+    fdm_solver: AbstractFDMSolver,
 ) -> Callable[[AbstractPDEParameters], Scalar]:
     @jit
     def simulate(
         params: AbstractPDEParameters,
     ):
-        fdm_solution = fdm_implicit_solve(
-            init=c_init,
-            forcing=forcing,
-            fdm_discretisation=fdm_discretisation,
-            fdm_params=params,
-        )
-        current = compute_solution_current(fdm_solution, X=X)
+        fdm_solution = fdm_solver.solve(params)
+        current = compute_solution_current(solution)
+
         return current
 
     return simulate

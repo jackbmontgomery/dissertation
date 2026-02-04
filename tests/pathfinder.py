@@ -10,7 +10,7 @@ from jax import checkpoint, vmap
 from jax.nn import sigmoid
 from jax.scipy.special import logit
 
-from src.experiment import LinearSweepACMacroBand, LinearSweepDCMacroBand
+from src.voltammetry import LinearSweepAC, LinearSweepDC
 from src.fdm_discretisation import ButlerVolmerFDMDiscretisation1D, uniform_discretise
 from src.pde_parameters import ButlerVolmerInverseParameters, bv_inverse_to_physical
 from src.sampling import generate_noisy_samples
@@ -24,7 +24,7 @@ true_params = ButlerVolmerInverseParameters(
 
 phy_params = bv_inverse_to_physical(true_params)
 
-experiment = LinearSweepACMacroBand()
+experiment = LinearSweepAC()
 
 T, X = uniform_discretise(experiment)
 print(f"T:{T.shape},X:{X.shape}")
@@ -56,7 +56,6 @@ pathfinder = blackjax.pathfinder(log_density)
 start = perf_counter()
 print("Starting...")
 state, info = pathfinder.approximate(approx_key, init_params, ftol=1e-8)
-# state, info = pathfinder.approximate(approx_key, true_params)
 print("Elbo Path:", info.path.elbo)
 
 print("Apporx Params", sigmoid(state.position.a), jnp.exp(state.position.k0))

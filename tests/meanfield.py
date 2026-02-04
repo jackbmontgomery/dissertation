@@ -10,7 +10,7 @@ from jax.nn import sigmoid
 from jax.scipy.special import logit
 from tqdm import tqdm
 
-from src.experiment import LinearSweepDCMacroBand
+from src.voltammetry import LinearSweepDC
 from src.fdm_discretisation import ButlerVolmerFDMDiscretisation1D, uniform_discretise
 from src.pde_parameters import ButlerVolmerInverseParameters, bv_inverse_to_physical
 from src.sampling import generate_noisy_samples
@@ -22,7 +22,7 @@ true_params = ButlerVolmerInverseParameters(a=logit(0.6), k0=jnp.log(100.0))
 
 phy_params = bv_inverse_to_physical(true_params)
 
-experiment = LinearSweepDCMacroBand()
+experiment = LinearSweepDC()
 
 T, X = uniform_discretise(experiment)
 print(f"T:{T.shape},X:{X.shape}")
