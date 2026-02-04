@@ -59,7 +59,7 @@ def metropolis_hastings_sampling(
     initial_parameters: ElectrodeKineticsParameters,
     log_density: LogDensity,
     *,
-    n_samples: int = 40_000,
+    n_samples: int = 100,
     sigma: Array = jnp.array([0.01, 0.01, 0.01]),
 ) -> Tuple[ElectrodeKineticsParameters, Dict]:
     rw = blackjax.additive_step_random_walk(
@@ -76,7 +76,7 @@ def metropolis_hastings_sampling(
 
     avg_acceptance = jnp.mean(infos.is_accepted)
 
-    sampling_info = {"Average Acceptance": avg_acceptance}
+    sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
 
     samples: ElectrodeKineticsParameters = states.position
 
@@ -115,7 +115,7 @@ def mclmc_sampling(
 
     avg_acceptance = jnp.mean(infos.is_accepted)
 
-    sampling_info = {"Average Acceptance": avg_acceptance}
+    sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
 
     samples: ElectrodeKineticsParameters = states.position
 
