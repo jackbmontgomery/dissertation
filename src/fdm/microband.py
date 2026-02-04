@@ -1,6 +1,5 @@
 from typing import Callable, Tuple
 
-import jax
 import jax.numpy as jnp
 from jax import vmap
 from jax.lax import cond, scan
@@ -11,12 +10,11 @@ from src.voltammetry import AbstractVoltammetryTechnique
 
 from .base import AbstractFDMSolver, tridiagonal_solve
 
-jax.config.update("jax_enable_x64", True)
-
 
 class MicroElectrodeFDMSolver(AbstractFDMSolver):
     applied_potentials: Scalar
     dt: float
+    h: float
     n: int
     m: int
     n_e: int
@@ -24,7 +22,7 @@ class MicroElectrodeFDMSolver(AbstractFDMSolver):
     Y: Array
     y_dl_e: Array
     y_du_e: Array
-    y_d_e: Array
+    y_d_e_inner: Array
     y_dl_nf: Array
     y_du_nf: Array
     y_d_nf: Array
@@ -60,6 +58,10 @@ class MicroElectrodeFDMSolver(AbstractFDMSolver):
 
         X, Y, n_e = generate_microband_expanding_mesh(h0, omega, x_e, x_max, y_max)
 
+        print("Discretisation", f"X: {X.shape}", f"Y: {Y.shape}", f"T: {T.shape}")
+
+        self.h = h0
+
         self.X = X
         self.Y = Y
         self.n = len(X)
@@ -72,8 +74,12 @@ class MicroElectrodeFDMSolver(AbstractFDMSolver):
 
         # Electode Y-Sweep FDM Matrix
         self.y_dl_e = jnp.concatenate([jnp.array([0.0]), y_dl_inner, jnp.array([0.0])])
-        self.y_du_e = jnp.concatenate([jnp.array([0.0]), y_du_inner, jnp.array([0.0])])
-        self.y_d_e = jnp.concatenate([jnp.array([1.0]), y_d_inner, jnp.array([1.0])])
+        self.y_d_e_inner = y_d_inner  # The entire diagonal cannot be static because of the butler-volmer equtions
+        self.y_du_e = jnp.concatenate([jnp.array([-1.0]), y_du_inner, jnp.array([0.0])])
+
+        # jnp.concatenate(
+        #     [jnp.array([1.0]), y_d_inner, jnp.array([1.0])]
+        # )
 
         # No Flux Y-Sweep FDM Matrix
         self.y_dl_nf = jnp.concatenate([jnp.array([0.0]), y_dl_inner, jnp.array([0.0])])
@@ -89,38 +95,49 @@ class MicroElectrodeFDMSolver(AbstractFDMSolver):
         self.x_du = jnp.concatenate([jnp.array([1.0]), x_du_inner, jnp.array([0.0])])
         self.x_d = jnp.concatenate([jnp.array([-1.0]), x_d_inner, jnp.array([1.0])])
 
-        self.vmap_inner_y_sweep = vmap(self.y_sweep_inner, (0, None, None), 1)
+        self.vmap_inner_y_sweep = vmap(self.y_sweep_inner, (0, None, None, None), 1)
         self.vmap_inner_x_sweep = vmap(self.x_sweep_inner, (0, None), 0)
 
     def y_sweep_inner(
         self,
         j: int,
-        Ck_prev: Array,
-        bnd: float,
+        c_prev: Array,
+        applied_potential: Scalar,
+        params: ElectrodeKineticsParameters,
     ) -> Array:
         l1 = -2.0 / ((self.X[j + 1] - self.X[j - 1]) * (self.X[j] - self.X[j - 1]))
         l3 = -2.0 / ((self.X[j + 1] - self.X[j - 1]) * (self.X[j + 1] - self.X[j]))
         l2 = -l1 - l3 - 2.0 / self.dt
 
         y_rhs_inner = (
-            Ck_prev[1:-1, j - 1] * l1
-            + Ck_prev[1:-1, j] * l2
-            + Ck_prev[1:-1, j + 1] * l3
+            c_prev[1:-1, j - 1] * l1 + c_prev[1:-1, j] * l2 + c_prev[1:-1, j + 1] * l3
         )
 
-        def electode(bnd):
-            d0 = bnd
-            y_rhs = jnp.concatenate([jnp.array([d0]), y_rhs_inner, jnp.array([1.0])])
-            Ck_j = tridiagonal_solve(self.y_dl_e, self.y_d_e, self.y_du_e, y_rhs)
+        def electode():
+            rhs0 = (
+                self.h
+                * jnp.exp(-params.alpha * (applied_potential - params.epsilon))
+                * params.kappa
+                * jnp.exp(applied_potential - params.epsilon)
+            )
+
+            d0 = 1 + self.h * jnp.exp(
+                -params.alpha * (applied_potential - params.epsilon)
+            ) * params.kappa * (1 + jnp.exp(applied_potential - params.epsilon))
+
+            y_rhs = jnp.concatenate([jnp.array([rhs0]), y_rhs_inner, jnp.array([1.0])])
+            y_d_e = jnp.concatenate(
+                [jnp.array([d0]), self.y_d_e_inner, jnp.array([1.0])]
+            )
+            Ck_j = tridiagonal_solve(self.y_dl_e, y_d_e, self.y_du_e, y_rhs)
             return Ck_j
 
-        def no_flux(_):
-            d0 = 0.0
-            y_rhs = jnp.concatenate([jnp.array([d0]), y_rhs_inner, jnp.array([1.0])])
+        def no_flux():
+            y_rhs = jnp.concatenate([jnp.array([0.0]), y_rhs_inner, jnp.array([1.0])])
             Ck_j = tridiagonal_solve(self.y_dl_nf, self.y_d_nf, self.y_du_nf, y_rhs)
             return Ck_j
 
-        Ck_j = cond(j < self.n_e, electode, no_flux, bnd)
+        Ck_j = cond(j < self.n_e, electode, no_flux)
 
         return Ck_j
 
@@ -141,11 +158,16 @@ class MicroElectrodeFDMSolver(AbstractFDMSolver):
 
         return Ck_i
 
-    def y_sweep(self, Ck_prev: Array, bnd: float) -> Array:
+    def y_sweep(
+        self,
+        c_prev: Array,
+        applied_potential: float,
+        params: ElectrodeKineticsParameters,
+    ) -> Array:
         j = jnp.arange(1, self.n - 1)
-        Ck_0 = Ck_prev[:, 0]
-        Ck_inner = self.vmap_inner_y_sweep(j, Ck_prev, bnd)
-        Ck_inf = Ck_prev[:, -1]
+        Ck_0 = c_prev[:, 0]
+        Ck_inner = self.vmap_inner_y_sweep(j, c_prev, applied_potential, params)
+        Ck_inf = c_prev[:, -1]
         Ck = jnp.concatenate([Ck_0[:, None], Ck_inner, Ck_inf[:, None]], axis=1)
         return Ck
 
@@ -170,16 +192,16 @@ class MicroElectrodeFDMSolver(AbstractFDMSolver):
         return current
 
     def solve(self, params: ElectrodeKineticsParameters) -> Scalar:
-        def fdm_stepper(Ck, bnd) -> Tuple[Array, ArrayLike]:
-            Ck = self.y_sweep(Ck, bnd)
-            J = self.compute_current(Ck)
-            Ck = self.x_sweep(Ck)
-            return Ck, J
+        def fdm_stepper(c, applied_potential) -> Tuple[Array, ArrayLike]:
+            c = self.y_sweep(c, applied_potential, params)
+            current = self.compute_current(c)
+            c = self.x_sweep(c)
+            return c, current
 
         c_init = jnp.ones((self.m, self.n))
         # NOTE: This needs to change but is here for now to test
-        bnds = 1 / (1 + jnp.exp(-self.applied_potentials))
-        _final_c, current = scan(fdm_stepper, c_init, bnds)
+        # bnds = 1 / (1 + jnp.exp(-self.applied_potentials))
+        _final_c, current = scan(fdm_stepper, c_init, self.applied_potentials)
         return current
 
 

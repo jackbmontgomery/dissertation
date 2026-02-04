@@ -9,11 +9,12 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Literal
 
+import jax
 import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
 
-from src.fdm import MacroElectrodeFDMSolver
+from src.fdm import MicroElectrodeFDMSolver
 from src.params import ElectrodeKineticsParameters
 from src.sampling import (
     SamplingFunction,
@@ -23,6 +24,8 @@ from src.sampling import (
 )
 from src.utils import generate_noisy_samples
 from src.voltammetry import AbstractVoltammetryTechnique, LinearSweepAC, LinearSweepDC
+
+jax.config.update("jax_enable_x64", True)
 
 
 @dataclass
@@ -43,7 +46,7 @@ def main(
     key = jr.key(seed)
     generate_key, sampling_key, key = jr.split(key, 3)
 
-    fdm_solver = MacroElectrodeFDMSolver(voltammetry, 1e-2, 5e-2)
+    fdm_solver = MicroElectrodeFDMSolver(voltammetry, 1e-4, 1.1, 5e-2)
 
     experimental_params = ElectrodeKineticsParameters(
         alpha=jnp.array(0.6), kappa=jnp.array(100.0), epsilon=jnp.array(2.0)
@@ -67,18 +70,17 @@ def main(
 
     start_time = perf_counter()
     samples, info = sampling_algo(sampling_key, init_params, log_density)
-    samples.alpha.block_until_ready()
-    # np.savez_compressed(
-    #     f"./data/{data_file}",
-    #     alpha=samples.alpha.flatten(),
-    #     kappa=samples.kappa.flatten(),
-    #     epsilon=samples.epsilon.flatten(),
-    # )
+    np.savez_compressed(
+        f"./data/{data_file}",
+        alpha=samples.alpha.flatten(),
+        kappa=samples.kappa.flatten(),
+        epsilon=samples.epsilon.flatten(),
+    )
     end_time = perf_counter()
     print("--- Done ---")
     print(f"Time Taken: {end_time - start_time:.2f}s")
     print(f"Number of Samples: {len(samples.alpha.flatten())}")
-    print(f"Data Type: {samples.alpha.dtype}")
+    print("Data Type:", {samples.alpha.dtype})
     for k, v in info.items():
         print(f"{k}: {v}")
 
@@ -89,9 +91,9 @@ if __name__ == "__main__":
     args = tyro.cli(Args)
 
     if args.v == "ac":
-        voltammetry = LinearSweepAC()
+        voltammetry = LinearSweepAC(sigma=10000.0)
     elif args.v == "dc":
-        voltammetry = LinearSweepDC()
+        voltammetry = LinearSweepDC(sigma=10000.0)
     else:
         raise Exception("Invalid voltammetry selection")
 
@@ -107,6 +109,6 @@ if __name__ == "__main__":
     else:
         raise Exception("Invalid sampling selection")
 
-    data_file = f"{args.v}_{args.s}.npz"
+    data_file = f"microband_{args.v}_{args.s}.npz"
 
     main(voltammetry, sampling_algo, data_file, args.seed)
