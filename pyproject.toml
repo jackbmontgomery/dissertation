@@ -19,6 +19,7 @@ dependencies = [
     "pytest>=9.0.2",
     "scienceplots>=2.2.0",
     "tqdm>=4.67.1",
+    "tyro>=1.0.5",
 ]
 
 

@@ -36,7 +36,7 @@ class MacroElectrodeFDMSolver(AbstractFDMSolver):
         # Einstein on Brownian Motion
         x_max = 6.0 * jnp.sqrt(voltammetry.t_max)
         X = jnp.linspace(0.0, x_max, int(x_max / h))
-        print("Space Discretisation", f"X: {X.shape}", f"T: {T.shape}")
+        print("Discretisation", f"X: {X.shape}", f"T: {T.shape}")
         self.X = X
 
         X_plus = X[1:-1] - X[:-2]

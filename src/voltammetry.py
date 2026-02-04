@@ -24,8 +24,6 @@ class LinearSweepAC(AbstractVoltammetryTechnique):
     sigma: float = field(static=True)
     t_min: float = field(static=True)
     t_max: float = field(static=True)
-    x_min: float = field(static=True)
-    x_max: float = field(static=True)
     e0: float = field(static=True)
     omega: float = field(static=True)
 

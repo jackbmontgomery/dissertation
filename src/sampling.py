@@ -1,9 +1,10 @@
 import multiprocessing
-from typing import Callable, NamedTuple, Tuple
+from typing import Callable, Dict, NamedTuple, Tuple
 
 import blackjax
 import jax.numpy as jnp
 import jax.random as jr
+import optimistix as optx
 from jax import jit, pmap, vmap
 from jax.lax import scan
 from jaxtyping import Array, PRNGKeyArray, PyTree
@@ -11,6 +12,13 @@ from jaxtyping import Array, PRNGKeyArray, PyTree
 from src.params import ElectrodeKineticsParameters
 
 NUM_CPUS = multiprocessing.cpu_count()
+
+LogDensity = Callable[[ElectrodeKineticsParameters], Array]
+
+SamplingFunction = Callable[
+    [PRNGKeyArray, ElectrodeKineticsParameters, LogDensity],
+    Tuple[ElectrodeKineticsParameters, Dict],
+]
 
 
 def _inference_loop(
@@ -37,34 +45,55 @@ inference_loop_multiple_chains: Callable = pmap(
 )
 
 
+def _bfgs_minimise(initial_parameters, log_density: LogDensity):
+    bfgs = optx.BFGS(rtol=1e-4, atol=1e-4)
+    solution = optx.minimise(
+        lambda params, _: -log_density(params), bfgs, initial_parameters
+    )
+    sampling_init_params = solution.value
+    return sampling_init_params
+
+
 def metropolis_hastings_sampling(
     key: PRNGKeyArray,
-    n_samples: int,
     initial_parameters: ElectrodeKineticsParameters,
-    log_density: Callable[[ElectrodeKineticsParameters, Array], Array],
+    log_density: LogDensity,
+    *,
+    n_samples: int = 40_000,
     sigma: Array = jnp.array([0.01, 0.01, 0.01]),
-):
+) -> Tuple[ElectrodeKineticsParameters, Dict]:
     rw = blackjax.additive_step_random_walk(
         log_density, blackjax.mcmc.random_walk.normal(sigma)
     )
 
-    initial_state = rw.init(initial_parameters, key)
+    sampling_init_params = _bfgs_minimise(initial_parameters, log_density)
+
+    initial_state = rw.init(sampling_init_params, key)
 
     jit_step = jit(rw.step)
 
-    states, info = _inference_loop(key, jit_step, initial_state, n_samples)
+    states, infos = _inference_loop(key, jit_step, initial_state, n_samples)
 
-    return states, info
+    avg_acceptance = jnp.mean(infos.is_accepted)
+
+    sampling_info = {"Average Acceptance": avg_acceptance}
+
+    samples: ElectrodeKineticsParameters = states.position
+
+    return samples, sampling_info
 
 
 def mclmc_sampling(
     key: PRNGKeyArray,
-    n_samples: int,
     initial_parameters: ElectrodeKineticsParameters,
-    log_density: Callable[[ElectrodeKineticsParameters, Array], Array],
-    step_size: float = 1e-2,
-):
+    log_density: LogDensity,
+    *,
+    n_samples: int = 8_000,
+    step_size: float = 5e-2,
+) -> Tuple[ElectrodeKineticsParameters, Dict]:
     mclmc = blackjax.adjusted_mclmc_dynamic(log_density, step_size)
+
+    sampling_init_params = _bfgs_minimise(initial_parameters, log_density)
 
     sampling_init_params = ElectrodeKineticsParameters(
         alpha=jnp.full((NUM_CPUS,), initial_parameters.alpha),
@@ -80,24 +109,33 @@ def mclmc_sampling(
 
     jit_step = jit(mclmc.step)
 
-    states, info = inference_loop_multiple_chains(
+    states, infos = inference_loop_multiple_chains(
         keys, jit_step, initial_states, n_samples_per_chain
     )
 
-    return states, info
+    avg_acceptance = jnp.mean(infos.is_accepted)
+
+    sampling_info = {"Average Acceptance": avg_acceptance}
+
+    samples: ElectrodeKineticsParameters = states.position
+
+    return samples, sampling_info
 
 
 def pathfinder_sampling(
     key: PRNGKeyArray,
-    n_samples: int,
     initial_parameters: ElectrodeKineticsParameters,
-    log_density: Callable[[ElectrodeKineticsParameters, Array], Array],
+    log_density: LogDensity,
+    *,
+    n_samples: int = 40_000,
     step_size: float = 1e-2,
-):
+) -> Tuple[ElectrodeKineticsParameters, Dict]:
     approx_key, sample_key = jr.split(key)
     pathfinder = blackjax.pathfinder(log_density)
 
     state, info = pathfinder.approximate(approx_key, initial_parameters, ftol=1e-8)
+
+    info = {"Elbo Path": info.path.elbo}
 
     samples, _ = pathfinder.sample(sample_key, state, n_samples)
 
