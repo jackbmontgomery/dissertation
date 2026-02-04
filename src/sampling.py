@@ -1,5 +1,4 @@
 import multiprocessing
-from time import perf_counter
 from typing import Callable, NamedTuple, Tuple
 
 import blackjax
@@ -9,14 +8,16 @@ from jax import jit, pmap, vmap
 from jax.lax import scan
 from jaxtyping import Array, PRNGKeyArray, PyTree
 
-from src.params import MacroElectrodeParams
+from src.params import ElectrodeKineticsParameters
 
 NUM_CPUS = multiprocessing.cpu_count()
 
 
 def _inference_loop(
     key: PRNGKeyArray,
-    kernel: Callable[[PRNGKeyArray, MacroElectrodeParams], Tuple[PyTree, PyTree]],
+    kernel: Callable[
+        [PRNGKeyArray, ElectrodeKineticsParameters], Tuple[PyTree, PyTree]
+    ],
     initial_state: NamedTuple,
     num_samples: int,
 ):
@@ -39,8 +40,8 @@ inference_loop_multiple_chains: Callable = pmap(
 def metropolis_hastings_sampling(
     key: PRNGKeyArray,
     n_samples: int,
-    initial_parameters: MacroElectrodeParams,
-    log_density: Callable[[MacroElectrodeParams, Array], Array],
+    initial_parameters: ElectrodeKineticsParameters,
+    log_density: Callable[[ElectrodeKineticsParameters, Array], Array],
     sigma: Array = jnp.array([0.01, 0.01, 0.01]),
 ):
     rw = blackjax.additive_step_random_walk(
@@ -51,21 +52,21 @@ def metropolis_hastings_sampling(
 
     jit_step = jit(rw.step)
 
-    states, infos = _inference_loop(key, jit_step, initial_state, n_samples)
+    states, info = _inference_loop(key, jit_step, initial_state, n_samples)
 
-    return states, infos
+    return states, info
 
 
 def mclmc_sampling(
     key: PRNGKeyArray,
     n_samples: int,
-    initial_parameters: MacroElectrodeParams,
-    log_density: Callable[[MacroElectrodeParams, Array], Array],
+    initial_parameters: ElectrodeKineticsParameters,
+    log_density: Callable[[ElectrodeKineticsParameters, Array], Array],
     step_size: float = 1e-2,
 ):
     mclmc = blackjax.adjusted_mclmc_dynamic(log_density, step_size)
 
-    sampling_init_params = MacroElectrodeParams(
+    sampling_init_params = ElectrodeKineticsParameters(
         alpha=jnp.full((NUM_CPUS,), initial_parameters.alpha),
         kappa=jnp.full((NUM_CPUS,), initial_parameters.kappa),
         epsilon=jnp.full((NUM_CPUS,), initial_parameters.epsilon),
@@ -79,8 +80,25 @@ def mclmc_sampling(
 
     jit_step = jit(mclmc.step)
 
-    states, infos = inference_loop_multiple_chains(
+    states, info = inference_loop_multiple_chains(
         keys, jit_step, initial_states, n_samples_per_chain
     )
 
-    return states, infos
+    return states, info
+
+
+def pathfinder_sampling(
+    key: PRNGKeyArray,
+    n_samples: int,
+    initial_parameters: ElectrodeKineticsParameters,
+    log_density: Callable[[ElectrodeKineticsParameters, Array], Array],
+    step_size: float = 1e-2,
+):
+    approx_key, sample_key = jr.split(key)
+    pathfinder = blackjax.pathfinder(log_density)
+
+    state, info = pathfinder.approximate(approx_key, initial_parameters, ftol=1e-8)
+
+    samples, _ = pathfinder.sample(sample_key, state, n_samples)
+
+    return samples, info

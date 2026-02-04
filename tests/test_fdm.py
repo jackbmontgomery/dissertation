@@ -1,12 +1,12 @@
 import jax.numpy as jnp
 
 from src.fdm import MacroElectrodeFDMSolver, MicroElectrodeFDMSolver
-from src.params import MacroElectrodeParams
+from src.params import ElectrodeKineticsParameters
 from src.voltammetry import LinearSweepDC
 
 
 def test_butler_volmer_model():
-    params = MacroElectrodeParams(
+    params = ElectrodeKineticsParameters(
         alpha=jnp.array(0.7), kappa=jnp.array(1.0), epsilon=jnp.array(0.0)
     )
     voltammetry = LinearSweepDC()
@@ -33,7 +33,7 @@ def test_microband():
     voltammetry = LinearSweepDC(sigma=sigma)
     fdm_solver = MicroElectrodeFDMSolver(voltammetry, h0, omega, dtheta)
 
-    params = MacroElectrodeParams(
+    params = ElectrodeKineticsParameters(
         alpha=jnp.array(0.7), kappa=jnp.array(1000.0), epsilon=jnp.array(0.0)
     )
 

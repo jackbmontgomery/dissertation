@@ -5,7 +5,7 @@ from jax.scipy.special import logit
 from jaxtyping import Scalar
 
 
-class MacroElectrodeParams(Module):
+class ElectrodeKineticsParameters(Module):
     a: Scalar
     k: Scalar
     e: Scalar

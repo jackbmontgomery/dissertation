@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
 from src.fdm import MicroElectrodeFDMSolver
-from src.params import MacroElectrodeParams
+from src.params import ElectrodeKineticsParameters
 from src.voltammetry import LinearSweepDC
 
 sigma = 20000.0
@@ -13,7 +13,7 @@ dtheta = 0.05
 voltammetry = LinearSweepDC(sigma=sigma)
 fdm_solver = MicroElectrodeFDMSolver(voltammetry, h0, omega, dtheta)
 
-params = MacroElectrodeParams(
+params = ElectrodeKineticsParameters(
     alpha=jnp.array(0.7), kappa=jnp.array(1000.0), epsilon=jnp.array(0.0)
 )
 

@@ -6,7 +6,7 @@ from jax import vmap
 from jax.lax import cond, scan
 from jaxtyping import Array, ArrayLike, Scalar
 
-from src.params import MacroElectrodeParams
+from src.params import ElectrodeKineticsParameters
 from src.voltammetry import AbstractVoltammetryTechnique
 
 from .base import AbstractFDMSolver, tridiagonal_solve
@@ -169,7 +169,7 @@ class MicroElectrodeFDMSolver(AbstractFDMSolver):
         current = jnp.sum(current_electrode)
         return current
 
-    def solve(self, params: MacroElectrodeParams) -> Scalar:
+    def solve(self, params: ElectrodeKineticsParameters) -> Scalar:
         def fdm_stepper(Ck, bnd) -> Tuple[Array, ArrayLike]:
             Ck = self.y_sweep(Ck, bnd)
             J = self.compute_current(Ck)

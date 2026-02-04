@@ -5,7 +5,7 @@ from jax import vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
-from src.params import MacroElectrodeParams
+from src.params import ElectrodeKineticsParameters
 from src.voltammetry import AbstractVoltammetryTechnique
 
 from .base import AbstractFDMSolver, tridiagonal_solve
@@ -61,7 +61,7 @@ class MacroElectrodeFDMSolver(AbstractFDMSolver):
 
     def _create_stepper(
         self,
-        params: MacroElectrodeParams,
+        params: ElectrodeKineticsParameters,
     ) -> Callable[[Array, Scalar], Array]:
         def stepper(c_prev: Array, applied_potential: Scalar):
             dl = jnp.concatenate(
@@ -114,7 +114,7 @@ class MacroElectrodeFDMSolver(AbstractFDMSolver):
 
         return stepper
 
-    def solve(self, params: MacroElectrodeParams) -> Scalar:
+    def solve(self, params: ElectrodeKineticsParameters) -> Scalar:
         c_init = jnp.ones_like(self.X)
         stepper = self._create_stepper(params)
         _, current = scan(stepper, c_init, self.applied_potentials)

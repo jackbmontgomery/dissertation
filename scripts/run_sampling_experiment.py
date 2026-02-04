@@ -13,16 +13,16 @@ import matplotlib.pyplot as plt
 import optimistix as optx
 from jax import vmap
 from jaxtyping import PRNGKeyArray
-
 from src.fdm_dep import AbstractFDMSolver, MacroElectrodeFDMSolver
-from src.params import MacroElectrodeParams
+
+from src.params import ElectrodeKineticsParameters
 from src.sampling import mclmc_sampling, rw_sampling
 from src.voltammetry import LinearSweepDC
 
 
 def generate_noisy_samples(
     num_samples: int,
-    params: MacroElectrodeParams,
+    params: ElectrodeKineticsParameters,
     sigma: float,
     fdm_solver: AbstractFDMSolver,
     *,
@@ -52,7 +52,7 @@ def main(
 
     fdm_solver = MacroElectrodeFDMSolver(voltammetry, 1e-2, 5e-2)
 
-    experimental_params = MacroElectrodeParams(
+    experimental_params = ElectrodeKineticsParameters(
         alpha=jnp.array(0.6), kappa=jnp.array(100.0), epsilon=jnp.array(2.0)
     )
 
@@ -64,12 +64,12 @@ def main(
         key=key,
     )
 
-    def log_density(params: MacroElectrodeParams, samples=samples):
+    def log_density(params: ElectrodeKineticsParameters, samples=samples):
         _solution, current = fdm_solver.solve(params)
         return -jnp.sum((samples - current) ** 2)
 
     bfgs = optx.BFGS(rtol=1e-4, atol=1e-4)
-    init_params = MacroElectrodeParams(
+    init_params = ElectrodeKineticsParameters(
         alpha=jnp.array(0.3), kappa=jnp.array(80.0), epsilon=jnp.array(0.0)
     )
     solution = optx.minimise(lambda params, _: -log_density(params), bfgs, init_params)
