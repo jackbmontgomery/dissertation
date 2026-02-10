@@ -11,7 +11,7 @@ from src.voltammetry import AbstractVoltammetryTechnique
 from .base import AbstractFDMSolver, tridiagonal_solve
 
 
-class MacroElectrodeFDMSolver(AbstractFDMSolver):
+class EReactionFDMSolver(AbstractFDMSolver):
     applied_potentials: Scalar
     X: Array
     h: Scalar

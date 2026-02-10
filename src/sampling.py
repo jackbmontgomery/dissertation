@@ -59,7 +59,7 @@ def metropolis_hastings_sampling(
     initial_parameters: ElectrodeKineticsParameters,
     log_density: LogDensity,
     *,
-    n_samples: int = 100,
+    n_samples: int = 40_000,
     sigma: Array = jnp.array([0.01, 0.01, 0.01]),
 ) -> Tuple[ElectrodeKineticsParameters, Dict]:
     rw = blackjax.additive_step_random_walk(
@@ -89,7 +89,7 @@ def mclmc_sampling(
     log_density: LogDensity,
     *,
     n_samples: int = 8_000,
-    step_size: float = 5e-2,
+    step_size: float = 1e-2,
 ) -> Tuple[ElectrodeKineticsParameters, Dict]:
     mclmc = blackjax.adjusted_mclmc_dynamic(log_density, step_size)
 
@@ -133,10 +133,12 @@ def pathfinder_sampling(
     approx_key, sample_key = jr.split(key)
     pathfinder = blackjax.pathfinder(log_density)
 
+    print("--- Approximating ---")
     state, info = pathfinder.approximate(approx_key, initial_parameters, ftol=1e-8)
 
     info = {"Elbo Path": info.path.elbo}
 
+    print("--- Sampling ---")
     samples, _ = pathfinder.sample(sample_key, state, n_samples)
 
     return samples, info

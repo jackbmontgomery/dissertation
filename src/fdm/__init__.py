@@ -1,5 +1,11 @@
 from .base import AbstractFDMSolver
-from .macroband import MacroElectrodeFDMSolver
-from .microband import MicroElectrodeFDMSolver
+from .linear_e_reaction import EReactionFDMSolver
+from .linear_ec_reaction import LinearECIrreversibleFDMSolver
+from .unequal_e_reaction import UnEReactionFDMSolver
 
-__all__ = ["AbstractFDMSolver", "MacroElectrodeFDMSolver", "MicroElectrodeFDMSolver"]
+__all__ = [
+    "AbstractFDMSolver",
+    "EReactionFDMSolver",
+    "LinearECIrreversibleFDMSolver",
+    "UnEReactionFDMSolver",
+]

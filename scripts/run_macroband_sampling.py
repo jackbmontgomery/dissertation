@@ -1,5 +1,8 @@
 import multiprocessing
 import os
+from functools import partial
+
+from jax import jit
 
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
     multiprocessing.cpu_count()
@@ -13,7 +16,7 @@ import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
 
-from src.fdm import MacroElectrodeFDMSolver
+from src.fdm import EReactionFDMSolver
 from src.params import ElectrodeKineticsParameters
 from src.sampling import (
     SamplingFunction,
@@ -43,7 +46,7 @@ def main(
     key = jr.key(seed)
     generate_key, sampling_key, key = jr.split(key, 3)
 
-    fdm_solver = MacroElectrodeFDMSolver(voltammetry, 1e-2, 5e-2)
+    fdm_solver = EReactionFDMSolver(voltammetry, 1e-2, 5e-2)
 
     experimental_params = ElectrodeKineticsParameters(
         alpha=jnp.array(0.6), kappa=jnp.array(100.0), epsilon=jnp.array(2.0)
@@ -57,6 +60,7 @@ def main(
         key=key,
     )
 
+    @jit
     def log_density(params: ElectrodeKineticsParameters, samples=samples):
         current = fdm_solver.solve(params)
         return -jnp.sum((samples - current) ** 2)
@@ -68,12 +72,12 @@ def main(
     start_time = perf_counter()
     samples, info = sampling_algo(sampling_key, init_params, log_density)
     samples.alpha.block_until_ready()
-    # np.savez_compressed(
-    #     f"./data/{data_file}",
-    #     alpha=samples.alpha.flatten(),
-    #     kappa=samples.kappa.flatten(),
-    #     epsilon=samples.epsilon.flatten(),
-    # )
+    np.savez_compressed(
+        f"./data/{data_file}",
+        alpha=samples.alpha.flatten(),
+        kappa=samples.kappa.flatten(),
+        epsilon=samples.epsilon.flatten(),
+    )
     end_time = perf_counter()
     print("--- Done ---")
     print(f"Time Taken: {end_time - start_time:.2f}s")
@@ -96,7 +100,11 @@ if __name__ == "__main__":
         raise Exception("Invalid voltammetry selection")
 
     if args.s == "mh":
-        sampling_algo: SamplingFunction = metropolis_hastings_sampling
+        sampling_algo: SamplingFunction = partial(
+            metropolis_hastings_sampling,
+            n_samples=40_000,
+            sigma=jnp.array([0.01, 0.01, 0.01]),
+        )
 
     elif args.s == "mclmc":
         sampling_algo: SamplingFunction = mclmc_sampling

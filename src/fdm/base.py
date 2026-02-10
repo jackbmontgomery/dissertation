@@ -1,9 +1,7 @@
 from abc import abstractmethod
 
 from jax.lax import linalg
-from jaxtyping import Array, Scalar
-
-from src.params import ElectrodeKineticsParameters
+from jaxtyping import Array, PyTree, Scalar
 
 
 def tridiagonal_solve(dl: Array, d: Array, du: Array, b: Array) -> Array:
@@ -17,5 +15,5 @@ class AbstractFDMSolver:
         raise NotImplementedError
 
     @abstractmethod
-    def solve(self, params: ElectrodeKineticsParameters) -> Scalar:
+    def solve(self, params: PyTree) -> Scalar:
         raise NotImplementedError
