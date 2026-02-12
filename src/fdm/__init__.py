@@ -1,11 +1,6 @@
-from .base import AbstractFDMSolver
-from .linear_e_reaction import EReactionFDMSolver
-from .linear_ec_reaction import LinearECIrreversibleFDMSolver
-from .unequal_e_reaction import UnEReactionFDMSolver
+from src.fdm.base import AbstractFDMSolver
 
-__all__ = [
-    "AbstractFDMSolver",
-    "EReactionFDMSolver",
-    "LinearECIrreversibleFDMSolver",
-    "UnEReactionFDMSolver",
-]
+from .e_mechanism import EMechanismFDMSolver
+from .ec_irre_mechanism import ECirreMechanismFDMSolver
+
+__all__ = ["AbstractFDMSolver", "EMechanismFDMSolver", "ECirreMechanismFDMSolver"]

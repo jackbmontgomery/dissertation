@@ -3,8 +3,8 @@ from time import perf_counter
 import jax.numpy as jnp
 import pytest
 
-from src.fdm import UnEReactionFDMSolver
-from src.params import ElectrodeKineticsParameters2
+from src.fdm import EMechanismFDMSolver
+from src.params import EMechanismFDMParams
 from src.voltammetry import LinearSweepDC
 
 
@@ -14,12 +14,12 @@ def e_reaction():
     dtheta = 5e-2
 
     voltammetry = LinearSweepDC()
-    fdm_solver = UnEReactionFDMSolver(voltammetry, h, dtheta)
+    fdm_solver = EMechanismFDMSolver(voltammetry, h, dtheta)
 
-    params = ElectrodeKineticsParameters2(
+    params = EMechanismFDMParams(
         alpha=jnp.array(0.7),
-        kappa=jnp.array(1.0),
-        epsilon=jnp.array(0.0),
+        K0=jnp.array(1.0),
+        E0=jnp.array(0.0),
         dB=jnp.array(1.0),
     )
 
@@ -29,8 +29,7 @@ def e_reaction():
     return dict(fdm_solver=fdm_solver, params=params, sigma=voltammetry.sigma)
 
 
-def test_accuracy(e_reaction):
-    assert jnp.ones(1).dtype == jnp.float32, "This should be run with float32"
+def test_peak_current_value(e_reaction):
     fdm_solver = e_reaction["fdm_solver"]
     params = e_reaction["params"]
     sigma = e_reaction["sigma"]
@@ -46,8 +45,25 @@ def test_accuracy(e_reaction):
     assert pytest.approx(max_current, rel=0.02) == max_current_estimate
 
 
+def test_peak_current_position(e_reaction):
+    fdm_solver = e_reaction["fdm_solver"]
+    params = e_reaction["params"]
+    sigma = e_reaction["sigma"]
+
+    current = fdm_solver.solve(params)
+
+    peak_idx = jnp.argmin(current)
+
+    peak_position_numerical = fdm_solver.applied_potentials[peak_idx]
+
+    peak_position_analytical = (
+        jnp.log(params.K0 / jnp.sqrt(params.alpha * sigma)) - 0.78
+    ) / params.alpha
+
+    assert pytest.approx(peak_position_numerical, rel=0.02) == peak_position_analytical
+
+
 def test_performance(e_reaction):
-    assert jnp.ones(1).dtype == jnp.float32, "This should be run with float32"
     fdm_solver = e_reaction["fdm_solver"]
     params = e_reaction["params"]
 

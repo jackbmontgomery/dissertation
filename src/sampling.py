@@ -4,28 +4,25 @@ from typing import Callable, Dict, NamedTuple, Tuple
 import blackjax
 import jax.numpy as jnp
 import jax.random as jr
-import optimistix as optx
+import jax.tree as jt
 from jax import jit, pmap, vmap
 from jax.lax import scan
-from jaxtyping import Array, PRNGKeyArray, PyTree
+from jaxtyping import Array, PRNGKeyArray, PyTree, Scalar
 
-from src.params import ElectrodeKineticsParameters
+from src.utils import bfgs_minimise
 
 NUM_CPUS = multiprocessing.cpu_count()
 
-LogDensity = Callable[[ElectrodeKineticsParameters], Array]
+LogDensity = Callable[[PyTree], Array]
 
-SamplingFunction = Callable[
-    [PRNGKeyArray, ElectrodeKineticsParameters, LogDensity],
-    Tuple[ElectrodeKineticsParameters, Dict],
-]
+
+def repeat_params(params: PyTree, n: int):
+    return jt.map(lambda x: jnp.full((n,), x), params)
 
 
 def _inference_loop(
     key: PRNGKeyArray,
-    kernel: Callable[
-        [PRNGKeyArray, ElectrodeKineticsParameters], Tuple[PyTree, PyTree]
-    ],
+    kernel: Callable[[PRNGKeyArray, PyTree], Tuple[PyTree, PyTree]],
     initial_state: NamedTuple,
     num_samples: int,
 ):
@@ -45,100 +42,137 @@ inference_loop_multiple_chains: Callable = pmap(
 )
 
 
-def _bfgs_minimise(initial_parameters, log_density: LogDensity):
-    bfgs = optx.BFGS(rtol=1e-4, atol=1e-4)
-    solution = optx.minimise(
-        lambda params, _: -log_density(params), bfgs, initial_parameters
-    )
-    sampling_init_params = solution.value
-    return sampling_init_params
+class AbstractSamplingAlgorithm:
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Dict]:
+        raise NotImplementedError
+
+    def __str__(self):
+        raise NotImplementedError
 
 
-def metropolis_hastings_sampling(
-    key: PRNGKeyArray,
-    initial_parameters: ElectrodeKineticsParameters,
-    log_density: LogDensity,
-    *,
-    n_samples: int = 40_000,
-    sigma: Array = jnp.array([0.01, 0.01, 0.01]),
-) -> Tuple[ElectrodeKineticsParameters, Dict]:
-    rw = blackjax.additive_step_random_walk(
-        log_density, blackjax.mcmc.random_walk.normal(sigma)
-    )
+class MetropolisHastingSamplingAlgorithm(AbstractSamplingAlgorithm):
+    def __init__(self, n_samples: int, sigma: Scalar):
+        self.n_samples = n_samples
+        self.sigma = sigma
 
-    sampling_init_params = _bfgs_minimise(initial_parameters, log_density)
+    def __str__(self):
+        return "MetropolisHasting"
 
-    initial_state = rw.init(sampling_init_params, key)
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Dict]:
+        rw = blackjax.additive_step_random_walk(
+            log_density, blackjax.mcmc.random_walk.normal(self.sigma)
+        )
 
-    jit_step = jit(rw.step)
+        sampling_init_params = bfgs_minimise(init_params, log_density)
 
-    states, infos = _inference_loop(key, jit_step, initial_state, n_samples)
+        initial_state = rw.init(sampling_init_params, key)
 
-    avg_acceptance = jnp.mean(infos.is_accepted)
+        jit_step = jit(rw.step)
 
-    sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
+        states, infos = _inference_loop(key, jit_step, initial_state, self.n_samples)
 
-    samples: ElectrodeKineticsParameters = states.position
+        avg_acceptance = jnp.mean(infos.is_accepted)
 
-    return samples, sampling_info
+        sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
 
+        samples: PyTree = states.position
 
-def mclmc_sampling(
-    key: PRNGKeyArray,
-    initial_parameters: ElectrodeKineticsParameters,
-    log_density: LogDensity,
-    *,
-    n_samples: int = 8_000,
-    step_size: float = 1e-2,
-) -> Tuple[ElectrodeKineticsParameters, Dict]:
-    mclmc = blackjax.adjusted_mclmc_dynamic(log_density, step_size)
-
-    sampling_init_params = _bfgs_minimise(initial_parameters, log_density)
-
-    sampling_init_params = ElectrodeKineticsParameters(
-        alpha=jnp.full((NUM_CPUS,), initial_parameters.alpha),
-        kappa=jnp.full((NUM_CPUS,), initial_parameters.kappa),
-        epsilon=jnp.full((NUM_CPUS,), initial_parameters.epsilon),
-    )
-
-    keys = jr.split(key, NUM_CPUS)
-
-    initial_states = vmap(mclmc.init, in_axes=(0, 0))(sampling_init_params, keys)
-
-    n_samples_per_chain = n_samples // NUM_CPUS
-
-    jit_step = jit(mclmc.step)
-
-    states, infos = inference_loop_multiple_chains(
-        keys, jit_step, initial_states, n_samples_per_chain
-    )
-
-    avg_acceptance = jnp.mean(infos.is_accepted)
-
-    sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
-
-    samples: ElectrodeKineticsParameters = states.position
-
-    return samples, sampling_info
+        return samples, sampling_info
 
 
-def pathfinder_sampling(
-    key: PRNGKeyArray,
-    initial_parameters: ElectrodeKineticsParameters,
-    log_density: LogDensity,
-    *,
-    n_samples: int = 40_000,
-    step_size: float = 1e-2,
-) -> Tuple[ElectrodeKineticsParameters, Dict]:
-    approx_key, sample_key = jr.split(key)
-    pathfinder = blackjax.pathfinder(log_density)
+class MalaSamplingAlgorithm(AbstractSamplingAlgorithm):
+    def __init__(self, n_samples: int, step_size: float):
+        self.n_samples = n_samples
+        self.step_size = step_size
 
-    print("--- Approximating ---")
-    state, info = pathfinder.approximate(approx_key, initial_parameters, ftol=1e-8)
+    def __str__(self):
+        return "Mala"
 
-    info = {"Elbo Path": info.path.elbo}
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Dict]:
+        mala = blackjax.mala(log_density, self.step_size)
 
-    print("--- Sampling ---")
-    samples, _ = pathfinder.sample(sample_key, state, n_samples)
+        init_params = bfgs_minimise(init_params, log_density)
 
-    return samples, info
+        initial_state = mala.init(init_params)
+        jit_step = jit(mala.step)
+
+        states, infos = _inference_loop(key, jit_step, initial_state, self.n_samples)
+
+        avg_acceptance = jnp.mean(infos.is_accepted)
+
+        sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
+
+        samples: PyTree = states.position
+
+        return samples, sampling_info
+
+
+class MCLMCSamplingAlgorithm(AbstractSamplingAlgorithm):
+    def __init__(self, n_samples: int, step_size: float):
+        self.n_samples = n_samples
+        self.step_size = step_size
+
+    def __str__(self):
+        return "MCLMC"
+
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Dict]:
+        mclmc = blackjax.adjusted_mclmc_dynamic(log_density, self.step_size)
+
+        sampling_init_params = bfgs_minimise(init_params, log_density)
+
+        sampling_init_params = repeat_params(sampling_init_params, NUM_CPUS)
+
+        keys = jr.split(key, NUM_CPUS)
+
+        initial_states = vmap(mclmc.init, in_axes=(0, 0))(sampling_init_params, keys)
+
+        n_samples_per_chain = self.n_samples // NUM_CPUS
+
+        jit_step = jit(mclmc.step)
+
+        states, infos = inference_loop_multiple_chains(
+            keys, jit_step, initial_states, n_samples_per_chain
+        )
+
+        avg_acceptance = jnp.mean(infos.is_accepted)
+
+        sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
+
+        samples: PyTree = states.position
+
+        return samples, sampling_info
+
+
+class PathfinderSamplingAlgorithm(AbstractSamplingAlgorithm):
+    def __init__(self, n_samples: int, step_size: float):
+        self.n_samples = n_samples
+        self.step_size = step_size
+
+    def __str__(self):
+        return "Pathfinder"
+
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Dict]:
+        approx_key, sample_key = jr.split(key)
+        pathfinder = blackjax.pathfinder(log_density)
+
+        print("--- Approximating ---")
+        state, info = pathfinder.approximate(
+            approx_key, init_params, gtol=1e-5, ftol=1e-5
+        )
+
+        info = {"Elbo Path": info.path.elbo}
+
+        print("--- Sampling ---")
+        samples, _ = pathfinder.sample(sample_key, state, self.n_samples)
+
+        return samples, info

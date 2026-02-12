@@ -3,7 +3,7 @@
 The reaction happens at the electrode surface.
 Include diagram of macroelectode
 
-\begin{equation}\label{eq:single_electron_redox}
+\begin{equation}\label{eq:eMechanism}
   \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B}
 \end{equation}
 
@@ -15,6 +15,20 @@ For a macroband electrode:
   \frac{\partial c_j}{\partial t} = D_j \frac{\partial^2 c_j}{\partial x^2}
   \label{eq:masstransport_macroband}
 \end{equation}
+Where $D_j$ is the diffusion coefficient associated with the species
+$j$. In the case of \autoref{eq:eMechanism}, we obtain a mass transport
+equation for each of species A and B:
+
+$$
+\begin{cases}
+  \frac{\partial c_A}{\partial t} = D_A \frac{\partial^2 c_A}{\partial x^2} \\
+  \frac{\partial c_B}{\partial t} = D_B \frac{\partial^2 c_B}{\partial x^2}
+\end{cases}
+$$
+\section{Boundary Conditions}
+Initially, we will assume we have only the species A in solution
+which is equal to the bulk concentration, $c_A^*$ and that we have
+none of species B.
 
 \section{Equal Diffusion Coefficients}
 

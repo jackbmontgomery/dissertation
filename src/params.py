@@ -5,98 +5,79 @@ from jax.scipy.special import logit
 from jaxtyping import Scalar
 
 
-class ElectrodeKineticsParameters(Module):
-    a: Scalar
-    k: Scalar
-    e: Scalar
+class EMechanismFDMParams(Module):
+    _alpha_inv: Scalar
+    _K0_inv: Scalar
+    _E0_inv: Scalar
+    _dB_inv: Scalar
 
-    def __init__(self, alpha: Scalar, kappa: Scalar, epsilon: Scalar):
-        self.a = logit(alpha)
-        self.k = jnp.log(kappa)
-        self.e = 5.0 * jnp.arctanh(epsilon / 10.0)
-
-    @property
-    def alpha(self):
-        return sigmoid(self.a)
-
-    @property
-    def kappa(self):
-        return jnp.exp(self.k)
-
-    @property
-    def epsilon(self):
-        return 10.0 * jnp.tanh(self.e / 5.0)
-
-
-class ElectrodeKineticsParameters2(Module):
-    a: Scalar
-    k: Scalar
-    e: Scalar
-    dB: Scalar
-
-    def __init__(self, alpha: Scalar, kappa: Scalar, epsilon: Scalar, dB: Scalar):
-        self.a = logit(alpha)
-        self.k = jnp.log(kappa)
-        self.e = 5.0 * jnp.arctanh(epsilon / 10.0)
-        self.dB = dB
+    def __init__(self, alpha: Scalar, K0: Scalar, E0: Scalar, dB: Scalar):
+        self._alpha_inv = logit(alpha)
+        self._K0_inv = jnp.log(K0)
+        self._E0_inv = 5.0 * jnp.arctanh(E0 / 10.0)
+        self._dB_inv = 5 * jnp.log(dB)
 
     @property
     def alpha(self):
-        return sigmoid(self.a)
+        return sigmoid(self._alpha_inv)
 
     @property
-    def kappa(self):
-        return jnp.exp(self.k)
+    def K0(self):
+        return jnp.exp(self._K0_inv)
 
     @property
-    def epsilon(self):
-        return 10.0 * jnp.tanh(self.e / 5.0)
+    def E0(self):
+        return 10.0 * jnp.tanh(self._E0_inv / 5.0)
+
+    @property
+    def dB(self):
+        return jnp.exp(self._dB_inv / 5.0)
 
 
-class LinearECIrreversibleParams(Module):
-    a: Scalar
-    k: Scalar
-    km: Scalar
-    kp: Scalar
-    db: Scalar
-    e: Scalar
+class ECirreMechanismFDMParams(Module):
+    _alpha_inv: Scalar
+    _K0_inv: Scalar
+    _Kplus_inv: Scalar
+    _Kminus_inv: Scalar
+    _E0_inv: Scalar
+    _dB_inv: Scalar
 
     def __init__(
         self,
         alpha: Scalar,
-        kappa: Scalar,
-        kappam: Scalar,
-        kappap: Scalar,
-        deltab: Scalar,
-        epsilon: Scalar,
+        K0: Scalar,
+        Kminus: Scalar,
+        Kplus: Scalar,
+        dB: Scalar,
+        E0: Scalar,
     ):
-        self.a = logit(alpha)
-        self.k = jnp.log(kappa)
-        self.km = jnp.log(kappam)
-        self.kp = jnp.log(kappap)
-        self.db = deltab
-        self.e = 5.0 * jnp.arctanh(epsilon / 10.0)
+        self._alpha_inv = logit(alpha)
+        self._K0_inv = jnp.log(K0)
+        self._Kplus_inv = jnp.log(Kminus)
+        self._Kminus_inv = jnp.log(Kplus)
+        self._dB_inv = 5 * jnp.log(dB)
+        self._E0_inv = 5.0 * jnp.arctanh(E0 / 10.0)
 
     @property
     def alpha(self):
-        return sigmoid(self.a)
+        return sigmoid(self._alpha_inv)
 
     @property
-    def kappa(self):
-        return jnp.exp(self.k)
+    def K0(self):
+        return jnp.exp(self._K0_inv)
 
     @property
-    def epsilon(self):
-        return 10.0 * jnp.tanh(self.e / 5.0)
+    def Kminus(self):
+        return jnp.exp(self._Kplus_inv)
 
     @property
-    def kappam(self):
-        return jnp.exp(self.k)
+    def Kplus(self):
+        return jnp.exp(self._Kminus_inv)
 
     @property
-    def kappap(self):
-        return jnp.exp(self.k)
+    def E0(self):
+        return 10.0 * jnp.tanh(self._E0_inv / 5.0)
 
     @property
-    def deltab(self):
-        return self.db
+    def dB(self):
+        return jnp.exp(self._dB_inv / 5.0)

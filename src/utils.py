@@ -1,22 +1,19 @@
+from typing import Callable
+
 import jax.numpy as jnp
 import jax.random as jr
-from jax import jit, vmap
-from jaxtyping import PRNGKeyArray
-
-from src.fdm import AbstractFDMSolver
-from src.params import ElectrodeKineticsParameters
+import optimistix as optx
+from jax import vmap
+from jaxtyping import PRNGKeyArray, Scalar
 
 
 def generate_noisy_samples(
     num_samples: int,
-    params: ElectrodeKineticsParameters,
+    current: Scalar,
     sigma: float,
-    fdm_solver: AbstractFDMSolver,
     *,
     key: PRNGKeyArray,
 ):
-    current = fdm_solver.solve(params)
-
     def add_noise(r_key: PRNGKeyArray, current=current):
         noisy_current = current + jr.normal(r_key, shape=current.shape) * sigma
         return noisy_current
@@ -28,3 +25,12 @@ def generate_noisy_samples(
 
 def interleave_concat(a, b):
     return jnp.column_stack([a, b]).reshape(-1)
+
+
+def bfgs_minimise(initial_parameters, log_density: Callable):
+    bfgs = optx.BFGS(rtol=1e-4, atol=1e-4)
+    solution = optx.minimise(
+        lambda params, _: -log_density(params), bfgs, initial_parameters
+    )
+    sampling_init_params = solution.value
+    return sampling_init_params

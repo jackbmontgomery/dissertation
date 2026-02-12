@@ -5,13 +5,13 @@ from jax import vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
-from src.params import ElectrodeKineticsParameters, ElectrodeKineticsParameters2
+from src.params import EMechanismFDMParams
 from src.voltammetry import AbstractVoltammetryTechnique
 
 from .base import AbstractFDMSolver, tridiagonal_solve
 
 
-class UnEReactionFDMSolver(AbstractFDMSolver):
+class EMechanismFDMSolver(AbstractFDMSolver):
     applied_potentials: Scalar
     X: Array
     num_x: int
@@ -21,7 +21,10 @@ class UnEReactionFDMSolver(AbstractFDMSolver):
     sigma_inner: Scalar
 
     def __init__(
-        self, voltammetry: AbstractVoltammetryTechnique, h: float, dtheta: float
+        self,
+        voltammetry: AbstractVoltammetryTechnique,
+        h: float = 1e-2,
+        dtheta: float = 5e-2,
     ):
         # Suggestion from Understanding Voltammetry 3.4.1
         dt = dtheta / voltammetry.sigma
@@ -45,81 +48,66 @@ class UnEReactionFDMSolver(AbstractFDMSolver):
         X_minus = X[2:] - X[1:-1]
 
         self.h = X[1] - X[0]
-        self.alpha_inner = -(2.0 * dt) / (X_minus * (X_minus + X_plus))
-        self.sigma_inner = -(2.0 * dt) / (X_plus * (X_minus + X_plus))
-        # self.b_inner = 1 - self.a_inner - self.c_inner
-
-    def compute_current(self, ck: Array) -> Array:
-        half = len(self.X) - 1
-        c0 = ck[half]
-        c1 = ck[half - 1]
-        c2 = ck[half - 2]
-
-        h1 = self.X[1] - self.X[0]
-        h2 = self.X[2] - self.X[0]
-
-        dcdx = (h2**2 * (c0 - c1) + h1**2 * (c2 - c0)) / (h1 * h2 * (h1 - h2))
-
-        return -dcdx
+        self.alpha_inner = (2.0 * dt) / (X_minus * (X_minus + X_plus))
+        self.sigma_inner = (2.0 * dt) / (X_plus * (X_minus + X_plus))
 
     def _create_stepper(
         self,
-        params: ElectrodeKineticsParameters2,
+        params: EMechanismFDMParams,
     ) -> Callable[[Array, Scalar], Array]:
         def stepper(c_prev: Array, applied_potential: Scalar):
             # Lower Diagonal: sigma{n-2,A} -> sigma_{0,A}, alpha_{0,B} -> alpha_{n-1,B}, 0.0
 
             alpha_B0 = (
                 -self.h
-                * params.kappa
-                * jnp.exp(-params.alpha * (applied_potential - params.epsilon))
+                * params.K0
+                * jnp.exp(-params.alpha * (applied_potential - params.E0))
                 / params.dB
             )
 
             dl = jnp.concat(
                 [
                     jnp.array([0.0]),  # compatibility
-                    self.sigma_inner,
+                    -self.sigma_inner,
                     jnp.array([-1.0]),
                     jnp.array([alpha_B0]),
-                    params.dB * self.alpha_inner,
+                    -params.dB * self.alpha_inner,
                     jnp.array([0.0]),
                 ]
             )
 
             # Main Diagonal: beta_{n,A} -> beta_{0,A}, beta_{0,B} -> beta_{n,B}
-            beta_A0 = 1 + self.h * jnp.exp(
-                -params.alpha * (applied_potential - params.epsilon)
+            beta_A0 = 1 + self.h * params.K0 * jnp.exp(
+                -params.alpha * (applied_potential - params.E0)
             )
-            beta_B0 = 1 + self.h * jnp.exp(
-                (1 - params.alpha) * (applied_potential - params.epsilon)
+            beta_B0 = 1 + self.h * params.K0 * jnp.exp(
+                (1 - params.alpha) * (applied_potential - params.E0)
             )
 
             d = jnp.concat(
                 [
                     jnp.array([1.0]),
-                    1 - (self.alpha_inner + self.sigma_inner),
-                    jnp.array([beta_A0]),
-                    jnp.array([beta_B0]),
-                    1 - params.dB * (self.alpha_inner + self.sigma_inner),
+                    1 + (self.alpha_inner + self.sigma_inner),
+                    jnp.array([beta_A0, beta_B0]),
+                    1 + params.dB * (self.alpha_inner + self.sigma_inner),
                     jnp.array([1.0]),
                 ]
             )
 
             alpha_A0 = (
                 -self.h
-                * params.kappa
-                * jnp.exp((1 - params.alpha) * (applied_potential - params.epsilon))
+                * params.K0
+                * jnp.exp((1 - params.alpha) * (applied_potential - params.E0))
             )
 
             # Upper Diagonal: alpha_{n-1, A} -> alpha_{0, A}, sigma_{0, B} -> sigma_{n-2, B}
             du = jnp.concatenate(
                 [
                     jnp.array([0.0]),
-                    self.sigma_inner,
+                    -self.alpha_inner,
                     jnp.array([alpha_A0]),
                     jnp.array([-1.0]),
-                    self.sigma_inner,
+                    -params.dB * self.sigma_inner,
                     jnp.array([0.0]),  # compatibility
                 ]
             )
@@ -131,7 +119,7 @@ class UnEReactionFDMSolver(AbstractFDMSolver):
                     jnp.array([0.0]),
                     jnp.array([0.0]),
                     c_prev[self.num_x + 1 : -1],
-                    jnp.array([1.0]),
+                    jnp.array([0.0]),
                 ]
             )
 
@@ -143,7 +131,20 @@ class UnEReactionFDMSolver(AbstractFDMSolver):
 
         return stepper
 
-    def solve(self, params: ElectrodeKineticsParameters2) -> Scalar:
+    def compute_current(self, ck: Array) -> Array:
+        half_idx = self.num_x - 1
+        c0 = ck[half_idx]
+        c1 = ck[half_idx - 1]
+        c2 = ck[half_idx - 2]
+
+        h1 = self.X[1] - self.X[0]
+        h2 = self.X[2] - self.X[0]
+
+        dcdx = (h2**2 * (c0 - c1) + h1**2 * (c2 - c0)) / (h1 * h2 * (h1 - h2))
+
+        return -dcdx
+
+    def solve(self, params: EMechanismFDMParams) -> Scalar:
         # [A_{N-1},..., A_{0}, B_{0},..., B_{N-1}]
         c_init = jnp.concat([jnp.ones_like(self.X), jnp.zeros_like(self.X)])
         stepper = self._create_stepper(params)

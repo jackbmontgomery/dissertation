@@ -14,6 +14,10 @@ class AbstractVoltammetryTechnique(Module):
     t_max: AbstractVar[float]
 
     @abstractmethod
+    def __str__(self):
+        raise NotImplementedError
+
+    @abstractmethod
     def applied_potential(self, t: Scalar) -> Scalar:
         raise NotImplementedError
 
@@ -45,6 +49,9 @@ class LinearSweepAC(AbstractVoltammetryTechnique):
         self.e0 = amplitude
         self.omega = 2 * num_oscillations * jnp.pi / self.t_max
 
+    def __str__(self):
+        return "LinearSweepAC"
+
     def applied_potential(self, t: Scalar) -> Scalar:
         return self.theta_i - self.sigma * t - self.e0 * jnp.sin(self.omega * t)
 
@@ -66,6 +73,9 @@ class LinearSweepDC(AbstractVoltammetryTechnique):
         self.t_min = 0.0
         self.t_max = abs(theta_v - theta_i) / sigma
 
+    def __str__(self):
+        return "LinearSweepDC"
+
     def applied_potential(self, t: Scalar) -> Scalar:
         return self.theta_i - self.sigma * t
 
@@ -86,6 +96,9 @@ class CyclicDC(AbstractVoltammetryTechnique):
 
         self.t_min = 0.0
         self.t_max = 2.0 * abs(theta_v - theta_i) / sigma
+
+    def __str__(self):
+        return "CyclicDC"
 
     def applied_potential(self, t: Scalar) -> Scalar:
         theta = cond(
