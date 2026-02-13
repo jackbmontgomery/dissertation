@@ -20,7 +20,11 @@ def repeat_params(params: PyTree, n: int):
     return jt.map(lambda x: jnp.full((n,), x), params)
 
 
-def _inference_loop(
+def flatten_state_positions(state_positions: PyTree):
+    return jt.map(lambda x: x.flatten(), state_positions)
+
+
+def inference_loop(
     key: PRNGKeyArray,
     kernel: Callable[[PRNGKeyArray, PyTree], Tuple[PyTree, PyTree]],
     initial_state: NamedTuple,
@@ -38,7 +42,7 @@ def _inference_loop(
 
 
 inference_loop_multiple_chains: Callable = pmap(
-    _inference_loop, in_axes=(0, None, 0, None), static_broadcasted_argnums=(1, 3)
+    inference_loop, in_axes=(0, None, 0, None), static_broadcasted_argnums=(1, 3)
 )
 
 
@@ -73,7 +77,7 @@ class MetropolisHastingSamplingAlgorithm(AbstractSamplingAlgorithm):
 
         jit_step = jit(rw.step)
 
-        states, infos = _inference_loop(key, jit_step, initial_state, self.n_samples)
+        states, infos = inference_loop(key, jit_step, initial_state, self.n_samples)
 
         avg_acceptance = jnp.mean(infos.is_accepted)
 
@@ -102,7 +106,7 @@ class MalaSamplingAlgorithm(AbstractSamplingAlgorithm):
         initial_state = mala.init(init_params)
         jit_step = jit(mala.step)
 
-        states, infos = _inference_loop(key, jit_step, initial_state, self.n_samples)
+        states, infos = inference_loop(key, jit_step, initial_state, self.n_samples)
 
         avg_acceptance = jnp.mean(infos.is_accepted)
 
@@ -146,9 +150,89 @@ class MCLMCSamplingAlgorithm(AbstractSamplingAlgorithm):
 
         sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
 
-        samples: PyTree = states.position
+        samples = flatten_state_positions(states.position)
 
         return samples, sampling_info
+
+
+class NutsSamplingAlgorithm(AbstractSamplingAlgorithm):
+    def __init__(self, n_samples: int, step_size: float, inv_mass_matrix: Scalar):
+        self.n_samples = n_samples
+        self.step_size = step_size
+        self.inv_mass_matrix = inv_mass_matrix
+
+    def __str__(self):
+        return "Nuts"
+
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Dict]:
+        nuts = blackjax.nuts(log_density, self.step_size, self.inv_mass_matrix)
+
+        jit_step = jit(nuts.step)
+
+        init_params = bfgs_minimise(init_params, log_density)
+
+        init_params = repeat_params(init_params, NUM_CPUS)
+        keys = jr.split(key, NUM_CPUS)
+        samples_per_chain = self.n_samples // NUM_CPUS
+
+        initial_states = vmap(nuts.init)(init_params)
+
+        states, infos = inference_loop_multiple_chains(
+            keys, jit_step, initial_states, samples_per_chain
+        )
+
+        algo_info = {
+            "Average Acceptance": f"{jnp.mean(infos.acceptance_rate):.4f}",
+            "Average Integration Steps": jnp.mean(infos.num_integration_steps),
+        }
+
+        samples = flatten_state_positions(states.position)
+
+        return samples, algo_info
+
+
+class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
+    def __init__(
+        self,
+        n_samples: int,
+        step_size: float,
+        inv_mass_matrix: Scalar,
+        num_integration_steps: int,
+    ):
+        self.n_samples = n_samples
+        self.step_size = step_size
+        self.inv_mass_matrix = inv_mass_matrix
+        self.num_integration_steps = num_integration_steps
+
+    def __str__(self):
+        return "HMC"
+
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Dict]:
+        hmc = blackjax.hmc(
+            log_density,
+            self.step_size,
+            self.inv_mass_matrix,
+            self.num_integration_steps,
+        )
+
+        init_params = bfgs_minimise(init_params, log_density)
+        init_state = hmc.init(init_params)
+        jit_step = jit(hmc.step)
+
+        states, infos = inference_loop(key, jit_step, init_state, self.n_samples)
+
+        algo_info = {
+            "Average Acceptance": f"{jnp.mean(infos.is_accepted):.4f}",
+            "Average Integration Steps": jnp.mean(infos.num_integration_steps),
+        }
+
+        samples = flatten_state_positions(states.position)
+
+        return samples, algo_info
 
 
 class PathfinderSamplingAlgorithm(AbstractSamplingAlgorithm):
