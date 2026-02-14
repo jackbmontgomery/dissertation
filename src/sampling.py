@@ -117,8 +117,8 @@ class NutsSamplingAlgorithm(AbstractSamplingAlgorithm):
         )
 
         algo_info = {
-            "Average Acceptance": f"{jnp.mean(infos.acceptance_rate):.4f}",
-            "Average Integration Steps": jnp.mean(infos.num_integration_steps),
+            "Average Acceptance": f"{jnp.mean(infos.acceptance_rate):.2f}",
+            "Average Integration Steps": f"{jnp.mean(infos.num_integration_steps):.2f}",
         }
 
         samples = flatten_state_positions(states.position)
@@ -142,7 +142,7 @@ class PathfinderSamplingAlgorithm(AbstractSamplingAlgorithm):
 
         print("--- Approximating ---")
         state, info = pathfinder.approximate(
-            approx_key, init_params, gtol=1e-5, ftol=1e-5
+            approx_key, init_params, gtol=1e-5, ftol=1e-5, maxiter=50
         )
 
         info = {"Elbo Path": info.path.elbo}

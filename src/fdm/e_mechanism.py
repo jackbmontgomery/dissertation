@@ -6,9 +6,10 @@ from jax.lax import scan
 from jaxtyping import Array, Scalar
 
 from src.params import EMechanismFDMParams
+from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver, tridiagonal_solve
+from .base import AbstractFDMSolver
 
 
 class EMechanismFDMSolver(AbstractFDMSolver):

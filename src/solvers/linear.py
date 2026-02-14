@@ -1,0 +1,106 @@
+import jax.numpy as jnp
+from chex import dataclass
+from jax.lax import linalg, scan
+from jaxtyping import Scalar
+
+
+def tridiagonal_solve(a: Scalar, b: Scalar, c: Scalar, d: Scalar) -> Scalar:
+    return linalg.tridiagonal_solve(a, b, c, d[:, None]).flatten()
+
+
+@dataclass
+class PentaMod:
+    c: Scalar
+    f: Scalar
+    d: Scalar
+
+
+@dataclass
+class PentaFwdCarry:
+    mod_m1: PentaMod
+    mod_m2: PentaMod
+
+
+@dataclass
+class PentaBwdCarry:
+    x_p1: Scalar
+    x_p2: Scalar
+
+
+@dataclass
+class PentaRow:
+    e: Scalar
+    a: Scalar
+    b: Scalar
+    c: Scalar
+    f: Scalar
+    d: Scalar
+
+
+def pentadiagonal_solve(
+    e: Scalar,
+    a: Scalar,
+    b: Scalar,
+    c: Scalar,
+    f: Scalar,
+    d: Scalar,
+) -> Scalar:
+    # NOTE: First element of a is zero, first two elements of e are zero last two elements of f are zero and last element of c is zero. This is aligned with row-wise storage ie. indexed by their row.
+
+    mod_1_denom = b[0]
+
+    c_mod_1 = c[0] / mod_1_denom
+    f_mod_1 = f[0] / mod_1_denom
+    d_mod_1 = d[0] / mod_1_denom
+
+    mod_1 = PentaMod(c=c_mod_1, f=f_mod_1, d=d_mod_1)
+
+    mod_2_denom = b[1] - a[1] * c_mod_1
+
+    c_mod_2 = (c[1] - a[1] * f_mod_1) / mod_2_denom
+    f_mod_2 = f[1] / mod_2_denom
+    d_mod_2 = (d[1] - a[1] * d_mod_1) / mod_2_denom
+
+    mod_2 = PentaMod(c=c_mod_2, f=f_mod_2, d=d_mod_2)
+
+    def fwd(carry: PentaFwdCarry, row: PentaRow):
+        mod_denom = (
+            row.b
+            - row.e * carry.mod_m2.f
+            - (row.a - row.e * carry.mod_m2.c) * carry.mod_m1.c
+        )
+
+        c_mod = (row.c - (row.a - row.e * carry.mod_m2.c) * carry.mod_m1.f) / mod_denom
+        f_mod = row.f / mod_denom
+        d_mod = (
+            row.d
+            - row.e * carry.mod_m2.d
+            - (row.a - row.e * carry.mod_m2.c) * carry.mod_m1.d
+        ) / mod_denom
+
+        mod = PentaMod(c=c_mod, f=f_mod, d=d_mod)
+        new_carry = PentaFwdCarry(mod_m1=mod, mod_m2=carry.mod_m1)
+
+        return new_carry, carry.mod_m2
+
+    init_carry = PentaFwdCarry(mod_m1=mod_2, mod_m2=mod_1)
+    xs = PentaRow(e=e[2:], a=a[2:], b=b[2:], c=c[2:], f=f[2:], d=d[2:])
+
+    carry, mods = scan(fwd, init_carry, xs)
+
+    def bwd(carry: PentaBwdCarry, mod: PentaMod):
+        x = mod.d - mod.c * carry.x_p1 - mod.f * carry.x_p2
+        new_carry = PentaBwdCarry(x_p1=x, x_p2=carry.x_p1)
+        return new_carry, x
+
+    x_n = carry.mod_m1.d
+    x_n_m1 = carry.mod_m2.d - carry.mod_m2.c * x_n
+
+    init_carry = PentaBwdCarry(x_p1=x_n_m1, x_p2=x_n)
+    xs = mods
+
+    _, x = scan(bwd, init_carry, mods, reverse=True)
+
+    solution = jnp.concat([x, jnp.array([x_n_m1, x_n])])
+
+    return solution

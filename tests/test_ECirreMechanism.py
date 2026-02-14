@@ -61,7 +61,7 @@ def test_performance(ec_irre_reaction):
 
     best_time = min(times)
 
-    budget_s = 0.2
+    budget_s = 0.1
     assert best_time < budget_s, (
         f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
     )

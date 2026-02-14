@@ -109,7 +109,7 @@ def ecirre_reaction_sampling_experiment(
         key=key,
     )
 
-    def log_density(params: EMechanismFDMParams, samples=samples):
+    def log_density(params: ECirreMechanismFDMParams, samples=samples):
         current = fdm_solver.solve(params)
         return -jnp.sum((samples - current) ** 2)
 
@@ -132,15 +132,15 @@ def ecirre_reaction_sampling_experiment(
     data_file = f"ECirre_{sampling_algorithm}_{voltammetry}.npz"
     np.savez_compressed(
         f"./data/{data_file}",
-        alpha=samples.alpha.flatten(),
-        K0=samples.K0.flatten(),
-        Kplus=samples.Kplus.flatten(),
-        Kminus=samples.Kminus.flatten(),
-        E0=samples.E0.flatten(),
-        dB=samples.dB.flatten(),
+        alpha=samples.alpha,
+        K0=samples.K0,
+        Kplus=samples.Kplus,
+        Kminus=samples.Kminus,
+        E0=samples.E0,
+        dB=samples.dB,
     )
     print(f"Time Taken: {end_time - start_time:.2f}s")
-    print(f"Number of Samples: {len(samples.alpha.flatten())}")
+    print(f"Number of Samples: {len(samples.alpha)}")
     print(f"Data Type: {samples.alpha.dtype}")
     for k, v in info.items():
         print(f"{k}: {v}")

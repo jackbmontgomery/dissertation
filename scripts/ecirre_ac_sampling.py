@@ -14,11 +14,11 @@ from src.sampling import (
     NutsSamplingAlgorithm,
     PathfinderSamplingAlgorithm,
 )
-from src.voltammetry import LinearSweepDC
+from src.voltammetry import LinearSweepAC
 
 
 def main():
-    voltammetry = LinearSweepDC()
+    voltammetry = LinearSweepAC()
 
     # --- Metropolis-Hasting ---
     sampling_algorithm = MetropolisHastingSamplingAlgorithm(

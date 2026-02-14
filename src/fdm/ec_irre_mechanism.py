@@ -6,6 +6,7 @@ from jax.lax import scan
 from jaxtyping import Array, Scalar
 
 from src.params import ECirreMechanismFDMParams
+from src.solvers import pentadiagonal_solve
 from src.utils import interleave_concat
 from src.voltammetry import AbstractVoltammetryTechnique
 
@@ -82,6 +83,7 @@ class ECirreMechanismFDMSolver(AbstractFDMSolver):
 
             d2l = jnp.concat(
                 [
+                    jnp.array([0.0, 0.0]),  # compatibility
                     d2l_inner,
                     jnp.array([0.0, 0.0]),
                 ]
@@ -94,6 +96,7 @@ class ECirreMechanismFDMSolver(AbstractFDMSolver):
 
             dl = jnp.concat(
                 [
+                    jnp.array([0.0]),  # compatibility
                     jnp.array([-self.h * k_red / params.dB]),
                     dl_inner,
                     jnp.array([0.0, 0.0]),
@@ -133,6 +136,7 @@ class ECirreMechanismFDMSolver(AbstractFDMSolver):
                     jnp.array([-self.h * k_ox, 0.0]),
                     du_inner,
                     jnp.array([0.0]),
+                    jnp.array([0.0]),  # compatibility
                 ]
             )
 
@@ -141,17 +145,11 @@ class ECirreMechanismFDMSolver(AbstractFDMSolver):
                 params.dB * self.sigma_inner,
             )
 
-            d2u = jnp.concatenate([jnp.array([-1.0, -1.0]), d2u_inner])
+            d2u = jnp.concatenate(
+                [jnp.array([-1.0, -1.0]), d2u_inner, jnp.array([0.0, 0.0])]
+            )  # compatibility
 
-            A = (
-                jnp.diag(d)
-                + jnp.diag(dl, k=-1)
-                + jnp.diag(d2l, k=-2)
-                + jnp.diag(du, k=1)
-                + jnp.diag(d2u, k=2)
-            )
-
-            b = jnp.concatenate(
+            rhs = jnp.concatenate(
                 [
                     jnp.array([0.0]),
                     jnp.array([0.0]),
@@ -161,7 +159,7 @@ class ECirreMechanismFDMSolver(AbstractFDMSolver):
                 ]
             )
 
-            ck = jnp.linalg.solve(A, b)
+            ck = pentadiagonal_solve(d2l, dl, d, du, d2u, rhs)
 
             current = self.compute_current(ck)
 
