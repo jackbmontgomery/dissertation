@@ -10,7 +10,7 @@ import jax.numpy as jnp
 
 from src.experiment import e_reaction_sampling_experiment
 from src.sampling import (
-    MetropolisHastingSamplingAlgorithm,
+    MetropolisHastingsSamplingAlgorithm,
     NutsSamplingAlgorithm,
     PathfinderSamplingAlgorithm,
 )
@@ -21,7 +21,7 @@ def main():
     voltammetry = LinearSweepDC()
 
     # --- Metropolis-Hasting ---
-    sampling_algorithm = MetropolisHastingSamplingAlgorithm(
+    sampling_algorithm = MetropolisHastingsSamplingAlgorithm(
         n_samples=40_000,
         sigma=jnp.array([0.01, 0.01, 0.01, 0.01]),
     )

@@ -25,7 +25,7 @@ class ECirreMechanismFDMSolver(AbstractFDMSolver):
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h: float = 1e-2,
+        h: float = 5e-3,
         dtheta: float = 5e-2,
     ):
         # Suggestion from Understanding Voltammetry 3.4.1

@@ -56,13 +56,13 @@ class AbstractSamplingAlgorithm:
         raise NotImplementedError
 
 
-class MetropolisHastingSamplingAlgorithm(AbstractSamplingAlgorithm):
+class MetropolisHastingsSamplingAlgorithm(AbstractSamplingAlgorithm):
     def __init__(self, n_samples: int, sigma: Scalar):
         self.n_samples = n_samples
         self.sigma = sigma
 
     def __str__(self):
-        return "MetropolisHasting"
+        return "MetropolisHastings"
 
     def __call__(
         self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity

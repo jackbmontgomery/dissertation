@@ -10,7 +10,7 @@ from src.voltammetry import LinearSweepDC
 
 @pytest.fixture(scope="module")
 def e_reaction():
-    h = 1e-2
+    h = 1e-3
     dtheta = 5e-2
 
     voltammetry = LinearSweepDC()

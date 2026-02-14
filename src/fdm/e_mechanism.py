@@ -9,7 +9,7 @@ from src.params import EMechanismFDMParams
 from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver
+from .base import AbstractFDMSolver, exponential_discretisation, uniform_discretisation
 
 
 class EMechanismFDMSolver(AbstractFDMSolver):
@@ -24,7 +24,7 @@ class EMechanismFDMSolver(AbstractFDMSolver):
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h: float = 1e-2,
+        h: float = 5e-3,
         dtheta: float = 5e-2,
     ):
         # Suggestion from Understanding Voltammetry 3.4.1
@@ -40,7 +40,8 @@ class EMechanismFDMSolver(AbstractFDMSolver):
 
         # Einstein on Brownian Motion
         x_max = 6.0 * jnp.sqrt(voltammetry.t_max)
-        X = jnp.linspace(0.0, x_max, int(x_max / h))
+        X = uniform_discretisation(x_max, h)
+
         print("Discretisation", f"X: {X.shape}", f"T: {T.shape}")
         self.X = X
         self.num_x = len(X)
