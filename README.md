@@ -17,7 +17,10 @@
 ## Notes
 - Cyclic voltammetry seems to make this almost a trivial task to get the posterior distribution. The predictions are very accurate and with very low variance. But not necessarily interesting, can make the assumption that we are only using linear sweep techniques.
 - The step size sampling requires the plausible parameters to be on a similar scale
-- I need to investigate some convergence measures in the sampling experiment
+- Investigate some convergence measures in the sampling experiment (ESS and Gelman and Rubin)
+- Investigate the performance with varying degrees of noise 
+- Variance between the difference parameters
+- Can use the pathfinder as an init for the MCMC ref: [https://blackjax-devs.github.io/sampling-book/algorithms/pathfinder.html#pathfinder-as-an-initialization-tool-for-mcmc-kernels]
 
 ## For using pmap on single CPU
 ```python

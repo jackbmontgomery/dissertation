@@ -33,7 +33,7 @@ def main():
 
     # --- Nuts ---
     sampling_algorithm = NutsSamplingAlgorithm(
-        10_000, 4e-2, inv_mass_matrix=jnp.repeat(0.05, 6)
+        10_000, 4e-2, inverse_mass_matrix=jnp.repeat(0.05, 6)
     )
     ecirre_reaction_sampling_experiment(sampling_algorithm, voltammetry)
 

@@ -12,26 +12,26 @@ class EMechanismFDMParams(Module):
     _dB_inv: Scalar
 
     def __init__(self, alpha: Scalar, K0: Scalar, E0: Scalar, dB: Scalar):
-        self._alpha_inv = logit(alpha)
-        self._K0_inv = jnp.log(K0)
-        self._E0_inv = 5.0 * jnp.arctanh(E0 / 10.0)
-        self._dB_inv = 5 * jnp.log(dB)
+        self._alpha_inv = 3.0 * logit(alpha)
+        self._K0_inv = jnp.log10(K0)
+        self._E0_inv = 5.0 * jnp.arctanh(E0 / 20.0)
+        self._dB_inv = jnp.log2(dB)
 
     @property
     def alpha(self):
-        return sigmoid(self._alpha_inv)
+        return sigmoid(self._alpha_inv / 3.0)
 
     @property
     def K0(self):
-        return jnp.exp(self._K0_inv)
+        return jnp.power(self._K0_inv, 10)
 
     @property
     def E0(self):
-        return 10.0 * jnp.tanh(self._E0_inv / 5.0)
+        return 20.0 * jnp.tanh(self._E0_inv / 5.0)
 
     @property
     def dB(self):
-        return jnp.exp(self._dB_inv / 5.0)
+        return jnp.power(2, self._dB_inv)
 
 
 class ECirreMechanismFDMParams(Module):
