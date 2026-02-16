@@ -18,7 +18,7 @@ from src.params import EMechanismFDMParams
 from src.sampling import (
     MetropolisHastingsSamplingAlgorithm,
 )
-from src.utils import generate_noisy_samples
+from src.utils import bfgs_minimise, generate_noisy_samples
 from src.voltammetry import LinearSweepDC
 
 
@@ -61,11 +61,13 @@ def main():
     key, k1, k2, k3, k4 = jr.split(key, 5)
 
     init_params = EMechanismFDMParams(
-        alpha=jax.random.uniform(k1, shape=(8,), minval=0.0, maxval=1.0),
-        K0=jax.random.uniform(k2, shape=(8,), minval=1.0, maxval=50.0),
+        alpha=jax.random.uniform(k1, shape=(8,), minval=0.3, maxval=0.7),
+        K0=jax.random.uniform(k2, shape=(8,), minval=1.0, maxval=20.0),
         E0=jax.random.uniform(k3, shape=(8,), minval=0.0, maxval=5.0),
         dB=jax.random.uniform(k4, shape=(8,), minval=0.0, maxval=1.0),
     )
+
+    init_params = jax.vmap(bfgs_minimise, in_axes=(0, None))(init_params, log_density)
 
     print("--- Running Sampling ---")
     start_time = perf_counter()
