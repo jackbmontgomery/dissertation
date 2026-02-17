@@ -9,7 +9,7 @@ from src.params import EMechanismFDMParams
 from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver, exponential_discretisation, uniform_discretisation
+from .base import AbstractFDMSolver, uniform_discretisation
 
 
 class EMechanismFDMSolver(AbstractFDMSolver):

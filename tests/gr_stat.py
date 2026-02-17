@@ -1,6 +1,8 @@
 import multiprocessing
 import os
 
+import blackjax
+
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
     multiprocessing.cpu_count()
 )
@@ -11,6 +13,9 @@ from time import perf_counter
 import jax
 import jax.numpy as jnp
 import jax.random as jr
+import jax.tree as jt
+import matplotlib.pyplot as plt
+import numpy as np
 from blackjax.diagnostics import potential_scale_reduction
 
 from src.fdm import EMechanismFDMSolver
@@ -19,17 +24,17 @@ from src.sampling import (
     MetropolisHastingsSamplingAlgorithm,
 )
 from src.utils import bfgs_minimise, generate_noisy_samples
-from src.voltammetry import LinearSweepDC
+from src.voltammetry import LinearSweepAC, LinearSweepDC
 
 
 def main():
-    voltammetry = LinearSweepDC()
+    voltammetry = LinearSweepAC()
 
     # --- Metropolis-Hasting ---
 
     sampling_algorithm = MetropolisHastingsSamplingAlgorithm(
-        n_samples=40_000,
-        sigma=jnp.array([0.01, 0.01, 0.01, 0.01]),
+        n_samples=160_000,
+        sigma=jnp.array([0.1, 0.1, 0.1, 0.1]),
     )
 
     # --- Sampling ---
@@ -40,7 +45,7 @@ def main():
 
     true_params = EMechanismFDMParams(
         alpha=jnp.array(0.6),
-        K0=jnp.array(10.0),
+        K0=jnp.array(100.0),
         E0=jnp.array(2.0),
         dB=jnp.array(0.5),
     )
@@ -50,7 +55,7 @@ def main():
     samples = generate_noisy_samples(
         10,
         base_current,
-        0.1,
+        0.01,
         key=key,
     )
 
@@ -60,14 +65,17 @@ def main():
 
     key, k1, k2, k3, k4 = jr.split(key, 5)
 
+    def linspace_init(low, high, n_chains=8):
+        return jnp.linspace(low, high, n_chains)
+
     init_params = EMechanismFDMParams(
-        alpha=jax.random.uniform(k1, shape=(8,), minval=0.3, maxval=0.7),
-        K0=jax.random.uniform(k2, shape=(8,), minval=1.0, maxval=20.0),
-        E0=jax.random.uniform(k3, shape=(8,), minval=0.0, maxval=5.0),
-        dB=jax.random.uniform(k4, shape=(8,), minval=0.0, maxval=1.0),
+        alpha=linspace_init(0.5, 0.7),
+        K0=linspace_init(5.0, 15.0),
+        E0=linspace_init(1.0, 3.0),
+        dB=linspace_init(0.5, 1.5),
     )
 
-    init_params = jax.vmap(bfgs_minimise, in_axes=(0, None))(init_params, log_density)
+    # init_params = jax.vmap(bfgs_minimise, in_axes=(0, None))(init_params, log_density)
 
     print("--- Running Sampling ---")
     start_time = perf_counter()
@@ -76,12 +84,25 @@ def main():
     end_time = perf_counter()
     print("--- Done ---")
     print(f"Time Taken: {end_time - start_time:.2f}s")
-    for k, v in info.items():
-        print(f"{k}: {v}")
+    print("Average Acceptance:", info["Average Acceptance"])
 
-    samples = jnp.squeeze(jnp.array([jax.tree.leaves(samples)]), 0)
-    x = jax.vmap(potential_scale_reduction)(samples)
-    print(x)
+    # for k, v in info.items():
+    #     print(f"{k}: {v}")
+
+    # vmap(potential_scale_reduction)()
+
+    # def flatten_state_positions(state_positions):
+    #     return jt.map(lambda x: x.flatten(), state_positions)
+    #
+
+    np.savez_compressed(
+        "./data/temp_min_dc.npz",
+        alpha=samples.alpha.squeeze(),
+        K0=samples.K0.squeeze(),
+        E0=samples.E0.squeeze(),
+        dB=samples.dB.squeeze(),
+        logdensity=info["logdensity"],
+    )
 
 
 if __name__ == "__main__":

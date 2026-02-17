@@ -21,6 +21,7 @@
 - Investigate the performance with varying degrees of noise 
 - Variance between the difference parameters
 - Can use the pathfinder as an init for the MCMC ref: [https://blackjax-devs.github.io/sampling-book/algorithms/pathfinder.html#pathfinder-as-an-initialization-tool-for-mcmc-kernels]
+- The diffusions coefficient really changes the nature of the experiment, in a large way, so the sampling and everything is almost useless unless we know that diffusion because that will just dominate the shape of the voltammagram.
 
 ## For using pmap on single CPU
 ```python

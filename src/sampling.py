@@ -87,7 +87,10 @@ class MetropolisHastingsSamplingAlgorithm(AbstractSamplingAlgorithm):
 
         avg_acceptance = jnp.mean(infos.is_accepted)
 
-        sampling_info = {"Average Acceptance": f"{avg_acceptance:.2f}"}
+        sampling_info = {
+            "Average Acceptance": f"{avg_acceptance:.2f}",
+            "logdensity": states.logdensity,
+        }
 
         samples: PyTree = states.position
 
