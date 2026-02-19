@@ -1,8 +1,6 @@
 import multiprocessing
 import os
 
-import blackjax
-
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
     multiprocessing.cpu_count()
 )
@@ -10,13 +8,9 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 
 from time import perf_counter
 
-import jax
 import jax.numpy as jnp
 import jax.random as jr
-import jax.tree as jt
-import matplotlib.pyplot as plt
 import numpy as np
-from blackjax.diagnostics import potential_scale_reduction
 
 from src.fdm import EMechanismFDMSolver
 from src.params import EMechanismFDMParams
@@ -24,7 +18,7 @@ from src.sampling import (
     MetropolisHastingsSamplingAlgorithm,
 )
 from src.utils import bfgs_minimise, generate_noisy_samples
-from src.voltammetry import LinearSweepAC, LinearSweepDC
+from src.voltammetry import CyclicDC, LinearSweepAC, LinearSweepDC
 
 
 def main():
@@ -34,7 +28,7 @@ def main():
 
     sampling_algorithm = MetropolisHastingsSamplingAlgorithm(
         n_samples=160_000,
-        sigma=jnp.array([0.1, 0.1, 0.1, 0.1]),
+        sigma=jnp.array([0.01, 0.01, 0.01, 0.01]),
     )
 
     # --- Sampling ---
@@ -45,9 +39,9 @@ def main():
 
     true_params = EMechanismFDMParams(
         alpha=jnp.array(0.6),
-        K0=jnp.array(100.0),
+        K0=jnp.array(10.0),
         E0=jnp.array(2.0),
-        dB=jnp.array(0.5),
+        dB=jnp.array(1.2),
     )
 
     base_current = fdm_solver.solve(true_params)
@@ -55,7 +49,7 @@ def main():
     samples = generate_noisy_samples(
         10,
         base_current,
-        0.01,
+        0.1,
         key=key,
     )
 
@@ -71,8 +65,8 @@ def main():
     init_params = EMechanismFDMParams(
         alpha=linspace_init(0.5, 0.7),
         K0=linspace_init(5.0, 15.0),
-        E0=linspace_init(1.0, 3.0),
-        dB=linspace_init(0.5, 1.5),
+        E0=linspace_init(1.5, 2.5),
+        dB=linspace_init(0.8, 1.4),
     )
 
     # init_params = jax.vmap(bfgs_minimise, in_axes=(0, None))(init_params, log_density)
@@ -96,7 +90,7 @@ def main():
     #
 
     np.savez_compressed(
-        "./data/temp_min_dc.npz",
+        "./data/temp_ac.npz",
         alpha=samples.alpha.squeeze(),
         K0=samples.K0.squeeze(),
         E0=samples.E0.squeeze(),

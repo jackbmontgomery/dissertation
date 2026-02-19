@@ -18,22 +18,19 @@ from blackjax.optimizers.lbfgs import lbfgs_inverse_hessian_formula_1
 from src.fdm import EMechanismFDMSolver
 from src.params import EMechanismFDMParams
 from src.sampling import (
+    NUM_CPUS,
     NutsSamplingAlgorithm,
 )
-from src.utils import generate_noisy_samples
+from src.utils import generate_noisy_samples, init_nuts
 from src.voltammetry import LinearSweepDC
 
 
 def main():
     voltammetry = LinearSweepDC()
 
-    # --- NUTS ---
-    # sampling_algorithm = NutsSamplingAlgorithm(
-    #     100, 1e-2, inv_mass_matrix=jnp.array([0.028, 0.028, 0.028, 0.028])
-    # )
-
     # --- Sampling ---
-    key = jr.key(42)
+
+    key = jr.key(0)
     generate_key, sampling_key, key = jr.split(key, 3)
 
     fdm_solver = EMechanismFDMSolver(voltammetry)
@@ -42,7 +39,7 @@ def main():
         alpha=jnp.array(0.6),
         K0=jnp.array(10.0),
         E0=jnp.array(2.0),
-        dB=jnp.array(0.5),
+        dB=jnp.array(1.2),
     )
 
     base_current = fdm_solver.solve(true_params)
@@ -54,37 +51,48 @@ def main():
         key=key,
     )
 
-    def log_density(params: EMechanismFDMParams, samples=samples):
+    def logdensity_fn(params: EMechanismFDMParams, samples=samples):
         current = fdm_solver.solve(params)
         return -jnp.sum((samples - current) ** 2)
 
     init_params = EMechanismFDMParams(
-        alpha=jnp.array(0.3),
-        K0=jnp.array(20.0),
-        E0=jnp.array(0.0),
+        alpha=jnp.linspace(0.5, 0.7, NUM_CPUS),
+        K0=jnp.linspace(5.0, 15.0, NUM_CPUS),
+        E0=jnp.linspace(1.5, 2.5, NUM_CPUS),
+        dB=jnp.linspace(0.8, 1.4, NUM_CPUS),
+    )
+
+    adapt_init_params = EMechanismFDMParams(
+        alpha=jnp.array(0.5),
+        K0=jnp.array(5.0),
+        E0=jnp.array(1.5),
         dB=jnp.array(0.8),
     )
 
-    approx_key, sample_key = jr.split(key)
+    print("--- Running Sampling ---")
+    start_time = perf_counter()
 
-    print("--- Approximating ---")
-
-    adapt = blackjax.pathfinder_adaptation(
-        blackjax.nuts, log_density, initial_step_size=1e-2
-    )
-
-    (state, parameters), info = adapt.run(sample_key, init_params, num_steps=20)
+    parameters = init_nuts(key, adapt_init_params, logdensity_fn)
 
     print(parameters)
 
-    sampling_algorithm = NutsSamplingAlgorithm(100, **parameters)
+    sampling_algorithm = NutsSamplingAlgorithm(80, **parameters)
 
-    samples, info = sampling_algorithm(sampling_key, state.position, log_density)
+    samples, logdensity, info = sampling_algorithm(
+        sampling_key, init_params, logdensity_fn
+    )
 
-    samples = jnp.squeeze(jnp.array([jax.tree.leaves(samples)]), 0)
-    x = jax.vmap(potential_scale_reduction)(samples)
-    print(x)
+    samples.alpha.block_until_ready()
+
+    end_time = perf_counter()
+    print("--- Done ---")
+
+    print(f"Time Taken: {end_time - start_time:.2f}s")
+    print(f"Number of Samples: {len(samples.alpha.flatten())}")
+    print(f"Data Type: {samples.alpha.dtype}")
+
+    for k, v in info.items():
+        print(f"{k}: {v}")
 
 
-if __name__ == "__main__":
-    main()
+main()

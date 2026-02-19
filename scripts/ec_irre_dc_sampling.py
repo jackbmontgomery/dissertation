@@ -8,7 +8,7 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 
 import jax.numpy as jnp
 
-from src.experiment import e_reaction_sampling_experiment
+from src.experiment import ecirre_reaction_sampling_experiment
 from src.sampling import (
     HMCSamplingAlgorithm,
     MetropolisHastingsSamplingAlgorithm,
@@ -20,17 +20,17 @@ def main():
     voltammetry = LinearSweepDC()
 
     # --- Metropolis-Hasting ---
-    sampling_algorithm = MetropolisHastingsSamplingAlgorithm(
-        n_samples=160_000,
-        sigma=jnp.array([0.01, 0.01, 0.01, 0.01]),
-    )
-    e_reaction_sampling_experiment(sampling_algorithm, voltammetry)
+    # sampling_algorithm = MetropolisHastingsSamplingAlgorithm(
+    #     n_samples=200_000,
+    #     sigma=jnp.full((6,), 0.01),
+    # )
+    # ecirre_reaction_sampling_experiment(sampling_algorithm, voltammetry)
 
     # --- HMC ---
     sampling_algorithm = HMCSamplingAlgorithm(
-        n_samples=8_000, learning_rate=1e-2, initial_step_size=1e-2, warmup_steps=100
+        n_samples=800, learning_rate=1e-1, initial_step_size=1e-2, warmup_steps=100
     )
-    e_reaction_sampling_experiment(sampling_algorithm, voltammetry)
+    ecirre_reaction_sampling_experiment(sampling_algorithm, voltammetry)
 
 
 if __name__ == "__main__":

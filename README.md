@@ -19,9 +19,9 @@
 - The step size sampling requires the plausible parameters to be on a similar scale
 - Investigate some convergence measures in the sampling experiment (ESS and Gelman and Rubin)
 - Investigate the performance with varying degrees of noise 
-- Variance between the difference parameters
+- Correlation between the difference parameters
 - Can use the pathfinder as an init for the MCMC ref: [https://blackjax-devs.github.io/sampling-book/algorithms/pathfinder.html#pathfinder-as-an-initialization-tool-for-mcmc-kernels]
-- The diffusions coefficient really changes the nature of the experiment, in a large way, so the sampling and everything is almost useless unless we know that diffusion because that will just dominate the shape of the voltammagram.
+- Plots just for random-walk metropolis hastings. Mainly, I want to be able to measure the convergence of the chain. I know I can generate samples that will be able to give me accurate means for the distribution. But how stable are these distriutions. But I think just focus on Metropolis-Hastings becasue this will be the best thing to use to talk to Kathryn about what my issues are about.
 
 ## For using pmap on single CPU
 ```python
