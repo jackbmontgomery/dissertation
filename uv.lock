@@ -143,19 +143,16 @@ wheels = [
 
 [[package]]
 name = "blackjax"
-version = "1.3"
-source = { registry = "https://pypi.org/simple" }
+version = "1.4.dev4+gfe5dc59f6"
+source = { git = "https://github.com/blackjax-devs/blackjax.git#fe5dc59f632fcd5cd5ae726ffbf8b3c254b44786" }
 dependencies = [
     { name = "fastprogress" },
+    { name = "ipython" },
     { name = "jax" },
     { name = "jaxlib" },
     { name = "jaxopt" },
     { name = "optax" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b2/0b/77adb3a3580890a99a93f1953c1b5307669dedcf4f08427c56085d4e74bd/blackjax-1.3.tar.gz", hash = "sha256:6814d09aa963b821c961844a61ac5b9925f21d19ad2ebc741320ceae0d4dbcb5", size = 4655707, upload-time = "2025-11-18T12:30:33.987Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/28/c9/5a1143b5e525f0813c0c8e64812796f520775b675c85a59463e46ed4905a/blackjax-1.3-py3-none-any.whl", hash = "sha256:afcc41ae41fae98cc1b20eefdeae438f53a0a5ab91f083eea1226d62dfe58abc", size = 4661575, upload-time = "2025-11-18T12:30:32.118Z" },
 ]
 
 [[package]]
@@ -400,7 +397,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "blackjax", specifier = ">=1.3" },
+    { name = "blackjax", git = "https://github.com/blackjax-devs/blackjax.git" },
     { name = "chex", specifier = ">=0.1.91" },
     { name = "equinox", specifier = ">=0.13.2" },
     { name = "ipykernel", specifier = ">=7.1.0" },
@@ -452,11 +449,11 @@ wheels = [
 
 [[package]]
 name = "fastcore"
-version = "1.12.7"
+version = "1.12.14"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5c/52/63343f0b565de55eca40c10b13828baee89bc511b55d2075b585ffa55e7f/fastcore-1.12.7.tar.gz", hash = "sha256:a5d03f14ef87bec15b70022fb2fc063f2b515b3f12ade4da9a41c9bd40ebf6bd", size = 91097, upload-time = "2026-01-28T15:00:08.473Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/92/b0/c30721504c916c871b1c3d2f209ad0fa9320a26c7e9041436e9231f3aa1d/fastcore-1.12.14.tar.gz", hash = "sha256:09190c46360c57dbba5e6b991df4b5fd6d2720ea4b4959309151d7fe6b2bf520", size = 92366, upload-time = "2026-02-14T06:54:56.272Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c4/04/dace16a7baebc74184e748ce4dcf8366b0d1e2518ae502eb85858ac1e48c/fastcore-1.12.7-py3-none-any.whl", hash = "sha256:8aca358dc55032ddc62ecd48ec94c5b1fe783d65e540a30e7378d1b43c9968cd", size = 95328, upload-time = "2026-01-28T15:00:06.631Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/c0/b7fa771dda08001eb004112114094370d6b94b857ed902a32472ed74a8fe/fastcore-1.12.14-py3-none-any.whl", hash = "sha256:19e5adcee3af6f357af4f66954e17f335f208bb9cb422dcdef03d2e9d586eca3", size = 96584, upload-time = "2026-02-14T06:54:54.315Z" },
 ]
 
 [[package]]
@@ -483,15 +480,15 @@ wheels = [
 
 [[package]]
 name = "fastprogress"
-version = "1.1.3"
+version = "1.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fastcore" },
     { name = "python-fasthtml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c7/3d/6fe103e59855ad9bb5651c890d51fa2cdf4634cadc4ca72613e4321a4106/fastprogress-1.1.3.tar.gz", hash = "sha256:2f7071beb93ce261ddb51d66b243a8517b421563a0107498e5885ed2d9136fca", size = 16753, upload-time = "2025-12-29T22:07:54.425Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7f/47/3787cb858bf110bd3a439972ea5f0191ea2b78f858b3a48ead764a7efd41/fastprogress-1.1.5.tar.gz", hash = "sha256:ae6fd1ff50ed37cbdf11e5796eead440e7a95eb061d2969e1092e10b10f2a144", size = 15804, upload-time = "2026-02-13T23:13:00.298Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/45/4aa502bbda9b63c792463c3466a2c5ef3c0830935f81906043f66b2b6c74/fastprogress-1.1.3-py3-none-any.whl", hash = "sha256:b7ad6a1a589407174ceaa3368c212bf13136548f9b4a85d3f6c6e489289ffdad", size = 14622, upload-time = "2025-12-29T22:07:53.411Z" },
+    { url = "https://files.pythonhosted.org/packages/da/8e/4ffb242418e2924ef3216b712f1382d4369a5f494c30052c3ac8dfb757d9/fastprogress-1.1.5-py3-none-any.whl", hash = "sha256:7763ba4d87d60f51550ac07425f0308e58fd0e450e4404a9a8d7e1e1191f8e44", size = 14943, upload-time = "2026-02-13T23:12:58.752Z" },
 ]
 
 [[package]]
@@ -1403,7 +1400,7 @@ wheels = [
 
 [[package]]
 name = "python-fasthtml"
-version = "0.12.39"
+version = "0.12.42"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -1417,9 +1414,9 @@ dependencies = [
     { name = "starlette" },
     { name = "uvicorn", extra = ["standard"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b3/60/6b3b7ec0ab8054928b74cfa7ee49d90c3cde576268e054ba9f17989b7c1e/python_fasthtml-0.12.39.tar.gz", hash = "sha256:ae324b34a1586698b052cad8e9ff9255bd6cb486b01b946e95b9b63f220a5532", size = 70842, upload-time = "2026-01-09T23:54:14.017Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/67/33/8377d3ad8dbce310f3e6fb1af674fc8ffa1ad13c4d433fcdcaeada837ba8/python_fasthtml-0.12.42.tar.gz", hash = "sha256:1b54213cf8a965549b95e2c3b6627467751c3d82f4faed0d96e8545867604de6", size = 71778, upload-time = "2026-02-16T02:10:39.406Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f7/1b/354a0ab669703f87e9ab0464670be8791a9de59c2693ffb0d9a584927b5e/python_fasthtml-0.12.39-py3-none-any.whl", hash = "sha256:d9d2a173714852f906d1821f5eeb40640db2ef2b2f997edee63471feb58127be", size = 73179, upload-time = "2026-01-09T23:54:12.07Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/83/9a9188aad05b3fe84d3f163e3978458e95d6db0991de614501a5473fe6c7/python_fasthtml-0.12.42-py3-none-any.whl", hash = "sha256:d74742012a9696a9fcd0c5dfcaa20b39ef751d29b2e1fb119c83568f7a0c9234", size = 75524, upload-time = "2026-02-16T02:10:37.876Z" },
 ]
 
 [[package]]
@@ -1819,15 +1816,15 @@ wheels = [
 
 [[package]]
 name = "uvicorn"
-version = "0.40.0"
+version = "0.41.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "h11" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c3/d1/8f3c683c9561a4e6689dd3b1d345c815f10f86acd044ee1fb9a4dcd0b8c5/uvicorn-0.40.0.tar.gz", hash = "sha256:839676675e87e73694518b5574fd0f24c9d97b46bea16df7b8c05ea1a51071ea", size = 81761, upload-time = "2025-12-21T14:16:22.45Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/32/ce/eeb58ae4ac36fe09e3842eb02e0eb676bf2c53ae062b98f1b2531673efdd/uvicorn-0.41.0.tar.gz", hash = "sha256:09d11cf7008da33113824ee5a1c6422d89fbc2ff476540d69a34c87fab8b571a", size = 82633, upload-time = "2026-02-16T23:07:24.1Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3d/d8/2083a1daa7439a66f3a48589a57d576aa117726762618f6bb09fe3798796/uvicorn-0.40.0-py3-none-any.whl", hash = "sha256:c6c8f55bc8bf13eb6fa9ff87ad62308bbbc33d0b67f84293151efe87e0d5f2ee", size = 68502, upload-time = "2025-12-21T14:16:21.041Z" },
+    { url = "https://files.pythonhosted.org/packages/83/e4/d04a086285c20886c0daad0e026f250869201013d18f81d9ff5eada73a88/uvicorn-0.41.0-py3-none-any.whl", hash = "sha256:29e35b1d2c36a04b9e180d4007ede3bcb32a85fbdfd6c6aeb3f26839de088187", size = 68783, upload-time = "2026-02-16T23:07:22.357Z" },
 ]
 
 [package.optional-dependencies]

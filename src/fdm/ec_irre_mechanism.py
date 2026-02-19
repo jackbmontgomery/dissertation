@@ -91,7 +91,7 @@ class ECirreMechanismFDMSolver(AbstractFDMSolver):
 
             # Lower Diagonal: Coefficients for A
             dlB_inner = jnp.zeros((self.num_x - 2,))
-            dlA_inner = jnp.full((self.num_x - 2,), -1 * params.Kminus * self.dt)
+            dlA_inner = jnp.full((self.num_x - 2,), -params.Kminus * self.dt)
             dl_inner = interleave_concat(dlB_inner, dlA_inner)
 
             dl = jnp.concat(
@@ -127,7 +127,7 @@ class ECirreMechanismFDMSolver(AbstractFDMSolver):
 
             # Upper Diagonal: alpha_{n-1, A} -> alpha_{0, A}, sigma_{0, B} -> sigma_{n-2, B}
 
-            duB_inner = jnp.full((self.num_x - 2,), -1 * params.Kplus * self.dt)
+            duB_inner = jnp.full((self.num_x - 2,), -params.Kplus * self.dt)
             duA_inner = jnp.zeros((self.num_x - 2,))
             du_inner = interleave_concat(duB_inner, duA_inner)
 

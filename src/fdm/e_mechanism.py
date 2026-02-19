@@ -2,14 +2,14 @@ from typing import Callable
 
 import jax.numpy as jnp
 from jax import vmap
-from jax.lax import scan
+from jax.lax import pcast, scan
 from jaxtyping import Array, Scalar
 
 from src.params import EMechanismFDMParams
 from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver, exponential_discretisation, uniform_discretisation
+from .base import AbstractFDMSolver, uniform_discretisation
 
 
 class EMechanismFDMSolver(AbstractFDMSolver):
@@ -50,8 +50,18 @@ class EMechanismFDMSolver(AbstractFDMSolver):
         X_minus = X[2:] - X[1:-1]
 
         self.h = X[1] - X[0]
-        self.alpha_inner = (2.0 * dt) / (X_minus * (X_minus + X_plus))
-        self.sigma_inner = (2.0 * dt) / (X_plus * (X_minus + X_plus))
+        self.alpha_inner = -(2.0 * dt) / (X_minus * (X_minus + X_plus))
+        self.sigma_inner = -(2.0 * dt) / (X_plus * (X_minus + X_plus))
+
+    def compute_current(self, ck: Array) -> Array:
+        half_idx = self.num_x - 1
+        c0 = ck[half_idx]
+        c1 = ck[half_idx - 1]
+        c2 = ck[half_idx - 2]
+
+        dcdx = (-c2 + 4 * c1 - 3 * c0) / (2 * self.h)
+
+        return -dcdx
 
     def _create_stepper(
         self,
@@ -70,10 +80,10 @@ class EMechanismFDMSolver(AbstractFDMSolver):
             dl = jnp.concat(
                 [
                     jnp.array([0.0]),  # compatibility
-                    -self.sigma_inner,
+                    self.sigma_inner,
                     jnp.array([-1.0]),
                     jnp.array([alpha_B0]),
-                    -params.dB * self.alpha_inner,
+                    params.dB * self.alpha_inner,
                     jnp.array([0.0]),
                 ]
             )
@@ -82,16 +92,20 @@ class EMechanismFDMSolver(AbstractFDMSolver):
             beta_A0 = 1 + self.h * params.K0 * jnp.exp(
                 -params.alpha * (applied_potential - params.E0)
             )
-            beta_B0 = 1 + self.h * params.K0 * jnp.exp(
-                (1 - params.alpha) * (applied_potential - params.E0)
+            beta_B0 = (
+                1
+                + self.h
+                * params.K0
+                * jnp.exp((1 - params.alpha) * (applied_potential - params.E0))
+                / params.dB
             )
 
             d = jnp.concat(
                 [
                     jnp.array([1.0]),
-                    1 + (self.alpha_inner + self.sigma_inner),
+                    1 - (self.alpha_inner + self.sigma_inner),
                     jnp.array([beta_A0, beta_B0]),
-                    1 + params.dB * (self.alpha_inner + self.sigma_inner),
+                    1 - params.dB * (self.alpha_inner + self.sigma_inner),
                     jnp.array([1.0]),
                 ]
             )
@@ -106,10 +120,10 @@ class EMechanismFDMSolver(AbstractFDMSolver):
             du = jnp.concatenate(
                 [
                     jnp.array([0.0]),
-                    -self.alpha_inner,
+                    self.alpha_inner,
                     jnp.array([alpha_A0]),
                     jnp.array([-1.0]),
-                    -params.dB * self.sigma_inner,
+                    params.dB * self.sigma_inner,
                     jnp.array([0.0]),  # compatibility
                 ]
             )
@@ -118,8 +132,7 @@ class EMechanismFDMSolver(AbstractFDMSolver):
                 [
                     jnp.array([1.0]),
                     c_prev[1 : self.num_x - 1],
-                    jnp.array([0.0]),
-                    jnp.array([0.0]),
+                    jnp.array([0.0, 0.0]),
                     c_prev[self.num_x + 1 : -1],
                     jnp.array([0.0]),
                 ]
@@ -132,19 +145,6 @@ class EMechanismFDMSolver(AbstractFDMSolver):
             return ck, current
 
         return stepper
-
-    def compute_current(self, ck: Array) -> Array:
-        half_idx = self.num_x - 1
-        c0 = ck[half_idx]
-        c1 = ck[half_idx - 1]
-        c2 = ck[half_idx - 2]
-
-        h1 = self.X[1] - self.X[0]
-        h2 = self.X[2] - self.X[0]
-
-        dcdx = (h2**2 * (c0 - c1) + h1**2 * (c2 - c0)) / (h1 * h2 * (h1 - h2))
-
-        return -dcdx
 
     def solve(self, params: EMechanismFDMParams) -> Scalar:
         # [A_{N-1},..., A_{0}, B_{0},..., B_{N-1}]

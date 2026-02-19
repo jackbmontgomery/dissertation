@@ -14,11 +14,11 @@ from src.sampling import (
     NutsSamplingAlgorithm,
     PathfinderSamplingAlgorithm,
 )
-from src.voltammetry import LinearSweepDC
+from src.voltammetry import LinearSweepAC
 
 
 def main():
-    voltammetry = LinearSweepDC()
+    voltammetry = LinearSweepAC()
 
     # --- Metropolis-Hasting ---
     sampling_algorithm = MetropolisHastingsSamplingAlgorithm(
@@ -33,7 +33,7 @@ def main():
 
     # --- Nuts ---
     sampling_algorithm = NutsSamplingAlgorithm(
-        10_000, 4e-2, inv_mass_matrix=jnp.repeat(0.05, 6)
+        10_000, 4e-2, inverse_mass_matrix=jnp.repeat(0.05, 6)
     )
     ecirre_reaction_sampling_experiment(sampling_algorithm, voltammetry)
 

@@ -6,7 +6,7 @@ import numpy as np
 
 from src.fdm import ECirreMechanismFDMSolver, EMechanismFDMSolver
 from src.params import ECirreMechanismFDMParams, EMechanismFDMParams
-from src.sampling import AbstractSamplingAlgorithm
+from src.sampling import NUM_CPUS, AbstractSamplingAlgorithm
 from src.utils import generate_noisy_samples
 from src.voltammetry import AbstractVoltammetryTechnique
 
@@ -23,8 +23,6 @@ def e_reaction_sampling_experiment(
     voltammetry: AbstractVoltammetryTechnique,
     seed: int = 0,
 ):
-    print(f"--- E Setting up {sampling_algorithm} {voltammetry} ---")
-
     key = jr.key(seed)
     generate_key, sampling_key, key = jr.split(key, 3)
 
@@ -34,7 +32,7 @@ def e_reaction_sampling_experiment(
         alpha=jnp.array(0.6),
         K0=jnp.array(10.0),
         E0=jnp.array(2.0),
-        dB=jnp.array(0.5),
+        dB=jnp.array(1.2),
     )
 
     base_current = fdm_solver.solve(true_params)
@@ -46,35 +44,39 @@ def e_reaction_sampling_experiment(
         key=key,
     )
 
-    def log_density(params: EMechanismFDMParams, samples=samples):
+    def logdensity_fn(params: EMechanismFDMParams, samples=samples):
         current = fdm_solver.solve(params)
         return -jnp.sum((samples - current) ** 2)
 
     init_params = EMechanismFDMParams(
-        alpha=jnp.array(0.3),
-        K0=jnp.array(20.0),
-        E0=jnp.array(0.0),
-        dB=jnp.array(0.8),
+        alpha=jnp.linspace(0.5, 0.7, NUM_CPUS),
+        K0=jnp.linspace(5.0, 15.0, NUM_CPUS),
+        E0=jnp.linspace(1.5, 2.5, NUM_CPUS),
+        dB=jnp.linspace(0.8, 1.4, NUM_CPUS),
     )
 
-    print("--- Running Sampling ---")
     start_time = perf_counter()
-    samples, info = sampling_algorithm(sampling_key, init_params, log_density)
+    samples, logdensity, info = sampling_algorithm(
+        sampling_key, init_params, logdensity_fn
+    )
+
     samples.alpha.block_until_ready()
     end_time = perf_counter()
-    print("--- Done ---")
 
     data_file = f"E_{sampling_algorithm}_{voltammetry}.npz"
     np.savez_compressed(
         f"./data/{data_file}",
-        alpha=samples.alpha.flatten(),
-        K0=samples.K0.flatten(),
-        E0=samples.E0.flatten(),
-        dB=samples.dB.flatten(),
+        alpha=samples.alpha,
+        K0=samples.K0,
+        E0=samples.E0,
+        dB=samples.dB,
+        logdensity=logdensity,
     )
+
     print(f"Time Taken: {end_time - start_time:.2f}s")
     print(f"Number of Samples: {len(samples.alpha.flatten())}")
     print(f"Data Type: {samples.alpha.dtype}")
+
     for k, v in info.items():
         print(f"{k}: {v}")
 
@@ -84,8 +86,6 @@ def ecirre_reaction_sampling_experiment(
     voltammetry: AbstractVoltammetryTechnique,
     seed: int = 0,
 ):
-    print(f"--- Setting up ECirre {sampling_algorithm} {voltammetry} ---")
-
     key = jr.key(seed)
     generate_key, sampling_key, key = jr.split(key, 3)
 
@@ -93,11 +93,11 @@ def ecirre_reaction_sampling_experiment(
 
     true_params = ECirreMechanismFDMParams(
         alpha=jnp.array(0.6),
-        K0=jnp.array(10.0),
+        K0=jnp.array(20.0),
         Kplus=jnp.array(10.0),
-        Kminus=jnp.array(10.0),
+        Kminus=jnp.array(1.0),
         E0=jnp.array(2.0),
-        dB=jnp.array(0.5),
+        dB=jnp.array(1.2),
     )
 
     base_current = fdm_solver.solve(true_params)
@@ -114,20 +114,19 @@ def ecirre_reaction_sampling_experiment(
         return -jnp.sum((samples - current) ** 2)
 
     init_params = ECirreMechanismFDMParams(
-        alpha=jnp.array(0.3),
-        K0=jnp.array(20.0),
-        Kplus=jnp.array(20.0),
-        Kminus=jnp.array(5.0),
-        E0=jnp.array(0.0),
-        dB=jnp.array(0.8),
+        alpha=jnp.linspace(0.5, 0.7, NUM_CPUS),
+        K0=jnp.linspace(5.0, 15.0, NUM_CPUS),
+        Kplus=jnp.linspace(5, 15, NUM_CPUS),
+        Kminus=jnp.linspace(1.0, 10.0, NUM_CPUS),
+        E0=jnp.linspace(1.5, 2.5, NUM_CPUS),
+        dB=jnp.linspace(0.8, 1.4, NUM_CPUS),
     )
 
-    print("--- Running Sampling ---")
     start_time = perf_counter()
-    samples, info = sampling_algorithm(sampling_key, init_params, log_density)
-    samples.alpha.block_until_ready()
+    samples, logdensity, info = sampling_algorithm(
+        sampling_key, init_params, log_density
+    )
     end_time = perf_counter()
-    print("--- Done ---")
 
     data_file = f"ECirre_{sampling_algorithm}_{voltammetry}.npz"
     np.savez_compressed(
@@ -138,9 +137,10 @@ def ecirre_reaction_sampling_experiment(
         Kminus=samples.Kminus,
         E0=samples.E0,
         dB=samples.dB,
+        logdensity=logdensity,
     )
     print(f"Time Taken: {end_time - start_time:.2f}s")
-    print(f"Number of Samples: {len(samples.alpha)}")
+    print(f"Number of Samples: {len(samples.alpha.flatten())}")
     print(f"Data Type: {samples.alpha.dtype}")
     for k, v in info.items():
         print(f"{k}: {v}")

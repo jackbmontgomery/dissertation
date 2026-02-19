@@ -13,16 +13,16 @@ from src.sampling import (
     HMCSamplingAlgorithm,
     MetropolisHastingsSamplingAlgorithm,
 )
-from src.voltammetry import LinearSweepAC
+from src.voltammetry import CyclicDC
 
 
 def main():
-    voltammetry = LinearSweepAC()
+    voltammetry = CyclicDC()
 
     # --- Metropolis-Hasting ---
     sampling_algorithm = MetropolisHastingsSamplingAlgorithm(
-        n_samples=80_000,
-        sigma=jnp.array([0.01, 0.01, 0.01, 0.01]),
+        n_samples=160_000,
+        sigma=jnp.array([0.005, 0.005, 0.005, 0.005]),
     )
     e_reaction_sampling_experiment(sampling_algorithm, voltammetry)
 
