@@ -24,8 +24,12 @@ def generate_noisy_samples(
     return samples
 
 
-def interleave_concat(a, b):
+def interleave_concat_2d(a, b):
     return jnp.column_stack([a, b]).reshape(-1)
+
+
+def interleave_concat_4d(a, b, c, d):
+    return jnp.column_stack([a, b, c, d]).reshape(-1)
 
 
 def bfgs_minimise(initial_parameters, log_density: Callable):

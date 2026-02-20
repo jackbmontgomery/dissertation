@@ -1,22 +1,18 @@
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-from src.fdm import SecondOrderECirreFDMSolverExplicitApprox
-from src.params import SecondOrderECirreMechanismFDMParams
+from src.fdm import EMechanismFDMSolver
+from src.params import EMechanismFDMParams
 from src.voltammetry import CyclicDC
 
 voltammetry = CyclicDC()
 
-solver = SecondOrderECirreFDMSolverExplicitApprox(voltammetry)
+solver = EMechanismFDMSolver(voltammetry)
 
-params = SecondOrderECirreMechanismFDMParams(
+params = EMechanismFDMParams(
     alpha=jnp.array(0.6),
     K0=jnp.array(1000.0),
-    Kplus=jnp.array(10000.0),
-    Kminus=jnp.array(0.1),
     dB=jnp.array(1.0),
-    dY=jnp.array(1.0),
-    dZ=jnp.array(1.0),
     E0=jnp.array(0.0),
 )
 

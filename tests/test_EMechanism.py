@@ -1,3 +1,4 @@
+import statistics
 from time import perf_counter
 
 import jax.numpy as jnp
@@ -76,6 +77,11 @@ def test_performance(e_reaction):
         times.append(perf_counter() - t0)
 
     best_time = min(times)
+
+    print(
+        f"Best time: {best_time:.4f}",
+        f"Average time: {statistics.mean(times):.4f}",
+    )
 
     budget_s = 0.1
     assert best_time < budget_s, (

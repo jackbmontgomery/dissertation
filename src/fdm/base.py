@@ -1,13 +1,12 @@
 from abc import abstractmethod
 
 import jax.numpy as jnp
-from jaxtyping import Array, PyTree, Scalar
+from jaxtyping import PyTree, Scalar
 
 
-# NOTE: This could be that c is some dim and the returns should be solution (t x dim) and current Float[Array, "t"]
 class AbstractFDMSolver:
     @abstractmethod
-    def compute_current(self, ck: Array) -> Scalar:
+    def compute_current(self, c: PyTree) -> Scalar:
         raise NotImplementedError
 
     @abstractmethod
