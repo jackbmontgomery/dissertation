@@ -83,7 +83,7 @@ def test_performance(e_reaction):
         f"Average time: {statistics.mean(times):.4f}",
     )
 
-    budget_s = 0.1
+    budget_s = 0.06
     assert best_time < budget_s, (
         f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
     )

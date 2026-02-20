@@ -24,7 +24,7 @@ def ec_irre_reaction():
 
 def test_steady_state_catalytic_current(ec_irre_reaction):
     h = 5e-3
-    dtheta = 5e-3
+    dtheta = 5e-2
 
     voltammetry = LinearSweepDC()
 
@@ -43,8 +43,8 @@ def test_steady_state_catalytic_current(ec_irre_reaction):
 
 
 def test_performance(ec_irre_reaction):
-    h = 1e-2
-    dtheta = 5e-3
+    h = 5e-3
+    dtheta = 5e-2
 
     voltammetry = LinearSweepDC()
 
@@ -67,7 +67,7 @@ def test_performance(ec_irre_reaction):
         f"Average time: {statistics.mean(times):.4f}",
     )
 
-    budget_s = 0.1
+    budget_s = 0.075
     assert best_time < budget_s, (
         f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
     )

@@ -1,11 +1,10 @@
 from typing import Callable
 
-import blackjax
 import jax.numpy as jnp
 import jax.random as jr
 import optimistix as optx
 from jax import vmap
-from jaxtyping import PRNGKeyArray, PyTree, Scalar
+from jaxtyping import PRNGKeyArray, Scalar
 
 
 def generate_noisy_samples(
