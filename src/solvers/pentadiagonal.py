@@ -1,11 +1,8 @@
 import jax.numpy as jnp
 from chex import dataclass
-from jax.lax import linalg, scan
+from jax import tree, tree_util
+from jax.lax import scan
 from jaxtyping import Scalar
-
-
-def tridiagonal_solve(a: Scalar, b: Scalar, c: Scalar, d: Scalar) -> Scalar:
-    return linalg.tridiagonal_solve(a, b, c, d[:, None]).flatten()
 
 
 @dataclass
@@ -91,7 +88,7 @@ def pentadiagonal_solve(
     def bwd(carry: PentaBwdCarry, mod: PentaMod):
         x = mod.d - mod.c * carry.x_p1 - mod.f * carry.x_p2
         new_carry = PentaBwdCarry(x_p1=x, x_p2=carry.x_p1)
-        return new_carry, x
+        return new_carry, carry.x_p2
 
     x_n = carry.mod_m1.d
     x_n_m1 = carry.mod_m2.d - carry.mod_m2.c * x_n
@@ -99,8 +96,10 @@ def pentadiagonal_solve(
     init_carry = PentaBwdCarry(x_p1=x_n_m1, x_p2=x_n)
     xs = mods
 
-    _, x = scan(bwd, init_carry, mods, reverse=True)
+    final_carry, x = scan(bwd, init_carry, mods, reverse=True)
 
-    solution = jnp.concat([x, jnp.array([x_n_m1, x_n])])
+    first_xs = jnp.array(tree_util.tree_leaves(final_carry))
+
+    solution = jnp.concat([first_xs, x])
 
     return solution

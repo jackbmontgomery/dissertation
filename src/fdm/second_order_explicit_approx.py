@@ -5,8 +5,6 @@ from jax.lax import scan
 from jaxtyping import Array, Scalar
 
 from src.params import SecondOrderECirreMechanismFDMParams
-from src.solvers import pentadiagonal_solve, tridiagonal_solve
-from src.utils import interleave_concat_2d, interleave_concat_4d
 from src.voltammetry import AbstractVoltammetryTechnique
 
 from .base import AbstractFDMSolver
