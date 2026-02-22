@@ -26,7 +26,7 @@ class Concentration:
     Z: Scalar
 
 
-class SecondOrderECirreFDMSolverBackwardImplicit(AbstractFDMSolver):
+class SecondOrderECirreFDMSolverExplicit(AbstractFDMSolver):
     applied_potentials: Scalar
     dt: float
     X: Scalar
@@ -83,6 +83,31 @@ class SecondOrderECirreFDMSolverBackwardImplicit(AbstractFDMSolver):
 
         dl4 = jnp.concat([jnp.zeros((4,)), dl4_inner, jnp.zeros((4,))])
 
+        dl3_inner = interleave_concat_4d(
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+        )
+
+        dl3 = jnp.concat([jnp.zeros((4,)), dl3_inner, jnp.zeros((4,))])
+
+        dl2_inner = interleave_concat_4d(
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+        )
+
+        dl2 = jnp.concat([jnp.zeros((4,)), dl2_inner, jnp.zeros((4,))])
+
+        dl1_inner = interleave_concat_4d(
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+            jnp.zeros_like(self.alpha_inner),
+        )
+
         du4_inner = interleave_concat_4d(
             self.sigma_inner,
             params.dB * self.sigma_inner,
@@ -90,36 +115,60 @@ class SecondOrderECirreFDMSolverBackwardImplicit(AbstractFDMSolver):
             params.dZ * self.sigma_inner,
         )
 
+        d_A_inner = 1.0 - (self.alpha_inner + self.sigma_inner)
+
+        d_B_inner = 1.0 - params.dB * (self.alpha_inner + self.sigma_inner)
+
+        d_Y_inner = 1.0 - params.dY * (self.alpha_inner + self.sigma_inner)
+
+        d_Z_inner = 1.0 - params.dZ * (self.alpha_inner + self.sigma_inner)
+
+        d_inner = interleave_concat_4d(d_A_inner, d_B_inner, d_Y_inner, d_Z_inner)
+
+        d_last = jnp.full((4,), -1.0)
+
+        du1_inner = interleave_concat_4d(
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+        )
+
+        du2_inner = interleave_concat_4d(
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+        )
+
+        du2 = jnp.concat(
+            [
+                jnp.zeros((4,)),
+                du2_inner,
+                jnp.zeros((4,)),
+            ]
+        )
+
+        du3_inner = interleave_concat_4d(
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+            jnp.zeros_like(self.sigma_inner),
+        )
+
+        du3 = jnp.concat(
+            [
+                jnp.zeros((4,)),
+                du3_inner,
+                jnp.zeros((4,)),
+            ]
+        )
+
         du4 = jnp.concat(
             [jnp.array([-1.0, -1.0, 1.0, 1.0]), du4_inner, jnp.zeros((4,))]
         )
 
         def stepper(c_prev: Concentration, x: ScanInputSequence):
-            dl3_inner = interleave_concat_4d(
-                jnp.zeros_like(self.alpha_inner),
-                jnp.zeros_like(self.alpha_inner),
-                jnp.zeros_like(self.alpha_inner),
-                params.Kminus * self.dt * c_prev.Z[1:-1],
-            )
-
-            dl3 = jnp.concat([jnp.zeros((4,)), dl3_inner, jnp.zeros((4,))])
-
-            dl2_inner = interleave_concat_4d(
-                jnp.zeros_like(self.alpha_inner),
-                jnp.zeros_like(self.alpha_inner),
-                -params.Kminus * self.dt * c_prev.Z[1:-1],
-                -params.Kplus * self.dt * c_prev.Y[1:-1],
-            )
-
-            dl2 = jnp.concat([jnp.zeros((4,)), dl2_inner, jnp.zeros((4,))])
-
-            dl1_inner = interleave_concat_4d(
-                jnp.zeros_like(self.alpha_inner),
-                -params.Kminus * self.dt * c_prev.Z[1:-1],
-                params.Kplus * self.dt * c_prev.Y[1:-1],
-                -params.Kplus * self.dt * c_prev.B[1:-1],
-            )
-
             dl1 = jnp.concat(
                 [
                     jnp.array([0.0, -self.h1 * x.k_red / params.dB, 0.0, 0.0]),
@@ -132,42 +181,7 @@ class SecondOrderECirreFDMSolverBackwardImplicit(AbstractFDMSolver):
                 [1 + self.h1 * x.k_red, 1 + self.h1 * x.k_ox / params.dB, -1.0, -1.0]
             )
 
-            d_A_inner = (
-                1.0
-                - (self.alpha_inner + self.sigma_inner)
-                + params.Kminus * self.dt * c_prev.Z[1:-1]
-            )
-
-            d_B_inner = (
-                1.0
-                - params.dB * (self.alpha_inner + self.sigma_inner)
-                + params.Kplus * self.dt * c_prev.Y[1:-1]
-            )
-
-            d_Y_inner = (
-                1.0
-                - params.dY * (self.alpha_inner + self.sigma_inner)
-                + params.Kplus * self.dt * c_prev.B[1:-1]
-            )
-
-            d_Z_inner = (
-                1.0
-                - params.dZ * (self.alpha_inner + self.sigma_inner)
-                + params.Kminus * self.dt * c_prev.A[1:-1]
-            )
-
-            d_inner = interleave_concat_4d(d_A_inner, d_B_inner, d_Y_inner, d_Z_inner)
-
-            d_last = jnp.full((4,), 1.0)
-
             d = jnp.concat([d_first, d_inner, d_last])
-
-            du1_inner = interleave_concat_4d(
-                -params.Kplus * self.dt * c_prev.Y[1:-1],
-                params.Kplus * self.dt * c_prev.B[1:-1],
-                -params.Kminus * self.dt * c_prev.A[1:-1],
-                jnp.zeros_like(self.sigma_inner),
-            )
 
             du1 = jnp.concat(
                 [
@@ -177,49 +191,19 @@ class SecondOrderECirreFDMSolverBackwardImplicit(AbstractFDMSolver):
                 ]
             )
 
-            du2_inner = interleave_concat_4d(
-                -params.Kplus * self.dt * c_prev.B[1:-1],
-                -params.Kminus * self.dt * c_prev.A[1:-1],
-                jnp.zeros_like(self.sigma_inner),
-                jnp.zeros_like(self.sigma_inner),
-            )
-
-            du2 = jnp.concat(
-                [
-                    jnp.zeros((4,)),
-                    du2_inner,
-                    jnp.zeros((4,)),
-                ]
-            )
-
-            du3_inner = interleave_concat_4d(
-                params.Kminus * self.dt * c_prev.A[1:-1],
-                jnp.zeros_like(self.sigma_inner),
-                jnp.zeros_like(self.sigma_inner),
-                jnp.zeros_like(self.sigma_inner),
-            )
-
-            du3 = jnp.concat(
-                [
-                    jnp.zeros((4,)),
-                    du3_inner,
-                    jnp.zeros((4,)),
-                ]
-            )
-
-            rhs_A_inner = (1.0 + params.Kminus * self.dt * c_prev.Z[1:-1]) * c_prev.A[
+            rhs_A_inner = (1.0 - params.Kminus * self.dt * c_prev.Z[1:-1]) * c_prev.A[
                 1:-1
             ] - params.Kplus * self.dt * c_prev.B[1:-1] * c_prev.Y[1:-1]
 
-            rhs_B_inner = (1.0 + params.Kplus * self.dt * c_prev.Y[1:-1]) * c_prev.B[
+            rhs_B_inner = (1.0 - params.Kplus * self.dt * c_prev.Y[1:-1]) * c_prev.B[
                 1:-1
             ] - params.Kminus * self.dt * c_prev.A[1:-1] * c_prev.Z[1:-1]
 
-            rhs_Y_inner = (1.0 + params.Kplus * self.dt * c_prev.B[1:-1]) * c_prev.Y[
+            rhs_Y_inner = (1.0 - params.Kplus * self.dt * c_prev.B[1:-1]) * c_prev.Y[
                 1:-1
             ] - params.Kminus * self.dt * c_prev.A[1:-1] * c_prev.Z[1:-1]
 
-            rhs_Z_inner = (1.0 + params.Kminus * self.dt * c_prev.A[1:-1]) * c_prev.Z[
+            rhs_Z_inner = (1.0 - params.Kminus * self.dt * c_prev.A[1:-1]) * c_prev.Z[
                 1:-1
             ] - params.Kplus * self.dt * c_prev.B[1:-1] * c_prev.Y[1:-1]
 
@@ -231,18 +215,6 @@ class SecondOrderECirreFDMSolverBackwardImplicit(AbstractFDMSolver):
                 [jnp.zeros((4,)), rhs_inner, jnp.array([1.0, 0.0, 1.0, 0.0])]
             )
 
-            # print(
-            #     dl4.shape,
-            #     dl3.shape,
-            #     dl2.shape,
-            #     dl1.shape,
-            #     d.shape,
-            #     du1.shape,
-            #     du2.shape,
-            #     du3.shape,
-            #     du4.shape,
-            #     rhs.shape,
-            # )
             c_array = nonadiagonal_solve(dl4, dl3, dl2, dl1, d, du1, du2, du3, du4, rhs)
 
             c = Concentration(
