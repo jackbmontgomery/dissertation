@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Any
 
 import jax.numpy as jnp
 from jaxtyping import PyTree, Scalar
@@ -6,7 +7,7 @@ from jaxtyping import PyTree, Scalar
 
 class AbstractFDMSolver:
     @abstractmethod
-    def compute_current(self, c: PyTree) -> Scalar:
+    def compute_current(self, *args: Any, **kwargs: Any) -> Scalar:
         raise NotImplementedError
 
     @abstractmethod

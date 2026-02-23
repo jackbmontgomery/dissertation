@@ -5,8 +5,7 @@ from jax.lax import scan
 from jaxtyping import Scalar
 
 from src.params import SecondOrderECirreMechanismFDMParams
-from src.solvers import nonadiagonal_solve
-from src.utils import interleave_concat_4d
+from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
 from .base import AbstractFDMSolver
@@ -16,6 +15,10 @@ from .base import AbstractFDMSolver
 class ScanInputSequence:
     k_red: Scalar
     k_ox: Scalar
+    alpha_A0: Scalar
+    alpha_B0: Scalar
+    beta_A0: Scalar
+    beta_B0: Scalar
 
 
 @dataclass
@@ -74,151 +77,133 @@ class SecondOrderECirreFDMSolverExplicit(AbstractFDMSolver):
         return -(k_red * c.A[0] - k_ox * c.B[0])
 
     def _create_stepper(self, params: SecondOrderECirreMechanismFDMParams):
-        dl4_inner = interleave_concat_4d(
-            self.alpha_inner,
-            params.dB * self.alpha_inner,
-            params.dY * self.alpha_inner,
-            params.dZ * self.alpha_inner,
-        )
-
-        dl4 = jnp.concat([jnp.zeros((4,)), dl4_inner, jnp.zeros((4,))])
-
-        dl3_inner = interleave_concat_4d(
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-        )
-
-        dl3 = jnp.concat([jnp.zeros((4,)), dl3_inner, jnp.zeros((4,))])
-
-        dl2_inner = interleave_concat_4d(
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-        )
-
-        dl2 = jnp.concat([jnp.zeros((4,)), dl2_inner, jnp.zeros((4,))])
-
-        dl1_inner = interleave_concat_4d(
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-            jnp.zeros_like(self.alpha_inner),
-        )
-
-        du4_inner = interleave_concat_4d(
-            self.sigma_inner,
-            params.dB * self.sigma_inner,
-            params.dY * self.sigma_inner,
-            params.dZ * self.sigma_inner,
-        )
-
-        d_A_inner = 1.0 - (self.alpha_inner + self.sigma_inner)
-
-        d_B_inner = 1.0 - params.dB * (self.alpha_inner + self.sigma_inner)
-
-        d_Y_inner = 1.0 - params.dY * (self.alpha_inner + self.sigma_inner)
-
-        d_Z_inner = 1.0 - params.dZ * (self.alpha_inner + self.sigma_inner)
-
-        d_inner = interleave_concat_4d(d_A_inner, d_B_inner, d_Y_inner, d_Z_inner)
-
-        d_last = jnp.full((4,), -1.0)
-
-        du1_inner = interleave_concat_4d(
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-        )
-
-        du2_inner = interleave_concat_4d(
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-        )
-
-        du2 = jnp.concat(
+        dl_Y = jnp.concat(
             [
-                jnp.zeros((4,)),
-                du2_inner,
-                jnp.zeros((4,)),
+                jnp.array([0.0]),
+                params.dY * self.alpha_inner,
+                jnp.array([0]),
             ]
         )
 
-        du3_inner = interleave_concat_4d(
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-            jnp.zeros_like(self.sigma_inner),
-        )
-
-        du3 = jnp.concat(
+        d_Y = jnp.concat(
             [
-                jnp.zeros((4,)),
-                du3_inner,
-                jnp.zeros((4,)),
+                jnp.array([-1.0]),
+                1 - params.dY * (self.alpha_inner + self.sigma_inner),
+                jnp.array([1.0]),
             ]
         )
 
-        du4 = jnp.concat(
-            [jnp.array([-1.0, -1.0, 1.0, 1.0]), du4_inner, jnp.zeros((4,))]
+        du_Y = jnp.concat(
+            [
+                jnp.array([1.0]),
+                params.dY * self.sigma_inner,
+                jnp.array([0.0]),
+            ]
+        )
+
+        dl_Z = jnp.concat(
+            [
+                jnp.array([0.0]),
+                params.dZ * self.alpha_inner,
+                jnp.array([0]),
+            ]
+        )
+
+        d_Z = jnp.concat(
+            [
+                jnp.array([-1.0]),
+                1 - params.dZ * (self.alpha_inner + self.sigma_inner),
+                jnp.array([1.0]),
+            ]
+        )
+
+        du_Z = jnp.concat(
+            [
+                jnp.array([1.0]),
+                params.dZ * self.sigma_inner,
+                jnp.array([0.0]),
+            ]
         )
 
         def stepper(c_prev: Concentration, x: ScanInputSequence):
-            dl1 = jnp.concat(
+            # --- Current AB Solve
+
+            dl_AB = jnp.concat(
                 [
-                    jnp.array([0.0, -self.h1 * x.k_red / params.dB, 0.0, 0.0]),
-                    dl1_inner,
-                    jnp.zeros((4,)),
+                    jnp.array([0.0]),  # compatibility
+                    self.sigma_inner,
+                    jnp.array([-1.0, x.alpha_B0]),
+                    params.dB * self.alpha_inner,
+                    jnp.array([0.0]),
                 ]
             )
 
-            d_first = jnp.array(
-                [1 + self.h1 * x.k_red, 1 + self.h1 * x.k_ox / params.dB, -1.0, -1.0]
-            )
-
-            d = jnp.concat([d_first, d_inner, d_last])
-
-            du1 = jnp.concat(
+            d_AB = jnp.concat(
                 [
-                    jnp.array([-self.h1 * x.k_ox, 0.0, 0.0, 0.0]),
-                    du1_inner,
-                    jnp.zeros((4,)),
+                    jnp.array([1.0]),
+                    1 - (self.alpha_inner + self.sigma_inner),
+                    jnp.array([x.beta_A0, x.beta_B0]),
+                    1 - params.dB * (self.alpha_inner + self.sigma_inner),
+                    jnp.array([1.0]),
                 ]
             )
 
-            rhs_A_inner = (1.0 - params.Kminus * self.dt * c_prev.Z[1:-1]) * c_prev.A[
-                1:-1
-            ] - params.Kplus * self.dt * c_prev.B[1:-1] * c_prev.Y[1:-1]
+            du_AB = jnp.concatenate(
+                [
+                    jnp.array([0.0]),
+                    self.alpha_inner,
+                    jnp.array([x.alpha_A0]),
+                    jnp.array([-1.0]),
+                    params.dB * self.sigma_inner,
+                    jnp.array([0.0]),  # compatibility
+                ]
+            )
+
+            rhs_A_inner = jnp.flip(
+                (1.0 - params.Kminus * self.dt * c_prev.Z[1:-1]) * c_prev.A[1:-1]
+                + params.Kplus * self.dt * c_prev.B[1:-1] * c_prev.Y[1:-1]
+            )
 
             rhs_B_inner = (1.0 - params.Kplus * self.dt * c_prev.Y[1:-1]) * c_prev.B[
                 1:-1
-            ] - params.Kminus * self.dt * c_prev.A[1:-1] * c_prev.Z[1:-1]
+            ] + params.Kminus * self.dt * c_prev.A[1:-1] * c_prev.Z[1:-1]
+
+            rhs_AB = jnp.concat(
+                [
+                    jnp.array([1.0]),
+                    rhs_A_inner,
+                    jnp.array([0.0, 0.0]),
+                    rhs_B_inner,
+                    jnp.array([0.0]),
+                ]
+            )
+
+            current_AB = tridiagonal_solve(dl_AB, d_AB, du_AB, rhs_AB)
+
+            # --- Current Y ---
 
             rhs_Y_inner = (1.0 - params.Kplus * self.dt * c_prev.B[1:-1]) * c_prev.Y[
                 1:-1
-            ] - params.Kminus * self.dt * c_prev.A[1:-1] * c_prev.Z[1:-1]
+            ] + params.Kminus * self.dt * c_prev.A[1:-1] * c_prev.Z[1:-1]
+            rhs_Y = jnp.concat([jnp.array([0.0]), rhs_Y_inner, jnp.array([1.0])])
+
+            current_Y = tridiagonal_solve(dl_Y, d_Y, du_Y, rhs_Y)
+
+            # --- Current Z ---
 
             rhs_Z_inner = (1.0 - params.Kminus * self.dt * c_prev.A[1:-1]) * c_prev.Z[
                 1:-1
-            ] - params.Kplus * self.dt * c_prev.B[1:-1] * c_prev.Y[1:-1]
+            ] + params.Kplus * self.dt * c_prev.B[1:-1] * c_prev.Y[1:-1]
 
-            rhs_inner = interleave_concat_4d(
-                rhs_A_inner, rhs_B_inner, rhs_Y_inner, rhs_Z_inner
-            )
+            rhs_Z = jnp.concat([jnp.array([0.0]), rhs_Z_inner, jnp.array([0.0])])
 
-            rhs = jnp.concat(
-                [jnp.zeros((4,)), rhs_inner, jnp.array([1.0, 0.0, 1.0, 0.0])]
-            )
-
-            c_array = nonadiagonal_solve(dl4, dl3, dl2, dl1, d, du1, du2, du3, du4, rhs)
+            current_Z = tridiagonal_solve(dl_Z, d_Z, du_Z, rhs_Z)
 
             c = Concentration(
-                A=c_array[::4], B=c_array[1::4], Y=c_array[2::4], Z=c_array[3::4]
+                A=jnp.flip(current_AB[: self.Nx]),
+                B=current_AB[self.Nx :],
+                Y=current_Y,
+                Z=current_Z,
             )
 
             current = self.compute_current(c, x.k_red, x.k_ox)
@@ -245,7 +230,39 @@ class SecondOrderECirreFDMSolverExplicit(AbstractFDMSolver):
             (1.0 - params.alpha) * (self.applied_potentials - params.E0)
         )
 
-        xs = ScanInputSequence(k_red=k_red, k_ox=k_ox)
+        alpha_A0 = (
+            -self.h1
+            * params.K0
+            * jnp.exp((1 - params.alpha) * (self.applied_potentials - params.E0))
+        )
+
+        alpha_B0 = (
+            -self.h1
+            * params.K0
+            * jnp.exp(-params.alpha * (self.applied_potentials - params.E0))
+            / params.dB
+        )
+
+        beta_A0 = 1 + self.h1 * params.K0 * jnp.exp(
+            -params.alpha * (self.applied_potentials - params.E0)
+        )
+
+        beta_B0 = (
+            1
+            + self.h1
+            * params.K0
+            * jnp.exp((1 - params.alpha) * (self.applied_potentials - params.E0))
+            / params.dB
+        )
+
+        xs = ScanInputSequence(
+            k_red=k_red,
+            k_ox=k_ox,
+            alpha_A0=alpha_A0,
+            alpha_B0=alpha_B0,
+            beta_A0=beta_A0,
+            beta_B0=beta_B0,
+        )
 
         _, current = scan(stepper, c_init, xs)
 

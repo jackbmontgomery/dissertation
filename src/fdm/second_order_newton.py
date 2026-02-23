@@ -1,8 +1,6 @@
 from typing import Callable, Tuple
 
-import jax
 import jax.numpy as jnp
-import optimistix as optx
 from chex import dataclass
 from jax import vmap
 from jax.lax import scan, while_loop
@@ -32,7 +30,8 @@ class WhileOpArgs:
 
 @dataclass
 class ScanInputSequence:
-    applied_potential: Scalar
+    k_red: Scalar
+    k_ox: Scalar
 
 
 class SecondOrderECirreFDMSolverNewton(AbstractFDMSolver):
@@ -372,21 +371,14 @@ class SecondOrderECirreFDMSolverNewton(AbstractFDMSolver):
 
         x = WhileOpArgs(c=c_prev, delta_c=jnp.ones((4 * self.Nx,)))
 
-        x = body_fun(x)
+        x = while_loop(cond_fun, body_fun, x)
 
         return x.c
 
     def create_stepper(self, params: SecondOrderECirreMechanismFDMParams) -> Callable:
         def stepper(c_prev: Concentration, x: ScanInputSequence):
-            k_red = params.K0 * jnp.exp(
-                -params.alpha * (x.applied_potential - params.E0)
-            )
-            k_ox = params.K0 * jnp.exp(
-                (1.0 - params.alpha) * (x.applied_potential - params.E0)
-            )
-
-            c = self.newton_solve(c_prev, params, k_red, k_ox)
-            current = self.compute_current(c, k_red, k_ox)
+            c = self.newton_solve(c_prev, params, x.k_red, x.k_ox)
+            current = self.compute_current(c, x.k_red, x.k_ox)
             return c, current
 
         return stepper
@@ -399,7 +391,17 @@ class SecondOrderECirreFDMSolverNewton(AbstractFDMSolver):
             Y=jnp.ones_like(self.X),
             Z=jnp.zeros_like(self.X),
         )
-        xs = ScanInputSequence(applied_potential=self.applied_potentials)
+
+        k_red = params.K0 * jnp.exp(
+            -params.alpha * (self.applied_potentials - params.E0)
+        )
+
+        k_ox = params.K0 * jnp.exp(
+            (1.0 - params.alpha) * (self.applied_potentials - params.E0)
+        )
+
+        xs = ScanInputSequence(k_red=k_red, k_ox=k_ox)
+
         _, current = scan(stepper, init_c, xs)
 
         return current

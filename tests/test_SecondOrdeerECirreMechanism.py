@@ -3,47 +3,46 @@ from time import perf_counter
 import jax.numpy as jnp
 import pytest
 
-from src.fdm import SecondOrderECirreFDMSolverExplicitApprox
+from src.fdm import (
+    SecondOrderECirreFDMSolverBackwardImplicit,
+    SecondOrderECirreFDMSolverNewton,
+)
 from src.params import SecondOrderECirreMechanismFDMParams
-from src.voltammetry import LinearSweepDC
+from src.voltammetry import CyclicDC
 
 
 @pytest.fixture(scope="module")
 def ec_irre_reaction():
+    voltammetry = CyclicDC()
     params = SecondOrderECirreMechanismFDMParams(
         alpha=jnp.array(1.0),
-        K0=jnp.array(1000.0),
-        Kminus=jnp.array(1.0),
-        Kplus=jnp.array(1000.0),
-        E0=jnp.array(0.0),
+        K0=jnp.array(10000.0),
+        Kplus=jnp.array(1000000.0),
+        Kminus=jnp.array(10.0),
         dB=jnp.array(1.0),
         dY=jnp.array(1.0),
         dZ=jnp.array(1.0),
+        E0=jnp.array(0.0),
     )
-    return dict(params=params)
+    return dict(params=params, voltammetry=voltammetry)
 
 
-def test_performance(ec_irre_reaction):
-    h = 1e-2
+def test_agreement(ec_irre_reaction):
+    h = 1e-3
     dtheta = 5e-2
 
-    voltammetry = LinearSweepDC()
-
-    fdm_solver = SecondOrderECirreFDMSolverExplicitApprox(voltammetry, h, dtheta)
-
+    voltammetry = ec_irre_reaction["voltammetry"]
     params = ec_irre_reaction["params"]
 
-    n_runs = 5
-    times = []
-    for _ in range(n_runs):
-        t0 = perf_counter()
-        out = fdm_solver.solve(params)
-        out.block_until_ready()
-        times.append(perf_counter() - t0)
+    newton_solver = SecondOrderECirreFDMSolverNewton(voltammetry, h=h, dtheta=dtheta)
 
-    best_time = min(times)
-
-    budget_s = 0.1
-    assert best_time < budget_s, (
-        f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
+    backward_solver = SecondOrderECirreFDMSolverBackwardImplicit(
+        voltammetry, h=h, dtheta=dtheta
     )
+
+    current_backward = backward_solver.solve(params)
+    current_newton = newton_solver.solve(params)
+
+    mse = jnp.mean(jnp.square(current_backward - current_newton))
+
+    assert mse < 1e-4

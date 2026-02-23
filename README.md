@@ -20,8 +20,8 @@
 - Investigate some convergence measures in the sampling experiment (ESS and Gelman and Rubin)
 - Investigate the performance with varying degrees of noise 
 - Correlation between the difference parameters
-- Can use the pathfinder as an init for the MCMC ref: [https://blackjax-devs.github.io/sampling-book/algorithms/pathfinder.html#pathfinder-as-an-initialization-tool-for-mcmc-kernels]
-- Plots just for random-walk metropolis hastings. Mainly, I want to be able to measure the convergence of the chain. I know I can generate samples that will be able to give me accurate means for the distribution. But how stable are these distriutions. But I think just focus on Metropolis-Hastings becasue this will be the best thing to use to talk to Kathryn about what my issues are about.
+- Plot of non-linear approximation error: I can compute what the non-linear value is using the Newton solver. I can then store the value of the non-linear approximation for the two linear approximations. I can then compare these two values
+
 
 ## Questions
 1. When should I start counting the samples I am obtaining from the MCs? I need a diagnostic for convergence of the n-step Markov transition to the true distribution. (Vats, 2020). In other words, a diagnostic for the burn-in period.
