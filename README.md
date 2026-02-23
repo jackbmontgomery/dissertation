@@ -20,7 +20,7 @@
 - Investigate some convergence measures in the sampling experiment (ESS and Gelman and Rubin)
 - Investigate the performance with varying degrees of noise 
 - Correlation between the difference parameters
-- Plot of non-linear approximation error: I can compute what the non-linear value is using the Newton solver. I can then store the value of the non-linear approximation for the two linear approximations. I can then compare these two values
+- Plot of non-linear approximation error: I can compute what the non-linear value is using the Newton solver. I can then store the value of the non-linear approximation for the two linear approximations. I can then compare the "ground truth" of Newton to the linear approximations to see where the explicit method diverges for large Kplus
 
 
 ## Questions
