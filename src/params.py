@@ -131,11 +131,11 @@ class SecondOrderECirreMechanismFDMParams(Module):
 
     @property
     def dY(self):
-        return jnp.power(2, self._dB_inv)
+        return jnp.power(2, self._dY_inv)
 
     @property
     def dZ(self):
-        return jnp.power(2, self._dB_inv)
+        return jnp.power(2, self._dZ_inv)
 
     @property
     def Kminus(self):

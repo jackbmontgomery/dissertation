@@ -172,6 +172,89 @@ class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
         return samples, logdensity, algo_info
 
 
+class MCHMCSamplingAlgorithm(AbstractSamplingAlgorithm):
+    def __init__(self, n_samples: int, step_size: float):
+        self.n_samples = n_samples
+        self.step_size = step_size
+
+    def __str__(self):
+        return "MCHMC"
+
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Scalar, Dict]:
+        print("--- Running MCHMC ---")
+        init_key, inference_key = jr.split(key)
+
+        mchmc = blackjax.adjusted_mclmc_dynamic(log_density, self.step_size)
+
+        minimised_init_params = vmap(bfgs_minimise, in_axes=(0, None))(
+            init_params, log_density
+        )
+
+        init_keys = jr.split(init_key, NUM_CPUS)
+        mchmc_kernel = jit(mchmc.step)
+        initial_states = vmap(mchmc.init)(minimised_init_params, init_keys)
+
+        inference_keys = jr.split(inference_key, NUM_CPUS)
+        samples_per_chain = self.n_samples // NUM_CPUS
+        states, infos = inference_loop_multiple_chains(
+            inference_keys, mchmc_kernel, initial_states, samples_per_chain
+        )
+
+        algo_info = {
+            "Average Acceptance": f"{jnp.mean(infos.acceptance_rate):.2f}",
+            "Average Integration Steps": f"{jnp.mean(infos.num_integration_steps):.2f}",
+        }
+
+        samples: PyTree = states.position
+        logdensity: Scalar = states.logdensity
+
+        return samples, logdensity, algo_info
+
+
+class MALASamplingAlgorithm(AbstractSamplingAlgorithm):
+    def __init__(self, n_samples: int, step_size: float):
+        self.n_samples = int
+        self.step_size = int
+
+    def __str__(self):
+        return "MALA"
+
+    def __call__(
+        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
+    ) -> Tuple[PyTree, Scalar, Dict]:
+        print("--- Running MALA ---")
+
+        init_key, inference_key = jr.split(key)
+
+        mala = blackjax.mala(log_density, self.step_size)
+
+        minimised_init_params = vmap(bfgs_minimise, in_axes=(0, None))(
+            init_params, log_density
+        )
+
+        init_keys = jr.split(init_key, NUM_CPUS)
+        mchmc_kernel = jit(mala.step)
+        initial_states = vmap(mala.init)(minimised_init_params, init_keys)
+
+        inference_keys = jr.split(inference_key, NUM_CPUS)
+        samples_per_chain = self.n_samples // NUM_CPUS
+        states, infos = inference_loop_multiple_chains(
+            inference_keys, mchmc_kernel, initial_states, samples_per_chain
+        )
+
+        algo_info = {
+            "Average Acceptance": f"{jnp.mean(infos.acceptance_rate):.2f}",
+            "Average Integration Steps": f"{jnp.mean(infos.num_integration_steps):.2f}",
+        }
+
+        samples: PyTree = states.position
+        logdensity: Scalar = states.logdensity
+
+        return samples, logdensity, algo_info
+
+
 class NutsSamplingAlgorithm(AbstractSamplingAlgorithm):
     def __init__(self, n_samples: int, step_size: float, inverse_mass_matrix: Scalar):
         self.n_samples = n_samples
