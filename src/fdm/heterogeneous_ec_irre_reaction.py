@@ -198,7 +198,6 @@ class HeterogeneousECirreFDMSolver(AbstractFDSolver):
                     jnp.array([0.0, 0.0]),
                 ]
             )
-            print(d2l.shape, dl.shape, d.shape, du.shape, d2u.shape, rhs.shape)
 
             c = pentadiagonal_solve(d2l, dl, d, du, d2u, rhs)
 
@@ -214,7 +213,9 @@ class HeterogeneousECirreFDMSolver(AbstractFDSolver):
         c_init = jnp.concat(
             [
                 interleave_concat_2d(jnp.ones_like(self.X), jnp.zeros_like(self.X)),
-                interleave_concat_2d(jnp.zeros_like(self.X), jnp.zeros_like(self.X)),
+                interleave_concat_2d(
+                    jnp.full_like(self.X, 0.1), jnp.zeros_like(self.X)
+                ),
             ]
         )
 
