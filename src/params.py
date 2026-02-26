@@ -69,6 +69,86 @@ class FirstOrderECirreMechanismFDMParams(Module):
         return jnp.power(2, self._dB_inv)
 
 
+class HeterogenousECirreMechanismFDMParams(Module):
+    _alpha1_inv: Scalar
+    _K1_0_inv: Scalar
+    _E1_f_inv: Scalar
+    _alpha2_inv: Scalar
+    _K2_0_inv: Scalar
+    _E2_f_inv: Scalar
+    _dB_inv: Scalar
+    _dC_inv: Scalar
+    _dD_inv: Scalar
+    _K_het_inv: Scalar
+
+    def __init__(
+        self,
+        alpha1: Scalar,
+        K1_0: Scalar,
+        E1_f: Scalar,
+        alpha2: Scalar,
+        K2_0: Scalar,
+        E2_f: Scalar,
+        dB: Scalar,
+        dC: Scalar,
+        dD: Scalar,
+        K_het: Scalar,
+    ):
+        self._alpha1_inv = 3.0 * logit(alpha1)
+        self._K1_0_inv = jnp.log10(K1_0)
+        self._E1_f_inv = 5.0 * jnp.arctanh(E1_f / 20.0)
+
+        self._alpha2_inv = 3.0 * logit(alpha2)
+        self._K2_0_inv = jnp.log10(K2_0)
+        self._E2_f_inv = 5.0 * jnp.arctanh(E2_f / 20.0)
+
+        self._dB_inv = jnp.log2(dB)
+        self._dC_inv = jnp.log2(dC)
+        self._dD_inv = jnp.log2(dD)
+
+        self._K_het_inv = jnp.log10(K_het)
+
+    @property
+    def alpha1(self):
+        return sigmoid(self._alpha1_inv / 3.0)
+
+    @property
+    def alpha2(self):
+        return sigmoid(self._alpha2_inv / 3.0)
+
+    @property
+    def K1_0(self):
+        return jnp.power(10, self._K1_0_inv)
+
+    @property
+    def K2_0(self):
+        return jnp.power(10, self._K2_0_inv)
+
+    @property
+    def E1_f(self):
+        return 20.0 * jnp.tanh(self._E1_f_inv / 5.0)
+
+    @property
+    def E2_f(self):
+        return 20.0 * jnp.tanh(self._E2_f_inv / 5.0)
+
+    @property
+    def dB(self):
+        return jnp.power(2, self._dB_inv)
+
+    @property
+    def dC(self):
+        return jnp.power(2, self._dC_inv)
+
+    @property
+    def dD(self):
+        return jnp.power(2, self._dD_inv)
+
+    @property
+    def K_het(self):
+        return jnp.power(10, self._K_het_inv)
+
+
 class ECirreMechanismFDMParams(Module):
     _alpha_inv: Scalar
     _K0_inv: Scalar

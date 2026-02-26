@@ -10,7 +10,7 @@ from src.params import EMechanismFDMParams
 from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver, uniform_discretisation
+from .base import AbstractFDSolver, uniform_discretisation
 
 
 @dataclass
@@ -19,9 +19,11 @@ class ScanInputSequence:
     alpha_B0: Scalar
     beta_A0: Scalar
     beta_B0: Scalar
+    K_red: Scalar
+    K_ox: Scalar
 
 
-class EMechanismFDMSolver(AbstractFDMSolver):
+class EMechanismFDMSolver(AbstractFDSolver):
     applied_potentials: Scalar
     X: Array
     Nx: int
@@ -63,16 +65,10 @@ class EMechanismFDMSolver(AbstractFDMSolver):
         self.alpha_inner = -(2.0 * dt) / (X_minus * (X_minus + X_plus))
         self.sigma_inner = -(2.0 * dt) / (X_plus * (X_minus + X_plus))
 
-    def compute_current(self, c: Scalar) -> Scalar:
-        c0 = c[self.Nx - 1]
-        c1 = c[self.Nx - 2]
-        c2 = c[self.Nx - 3]
-
-        dcdx = (self.h2**2 * (c0 - c1) + self.h1**2 * (c2 - c0)) / (
-            self.h1 * self.h2 * (self.h1 - self.h2)
-        )
-
-        return -dcdx
+    def compute_current(self, c: Scalar, K_red: Scalar, K_ox: Scalar) -> Scalar:
+        c0_A = c[self.Nx - 1]
+        c0_B = c[self.Nx]
+        return -(K_red * c0_A - K_ox * c0_B)
 
     def _create_stepper(
         self,
@@ -127,7 +123,7 @@ class EMechanismFDMSolver(AbstractFDMSolver):
 
             Ck = tridiagonal_solve(dl, d, du, rhs)
 
-            current = self.compute_current(Ck)
+            current = self.compute_current(Ck, x.K_red, x.K_ox)
 
             return Ck, current
 
@@ -138,33 +134,27 @@ class EMechanismFDMSolver(AbstractFDMSolver):
 
         c_init = jnp.concat([jnp.ones_like(self.X), jnp.zeros_like(self.X)])
 
-        alpha_A0 = (
-            -self.h1
-            * params.K0
-            * jnp.exp((1 - params.alpha) * (self.applied_potentials - params.E0))
-        )
-
-        alpha_B0 = (
-            -self.h1
-            * params.K0
-            * jnp.exp(-params.alpha * (self.applied_potentials - params.E0))
-            / params.dB
-        )
-
-        beta_A0 = 1 + self.h1 * params.K0 * jnp.exp(
+        K_red = params.K0 * jnp.exp(
             -params.alpha * (self.applied_potentials - params.E0)
         )
 
-        beta_B0 = (
-            1
-            + self.h1
-            * params.K0
-            * jnp.exp((1 - params.alpha) * (self.applied_potentials - params.E0))
-            / params.dB
+        K_ox = params.K0 * jnp.exp(
+            (1 - params.alpha) * (self.applied_potentials - params.E0)
         )
 
+        alpha_A0 = -self.h1 * K_ox
+        alpha_B0 = -self.h1 * K_red / params.dB
+
+        beta_A0 = 1 + self.h1 * K_red
+        beta_B0 = 1 + self.h1 * K_ox / params.dB
+
         xs = ScanInputSequence(
-            alpha_A0=alpha_A0, alpha_B0=alpha_B0, beta_A0=beta_A0, beta_B0=beta_B0
+            alpha_A0=alpha_A0,
+            alpha_B0=alpha_B0,
+            beta_A0=beta_A0,
+            beta_B0=beta_B0,
+            K_red=K_red,
+            K_ox=K_ox,
         )
 
         _, current = scan(stepper, c_init, xs)

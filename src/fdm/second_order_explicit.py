@@ -8,7 +8,7 @@ from src.params import SecondOrderECirreMechanismFDMParams
 from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver
+from .base import AbstractFDSolver
 
 
 @dataclass
@@ -29,7 +29,7 @@ class Concentration:
     Z: Scalar
 
 
-class SecondOrderECirreFDMSolverExplicit(AbstractFDMSolver):
+class SecondOrderECirreFDMSolverExplicit(AbstractFDSolver):
     applied_potentials: Scalar
     dt: float
     X: Scalar

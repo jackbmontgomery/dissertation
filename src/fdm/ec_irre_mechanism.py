@@ -11,7 +11,7 @@ from src.solvers import pentadiagonal_solve
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver
+from .base import AbstractFDSolver
 
 
 @dataclass
@@ -22,7 +22,7 @@ class ScanInputSequence:
     eta_B0: Scalar
 
 
-class ECirreMechanismFDMSolver(AbstractFDMSolver):
+class ECirreMechanismFDMSolver(AbstractFDSolver):
     applied_potentials: Scalar
     dt: float
     X: Array

@@ -10,7 +10,7 @@ from src.params import FirstOrderECirreMechanismFDMParams
 from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver, uniform_discretisation
+from .base import AbstractFDSolver, uniform_discretisation
 
 
 @dataclass
@@ -23,7 +23,7 @@ class ScanInputSequence:
     K_ox: Scalar
 
 
-class FirstOrderECirreMechanismFDMSolver(AbstractFDMSolver):
+class FirstOrderECirreMechanismFDMSolver(AbstractFDSolver):
     applied_potentials: Scalar
     X: Array
     Nx: int

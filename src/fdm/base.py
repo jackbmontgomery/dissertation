@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from jaxtyping import PyTree, Scalar
 
 
-class AbstractFDMSolver:
+class AbstractFDSolver:
     @abstractmethod
     def compute_current(self, *args: Any, **kwargs: Any) -> Scalar:
         raise NotImplementedError

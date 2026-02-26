@@ -11,7 +11,7 @@ from src.solvers import nonadiagonal_solve
 from src.utils import interleave_concat_4d
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDMSolver
+from .base import AbstractFDSolver
 
 
 @dataclass
@@ -34,7 +34,7 @@ class ScanInputSequence:
     k_ox: Scalar
 
 
-class SecondOrderECirreFDMSolverNewton(AbstractFDMSolver):
+class SecondOrderECirreFDMSolverNewton(AbstractFDSolver):
     applied_potentials: Scalar
     dt: float
     X: Scalar
