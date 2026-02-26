@@ -8,9 +8,10 @@
 2. Sampling
     1. MCMC
     2. HMC
-    3. VI
 3. $E$
+
 4. $EC_{irre}$
+    - See 5.1 in Understanding: Effect of the Delta T * K1
 5. $Second Order$
 
 
@@ -23,6 +24,7 @@
 - Plot of non-linear approximation error: I can compute what the non-linear value is using the Newton solver. I can then store the value of the non-linear approximation for the two linear approximations. I can then compare the "ground truth" of Newton to the linear approximations to see where the explicit method diverges for large Kplus
 - Ideally, I would like to just use the Chees burn in with the HMC kernel. I think this would just make the most sesnse with what I am studying.
 - But I can compare this to MCHMC because this also has a adaption and I have a feeling this will be a little more efficient to run on my CPU.
+- I need to adjust my numerics, the non-linear stuff is not working properly to do my sampling. I need to build up a narritive with the chemical reactions and I think the best way to do this is by going from. Basic Electron Only Reaction -> First Order ECirre -> Hetrogeneous Chemical Process -> Absorbsion
 
 ## Questions
 1. When should I start counting the samples I am obtaining from the MCs? I need a diagnostic for convergence of the n-step Markov transition to the true distribution. (Vats, 2020). In other words, a diagnostic for the burn-in period.

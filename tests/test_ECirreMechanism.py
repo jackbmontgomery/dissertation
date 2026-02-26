@@ -4,7 +4,7 @@ from time import perf_counter
 import jax.numpy as jnp
 import pytest
 
-from src.fdm import ECirreMechanismFDMSolver
+from src.fdm import ECirreMechanismFDMSolver, FirstOrderECirreMechanismFDMParams
 from src.params import ECirreMechanismFDMParams
 from src.voltammetry import LinearSweepDC
 
