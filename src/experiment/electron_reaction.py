@@ -1,12 +1,11 @@
-import os
 from time import perf_counter
 
 import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
 
-from src.fdm import EMechanismFDMSolver
-from src.params import EMechanismFDMParams
+from src.fdm import ElectronReactionFDSolver
+from src.params import ElectronReactionParams
 from src.sampling import NUM_CPUS, AbstractSamplingAlgorithm
 from src.utils import generate_noisy_samples
 from src.voltammetry import AbstractVoltammetryTechnique
@@ -14,14 +13,14 @@ from src.voltammetry import AbstractVoltammetryTechnique
 from .base import AbstractSamplingExperiment
 
 
-class EReactionSamplingExperiment(AbstractSamplingExperiment):
+class ElectronReactionSamplingExperiment(AbstractSamplingExperiment):
     @property
-    def true_parameters(self) -> EMechanismFDMParams:
-        return EMechanismFDMParams(
+    def true_parameters(self) -> ElectronReactionParams:
+        return ElectronReactionParams(
             alpha=jnp.array(0.6),
-            K0=jnp.array(10.0),
-            E0=jnp.array(2.0),
-            dB=jnp.array(1.2),
+            K0=jnp.array(5.0),
+            Ef=jnp.array(0.5),
+            dB=jnp.array(0.8),
         )
 
     def run(
@@ -33,7 +32,7 @@ class EReactionSamplingExperiment(AbstractSamplingExperiment):
         key = jr.key(seed)
         generate_key, sampling_key, key = jr.split(key, 3)
 
-        fdm_solver = EMechanismFDMSolver(voltammetry)
+        fdm_solver = ElectronReactionFDSolver(voltammetry)
 
         base_current = fdm_solver.solve(self.true_parameters)
 
@@ -44,15 +43,15 @@ class EReactionSamplingExperiment(AbstractSamplingExperiment):
             key=key,
         )
 
-        def logdensity_fn(params: EMechanismFDMParams, samples=samples):
+        def logdensity_fn(params: ElectronReactionParams, samples=samples):
             current = fdm_solver.solve(params)
             return -jnp.sum((samples - current) ** 2)
 
-        init_params = EMechanismFDMParams(
+        init_params = ElectronReactionParams(
             alpha=jnp.linspace(0.5, 0.7, NUM_CPUS),
-            K0=jnp.linspace(5.0, 15.0, NUM_CPUS),
-            E0=jnp.linspace(1.8, 2.2, NUM_CPUS),
-            dB=jnp.linspace(0.8, 1.4, NUM_CPUS),
+            K0=jnp.linspace(2.0, 8.0, NUM_CPUS),
+            Ef=jnp.linspace(0.2, 0.8, NUM_CPUS),
+            dB=jnp.linspace(0.6, 1.0, NUM_CPUS),
         )
 
         start_time = perf_counter()
@@ -60,11 +59,7 @@ class EReactionSamplingExperiment(AbstractSamplingExperiment):
             sampling_key, init_params, logdensity_fn
         )
 
-        samples.alpha.block_until_ready()
-        end_time = perf_counter()
-
         data_file = f"E_{sampling_algorithm}_{voltammetry}.npz"
-
         np.savez_compressed(
             f"./data/{data_file}",
             alpha=samples.alpha,
@@ -74,6 +69,7 @@ class EReactionSamplingExperiment(AbstractSamplingExperiment):
             logdensity=logdensity,
         )
 
+        end_time = perf_counter()
         print(f"Time Taken: {end_time - start_time:.2f}s")
         print(f"Number of Samples: {len(samples.alpha.flatten())}")
         print(f"Data Type: {samples.alpha.dtype}")

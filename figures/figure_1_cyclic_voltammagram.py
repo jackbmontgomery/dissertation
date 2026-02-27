@@ -12,7 +12,7 @@ from src.fdm import (
 )
 from src.params import (
     ECirreMechanismFDMParams,
-    EMechanismFDMParams,
+    ElectronReactionParams,
     SecondOrderECirreMechanismFDMParams,
 )
 from src.plotting import plot_e_histograms, plot_ec_irre_histograms
@@ -24,10 +24,10 @@ voltammetry = CyclicDC()
 
 fdm_solver = EMechanismFDMSolver(voltammetry)
 
-params = EMechanismFDMParams(
+params = ElectronReactionParams(
     alpha=jnp.array(0.7),
     K0=jnp.array(1.0),
-    E0=jnp.array(0.0),
+    Ef=jnp.array(0.0),
     dB=jnp.array(1.0),
 )
 

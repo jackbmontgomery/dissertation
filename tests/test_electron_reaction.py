@@ -4,23 +4,20 @@ from time import perf_counter
 import jax.numpy as jnp
 import pytest
 
-from src.fdm import EMechanismFDMSolver
-from src.params import EMechanismFDMParams
-from src.voltammetry import LinearSweepDC
+from src.fdm import ElectronReactionFDSolver
+from src.params import ElectronReactionParams
+from src.voltammetry import CyclicDC
 
 
 @pytest.fixture(scope="module")
 def e_reaction():
-    h = 1e-3
-    dtheta = 5e-2
+    voltammetry = CyclicDC()
+    fdm_solver = ElectronReactionFDSolver(voltammetry)
 
-    voltammetry = LinearSweepDC()
-    fdm_solver = EMechanismFDMSolver(voltammetry, h, dtheta)
-
-    params = EMechanismFDMParams(
+    params = ElectronReactionParams(
         alpha=jnp.array(0.7),
         K0=jnp.array(1.0),
-        E0=jnp.array(0.0),
+        Ef=jnp.array(0.0),
         dB=jnp.array(1.0),
     )
 
@@ -39,9 +36,7 @@ def test_peak_current_value(e_reaction):
 
     max_current_estimate = jnp.min(current)
 
-    max_current = (
-        -0.496 * jnp.sqrt(params.alpha) * jnp.sqrt(sigma)
-    )  # Randles-Sevcik Equation
+    max_current = -0.496 * jnp.sqrt(params.alpha) * jnp.sqrt(sigma)
 
     assert pytest.approx(max_current, rel=0.02) == max_current_estimate
 
@@ -68,7 +63,7 @@ def test_performance(e_reaction):
     fdm_solver = e_reaction["fdm_solver"]
     params = e_reaction["params"]
 
-    n_runs = 5
+    n_runs = 10
     times = []
     for _ in range(n_runs):
         t0 = perf_counter()
@@ -83,7 +78,7 @@ def test_performance(e_reaction):
         f"Average time: {statistics.mean(times):.4f}",
     )
 
-    budget_s = 0.06
+    budget_s = 0.05
     assert best_time < budget_s, (
         f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
     )

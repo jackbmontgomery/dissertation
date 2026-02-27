@@ -10,8 +10,8 @@ import jax.numpy as jnp
 
 from src.experiment import ECirreSamplingExperiment
 from src.sampling import (
+    AdditiveStepRandomWalkSamplingAlgorithm,
     MCHMCSamplingAlgorithm,
-    MetropolisHastingsSamplingAlgorithm,
 )
 from src.voltammetry import CyclicDC
 

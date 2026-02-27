@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from chex import dataclass
-from jax import tree, tree_util
+from jax import tree_util
 from jax.lax import scan
 from jaxtyping import Scalar
 

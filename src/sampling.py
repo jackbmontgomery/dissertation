@@ -5,7 +5,6 @@ import blackjax
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-import jax.tree as jt
 import optax
 from jax import jit, pmap, vmap
 from jax.lax import scan
@@ -16,14 +15,6 @@ from src.utils import bfgs_minimise
 NUM_CPUS = multiprocessing.cpu_count()
 
 LogDensity = Callable[[PyTree], Array]
-
-
-def repeat_params(params: PyTree, n: int):
-    return jt.map(lambda x: jnp.full((n,), x), params)
-
-
-def flatten_state_positions(state_positions: PyTree):
-    return jt.map(lambda x: x.flatten(), state_positions)
 
 
 def inference_loop(
@@ -58,7 +49,7 @@ class AbstractSamplingAlgorithm:
         raise NotImplementedError
 
 
-class MetropolisHastingsSamplingAlgorithm(AbstractSamplingAlgorithm):
+class AdditiveStepRandomWalkSamplingAlgorithm(AbstractSamplingAlgorithm):
     def __init__(self, n_samples: int, sigma: Scalar):
         self.n_samples = n_samples
         self.sigma = sigma
@@ -78,7 +69,6 @@ class MetropolisHastingsSamplingAlgorithm(AbstractSamplingAlgorithm):
         )
 
         jit_step = jit(rw.step)
-
         init_states = vmap(rw.init)(init_params)
 
         num_samples_per_chain = self.n_samples // NUM_CPUS
@@ -124,10 +114,11 @@ class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
     ) -> Tuple[PyTree, Scalar, Dict]:
         # Cheese Adaption / Warmup
 
-        print("--- Running Dynamic HMC ---")
+        print("--- Running HMC ---")
+
         warmup_key, key = jr.split(key, 2)
 
-        warmup = blackjax.chees_adaptation(log_density, NUM_CPUS, max_leapfrog_steps=10)
+        warmup = blackjax.chees_adaptation(log_density, NUM_CPUS)
 
         key_warmup, key_sample = jr.split(warmup_key)
 
@@ -138,12 +129,13 @@ class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
         (initial_states, parameters), _ = warmup.run(
             key_warmup,
             init_params,
-            self.initial_step_size,
-            optim,
-            self.warmup_steps,
+            step_size=self.initial_step_size,
+            optim=optim,
+            num_steps=self.warmup_steps,
+            max_sampling_steps=1000,
         )
 
-        jax.debug.print("{x}", x=parameters)
+        jax.debug.print("Parameters: {x}", x=parameters)
 
         hmc = blackjax.dynamic_hmc(log_density, **parameters)
 
@@ -188,13 +180,11 @@ class MCHMCSamplingAlgorithm(AbstractSamplingAlgorithm):
 
         mchmc = blackjax.adjusted_mclmc_dynamic(log_density, self.step_size)
 
-        minimised_init_params = vmap(bfgs_minimise, in_axes=(0, None))(
-            init_params, log_density
-        )
+        # init_params = vmap(bfgs_minimise, in_axes=(0, None))(init_params, log_density)
 
         init_keys = jr.split(init_key, NUM_CPUS)
         mchmc_kernel = jit(mchmc.step)
-        initial_states = vmap(mchmc.init)(minimised_init_params, init_keys)
+        initial_states = vmap(mchmc.init)(init_params, init_keys)
 
         inference_keys = jr.split(inference_key, NUM_CPUS)
         samples_per_chain = self.n_samples // NUM_CPUS
@@ -211,115 +201,3 @@ class MCHMCSamplingAlgorithm(AbstractSamplingAlgorithm):
         logdensity: Scalar = states.logdensity
 
         return samples, logdensity, algo_info
-
-
-class MALASamplingAlgorithm(AbstractSamplingAlgorithm):
-    def __init__(self, n_samples: int, step_size: float):
-        self.n_samples = int
-        self.step_size = int
-
-    def __str__(self):
-        return "MALA"
-
-    def __call__(
-        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
-    ) -> Tuple[PyTree, Scalar, Dict]:
-        print("--- Running MALA ---")
-
-        init_key, inference_key = jr.split(key)
-
-        mala = blackjax.mala(log_density, self.step_size)
-
-        minimised_init_params = vmap(bfgs_minimise, in_axes=(0, None))(
-            init_params, log_density
-        )
-
-        init_keys = jr.split(init_key, NUM_CPUS)
-        mchmc_kernel = jit(mala.step)
-        initial_states = vmap(mala.init)(minimised_init_params, init_keys)
-
-        inference_keys = jr.split(inference_key, NUM_CPUS)
-        samples_per_chain = self.n_samples // NUM_CPUS
-        states, infos = inference_loop_multiple_chains(
-            inference_keys, mchmc_kernel, initial_states, samples_per_chain
-        )
-
-        algo_info = {
-            "Average Acceptance": f"{jnp.mean(infos.acceptance_rate):.2f}",
-            "Average Integration Steps": f"{jnp.mean(infos.num_integration_steps):.2f}",
-        }
-
-        samples: PyTree = states.position
-        logdensity: Scalar = states.logdensity
-
-        return samples, logdensity, algo_info
-
-
-class NutsSamplingAlgorithm(AbstractSamplingAlgorithm):
-    def __init__(self, n_samples: int, step_size: float, inverse_mass_matrix: Scalar):
-        self.n_samples = n_samples
-        self.step_size = step_size
-        self.inverse_mass_matrix = inverse_mass_matrix
-
-    def __str__(self):
-        return "Nuts"
-
-    def __call__(
-        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
-    ) -> Tuple[PyTree, Scalar, Dict]:
-        nuts = blackjax.nuts(log_density, self.step_size, self.inverse_mass_matrix)
-
-        jit_step = jit(nuts.step)
-
-        keys = jr.split(key, NUM_CPUS)
-        samples_per_chain = self.n_samples // NUM_CPUS
-
-        minimised_init_params = vmap(bfgs_minimise, in_axes=(0, None))(
-            init_params, log_density
-        )
-
-        initial_states = vmap(nuts.init)(minimised_init_params)
-
-        states, infos = inference_loop_multiple_chains(
-            keys, jit_step, initial_states, samples_per_chain
-        )
-
-        algo_info = {
-            "Average Acceptance": f"{jnp.mean(infos.acceptance_rate):.2f}",
-            "Average Integration Steps": f"{jnp.mean(infos.num_integration_steps):.2f}",
-        }
-
-        samples: PyTree = states.position
-        logdensity: Scalar = states.logdensity
-
-        return samples, logdensity, algo_info
-
-
-class PathfinderSamplingAlgorithm(AbstractSamplingAlgorithm):
-    def __init__(self, n_samples: int, step_size: float):
-        self.n_samples = n_samples
-        self.step_size = step_size
-
-    def __str__(self):
-        return "Pathfinder"
-
-    def __call__(
-        self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
-    ) -> Tuple[PyTree, Scalar, Dict]:
-        approx_key, sample_key = jr.split(key)
-        pathfinder = blackjax.pathfinder(log_density)
-
-        print("--- Approximating ---")
-
-        state, info = pathfinder.approximate(
-            approx_key, init_params, gtol=1e-5, ftol=1e-5, maxiter=50
-        )
-
-        algo_info = {}
-
-        print("--- Sampling ---")
-
-        samples, _ = pathfinder.sample(sample_key, state, self.n_samples)
-        elbo = info.path.elbo
-
-        return samples, elbo, algo_info

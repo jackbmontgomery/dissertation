@@ -4,17 +4,19 @@ from jax.nn import sigmoid
 from jax.scipy.special import logit
 from jaxtyping import Scalar
 
+Params = Module
 
-class EMechanismFDMParams(Module):
+
+class ElectronReactionParams(Params):
     _alpha_inv: Scalar
     _K0_inv: Scalar
-    _E0_inv: Scalar
+    _Ef_inv: Scalar
     _dB_inv: Scalar
 
-    def __init__(self, alpha: Scalar, K0: Scalar, E0: Scalar, dB: Scalar):
+    def __init__(self, alpha: Scalar, K0: Scalar, Ef: Scalar, dB: Scalar):
         self._alpha_inv = 3.0 * logit(alpha)
         self._K0_inv = jnp.log10(K0)
-        self._E0_inv = 5.0 * jnp.arctanh(E0 / 20.0)
+        self._Ef_inv = 5.0 * jnp.arctanh(Ef / 20.0)
         self._dB_inv = jnp.log2(dB)
 
     @property
@@ -26,50 +28,15 @@ class EMechanismFDMParams(Module):
         return jnp.power(10, self._K0_inv)
 
     @property
-    def E0(self):
-        return 20.0 * jnp.tanh(self._E0_inv / 5.0)
+    def Ef(self):
+        return 20.0 * jnp.tanh(self._Ef_inv / 5.0)
 
     @property
     def dB(self):
         return jnp.power(2, self._dB_inv)
 
 
-class FirstOrderECirreMechanismFDMParams(Module):
-    _alpha_inv: Scalar
-    _K0_inv: Scalar
-    _K1_inv: Scalar
-    _E0_inv: Scalar
-    _dB_inv: Scalar
-
-    def __init__(self, alpha: Scalar, K0: Scalar, K1: Scalar, E0: Scalar, dB: Scalar):
-        self._alpha_inv = 3.0 * logit(alpha)
-        self._K0_inv = jnp.log10(K0)
-        self._K1_inv = jnp.log10(K1)
-        self._E0_inv = 5.0 * jnp.arctanh(E0 / 20.0)
-        self._dB_inv = jnp.log2(dB)
-
-    @property
-    def alpha(self):
-        return sigmoid(self._alpha_inv / 3.0)
-
-    @property
-    def K0(self):
-        return jnp.power(10, self._K0_inv)
-
-    @property
-    def K1(self):
-        return jnp.power(10, self._K1_inv)
-
-    @property
-    def E0(self):
-        return 20.0 * jnp.tanh(self._E0_inv / 5.0)
-
-    @property
-    def dB(self):
-        return jnp.power(2, self._dB_inv)
-
-
-class HeterogenousECirreMechanismFDMParams(Module):
+class HeterogenousReactionParams(Params):
     _alpha1_inv: Scalar
     _K1_0_inv: Scalar
     _E1_f_inv: Scalar
@@ -149,56 +116,7 @@ class HeterogenousECirreMechanismFDMParams(Module):
         return jnp.power(10, self._K_het_inv)
 
 
-class ECirreMechanismFDMParams(Module):
-    _alpha_inv: Scalar
-    _K0_inv: Scalar
-    _Kplus_inv: Scalar
-    _Kminus_inv: Scalar
-    _E0_inv: Scalar
-    _dB_inv: Scalar
-
-    def __init__(
-        self,
-        alpha: Scalar,
-        K0: Scalar,
-        Kminus: Scalar,
-        Kplus: Scalar,
-        dB: Scalar,
-        E0: Scalar,
-    ):
-        self._alpha_inv = 3.0 * logit(alpha)
-        self._K0_inv = jnp.log10(K0)
-        self._Kplus_inv = jnp.log(Kminus)
-        self._Kminus_inv = jnp.log(Kplus)
-        self._E0_inv = 5.0 * jnp.arctanh(E0 / 20.0)
-        self._dB_inv = jnp.log2(dB)
-
-    @property
-    def alpha(self):
-        return sigmoid(self._alpha_inv / 3.0)
-
-    @property
-    def K0(self):
-        return jnp.power(10, self._K0_inv)
-
-    @property
-    def E0(self):
-        return 20.0 * jnp.tanh(self._E0_inv / 5.0)
-
-    @property
-    def dB(self):
-        return jnp.power(2, self._dB_inv)
-
-    @property
-    def Kminus(self):
-        return jnp.exp(self._Kplus_inv)
-
-    @property
-    def Kplus(self):
-        return jnp.exp(self._Kminus_inv)
-
-
-class SecondOrderECirreMechanismFDMParams(Module):
+class SecondOrderECirreMechanismFDMParams(Params):
     _alpha_inv: Scalar
     _K0_inv: Scalar
     _Kplus_inv: Scalar

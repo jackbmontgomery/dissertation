@@ -2,15 +2,15 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from jax import vmap
 
-from src.fdm import HeterogeneousECirreFDMSolver
-from src.params import HeterogenousECirreMechanismFDMParams
+from src.fdm import HeterogeneousReactionFDSolver
+from src.params import HeterogenousReactionParams
 from src.voltammetry import CyclicDC
 
 voltammetry = CyclicDC()
 
-fdm_solver = HeterogeneousECirreFDMSolver(voltammetry)
+fdm_solver = HeterogeneousReactionFDSolver(voltammetry)
 
-base_params = HeterogenousECirreMechanismFDMParams(
+base_params = HeterogenousReactionParams(
     alpha1=jnp.array(0.6),
     K1_0=jnp.array(1.0),
     E1_f=jnp.array(0.0),
@@ -30,7 +30,7 @@ fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(
 # Alpha Varying
 
 alpha2_range = jnp.linspace(0.3, 0.7, 5)
-alpha2_params = HeterogenousECirreMechanismFDMParams(
+alpha2_params = HeterogenousReactionParams(
     alpha1=jnp.full_like(alpha2_range, base_params.alpha1),
     K1_0=jnp.full_like(alpha2_range, base_params.K1_0),
     E1_f=jnp.full_like(alpha2_range, base_params.E1_f),
@@ -59,7 +59,7 @@ ax1.legend()
 
 # K0 Varying
 K2_0_range = jnp.array([1.0, 5.0, 10.0, 20.0, 40.0, 50.0])
-K2_0_params = HeterogenousECirreMechanismFDMParams(
+K2_0_params = HeterogenousReactionParams(
     alpha1=jnp.full_like(K2_0_range, base_params.alpha1),
     K1_0=jnp.full_like(K2_0_range, base_params.K1_0),
     E1_f=jnp.full_like(K2_0_range, base_params.E1_f),
@@ -84,7 +84,7 @@ ax2.legend()
 
 # dC Varying
 dC_range = jnp.array([0.1, 0.3, 0.5, 0.7, 0.9])
-dC_params = HeterogenousECirreMechanismFDMParams(
+dC_params = HeterogenousReactionParams(
     alpha1=jnp.full_like(dC_range, base_params.alpha1),
     K1_0=jnp.full_like(dC_range, base_params.K1_0),
     E1_f=jnp.full_like(dC_range, base_params.E1_f),
@@ -111,7 +111,7 @@ ax3.legend()
 
 # dD Varying
 dD_range = jnp.array([0.1, 0.3, 0.5, 0.7, 0.9])
-dD_params = HeterogenousECirreMechanismFDMParams(
+dD_params = HeterogenousReactionParams(
     alpha1=jnp.full_like(dD_range, base_params.alpha1),
     K1_0=jnp.full_like(dD_range, base_params.K1_0),
     E1_f=jnp.full_like(dD_range, base_params.E1_f),
@@ -137,7 +137,7 @@ ax4.legend()
 
 # Khet Varying
 K_het_range = jnp.array([1.0, 5.0, 10.0, 20.0, 40.0, 50.0])
-K_het_params = HeterogenousECirreMechanismFDMParams(
+K_het_params = HeterogenousReactionParams(
     alpha1=jnp.full_like(K2_0_range, base_params.alpha1),
     K1_0=jnp.full_like(K2_0_range, base_params.K1_0),
     E1_f=jnp.full_like(K2_0_range, base_params.E1_f),

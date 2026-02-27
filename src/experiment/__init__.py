@@ -1,4 +1,7 @@
-from .E_Reaction import EReactionSamplingExperiment
-from .ECirre_Reaction import ECirreSamplingExperiment
+from .electron_reaction import ElectronReactionSamplingExperiment
+from .heterogeneous_reaction import HeterogeneousReactionSamplingExperiment
 
-__all__ = ["EReactionSamplingExperiment", "ECirreSamplingExperiment"]
+__all__ = [
+    "ElectronReactionSamplingExperiment",
+    "HeterogeneousReactionSamplingExperiment",
+]
