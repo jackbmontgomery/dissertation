@@ -9,7 +9,7 @@ from src.solvers import pentadiagonal_solve
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
 
-from .base import AbstractFDSolver, exponential_discretisation
+from .base import AbstractFDSolver, setup_fd_discritisation
 
 
 @dataclass
@@ -36,42 +36,26 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
     alpha_inner: Scalar
     sigma_inner: Scalar
     dt: float
-    h: Scalar
+    h0: Scalar
 
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h: float = 1e-3,
+        h0: float = 1e-3,
         omega: float = 1.1,
         dtheta: float = 1e-1,
     ):
-        # Suggestion from Understanding Voltammetry 3.4.1
-        dt = dtheta / voltammetry.sigma
-        self.dt = dt
-
-        T = jnp.linspace(
-            voltammetry.t_min,
-            voltammetry.t_max,
-            int((voltammetry.t_max - voltammetry.t_min) / dt),
+        T, dt, X, alpha_inner, sigma_inner = setup_fd_discritisation(
+            voltammetry, dtheta, h0, omega
         )
-
-        self.applied_potentials = vmap(voltammetry.applied_potential)(T)
-
-        # Einstein on Brownian Motion
-        x_max = 6.0 * jnp.sqrt(voltammetry.t_max)
-        X = exponential_discretisation(x_max, h, omega)
 
         self.X = X
         self.Nx = len(X)
-
-        print("Discretisation", f"X: {X.shape}", f"T: {T.shape}")
-
-        X_plus = X[2:] - X[1:-1]
-        X_minus = X[1:-1] - X[:-2]
-
-        self.h = X[1] - X[0]
-        self.alpha_inner = -(2.0 * dt) / (X_minus * (X_minus + X_plus))
-        self.sigma_inner = -(2.0 * dt) / (X_plus * (X_minus + X_plus))
+        self.dt = dt
+        self.applied_potentials = vmap(voltammetry.applied_potential)(T)
+        self.h0 = jnp.array(h0)
+        self.alpha_inner = alpha_inner
+        self.sigma_inner = sigma_inner
 
     def compute_current(
         self,
@@ -208,33 +192,33 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             ]
         )
 
-        K1_red = params.K1_0 * jnp.exp(
-            -params.alpha1 * (self.applied_potentials - params.E1_f)
+        K1_red = params.K0_1 * jnp.exp(
+            -params.alpha_1 * (self.applied_potentials - params.Ef_1)
         )
 
-        K1_ox = params.K1_0 * jnp.exp(
-            (1.0 - params.alpha1) * (self.applied_potentials - params.E1_f)
+        K1_ox = params.K0_1 * jnp.exp(
+            (1.0 - params.alpha_1) * (self.applied_potentials - params.Ef_1)
         )
 
-        K2_red = params.K2_0 * jnp.exp(
-            -params.alpha2 * (self.applied_potentials - params.E2_f)
+        K2_red = params.K0_2 * jnp.exp(
+            -params.alpha_2 * (self.applied_potentials - params.Ef_2)
         )
 
-        K2_ox = params.K2_0 * jnp.exp(
-            (1.0 - params.alpha2) * (self.applied_potentials - params.E2_f)
+        K2_ox = params.K0_2 * jnp.exp(
+            (1.0 - params.alpha_2) * (self.applied_potentials - params.Ef_2)
         )
 
-        B0_A_coef = -self.h * K1_red / params.dB
-        C0_B_coef = jnp.full_like(B0_A_coef, -self.h * params.K_het / params.dC)
-        D0_C_coef = -self.h * K2_red / params.dD
+        B0_A_coef = -self.h0 * K1_red / params.dB
+        C0_B_coef = jnp.full_like(B0_A_coef, -self.h0 * params.K_het / params.dC)
+        D0_C_coef = -self.h0 * K2_red / params.dD
 
-        beta_A_coef = 1.0 + self.h * K1_red
-        beta_B_coef = 1.0 + self.h * (K1_ox + params.K_het) / params.dB
-        beta_C_coef = 1.0 + self.h * K2_red / params.dC
-        beta_D_coef = 1.0 + self.h * K2_ox / params.dD
+        beta_A_coef = 1.0 + self.h0 * K1_red
+        beta_B_coef = 1.0 + self.h0 * (K1_ox + params.K_het) / params.dB
+        beta_C_coef = 1.0 + self.h0 * K2_red / params.dC
+        beta_D_coef = 1.0 + self.h0 * K2_ox / params.dD
 
-        A0_B_coef = -self.h * K1_ox
-        C0_D_coef = -self.h * K2_ox / params.dC
+        A0_B_coef = -self.h0 * K1_ox
+        C0_D_coef = -self.h0 * K2_ox / params.dC
 
         xs = ScanInputSequence(
             K1_red=K1_red,

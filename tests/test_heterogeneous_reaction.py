@@ -15,12 +15,12 @@ def heterogeneous_reaction():
     fdm_solver = HeterogeneousReactionFDSolver(voltammetry)
 
     params = HeterogenousReactionParams(
-        alpha1=jnp.array(0.7),
-        K1_0=jnp.array(1.0),
-        E1_f=jnp.array(0.0),
-        alpha2=jnp.array(0.0),
-        K2_0=jnp.array(0.0),
-        E2_f=jnp.array(0.0),
+        alpha_1=jnp.array(0.7),
+        K0_1=jnp.array(1.0),
+        Ef_1=jnp.array(0.0),
+        alpha_2=jnp.array(0.0),
+        K0_2=jnp.array(0.0),
+        Ef_2=jnp.array(0.0),
         dB=jnp.array(1.0),
         dC=jnp.array(1.0),
         dD=jnp.array(1.0),

@@ -37,12 +37,12 @@ class ElectronReactionParams(Params):
 
 
 class HeterogenousReactionParams(Params):
-    _alpha1_inv: Scalar
-    _K1_0_inv: Scalar
-    _E1_f_inv: Scalar
-    _alpha2_inv: Scalar
-    _K2_0_inv: Scalar
-    _E2_f_inv: Scalar
+    _alpha_1_inv: Scalar
+    _K0_1_inv: Scalar
+    _Ef_1_inv: Scalar
+    _alpha_2_inv: Scalar
+    _K0_2_inv: Scalar
+    _Ef_2_inv: Scalar
     _dB_inv: Scalar
     _dC_inv: Scalar
     _dD_inv: Scalar
@@ -50,24 +50,24 @@ class HeterogenousReactionParams(Params):
 
     def __init__(
         self,
-        alpha1: Scalar,
-        K1_0: Scalar,
-        E1_f: Scalar,
-        alpha2: Scalar,
-        K2_0: Scalar,
-        E2_f: Scalar,
+        alpha_1: Scalar,
+        K0_1: Scalar,
+        Ef_1: Scalar,
+        alpha_2: Scalar,
+        K0_2: Scalar,
+        Ef_2: Scalar,
         dB: Scalar,
         dC: Scalar,
         dD: Scalar,
         K_het: Scalar,
     ):
-        self._alpha1_inv = 3.0 * logit(alpha1)
-        self._K1_0_inv = jnp.log10(K1_0)
-        self._E1_f_inv = 5.0 * jnp.arctanh(E1_f / 20.0)
+        self._alpha_1_inv = 3.0 * logit(alpha_1)
+        self._K0_1_inv = jnp.log10(K0_1)
+        self._Ef_1_inv = 5.0 * jnp.arctanh(Ef_1 / 20.0)
 
-        self._alpha2_inv = 3.0 * logit(alpha2)
-        self._K2_0_inv = jnp.log10(K2_0)
-        self._E2_f_inv = 5.0 * jnp.arctanh(E2_f / 20.0)
+        self._alpha_2_inv = 3.0 * logit(alpha_2)
+        self._K0_2_inv = jnp.log10(K0_2)
+        self._Ef_2_inv = 5.0 * jnp.arctanh(Ef_2 / 20.0)
 
         self._dB_inv = jnp.log2(dB)
         self._dC_inv = jnp.log2(dC)
@@ -76,28 +76,28 @@ class HeterogenousReactionParams(Params):
         self._K_het_inv = jnp.log10(K_het)
 
     @property
-    def alpha1(self):
-        return sigmoid(self._alpha1_inv / 3.0)
+    def alpha_1(self):
+        return sigmoid(self._alpha_1_inv / 3.0)
 
     @property
-    def alpha2(self):
-        return sigmoid(self._alpha2_inv / 3.0)
+    def alpha_2(self):
+        return sigmoid(self._alpha_2_inv / 3.0)
 
     @property
-    def K1_0(self):
-        return jnp.power(10, self._K1_0_inv)
+    def K0_1(self):
+        return jnp.power(10, self._K0_1_inv)
 
     @property
-    def K2_0(self):
-        return jnp.power(10, self._K2_0_inv)
+    def K0_2(self):
+        return jnp.power(10, self._K0_2_inv)
 
     @property
-    def E1_f(self):
-        return 20.0 * jnp.tanh(self._E1_f_inv / 5.0)
+    def Ef_1(self):
+        return 20.0 * jnp.tanh(self._Ef_1_inv / 5.0)
 
     @property
-    def E2_f(self):
-        return 20.0 * jnp.tanh(self._E2_f_inv / 5.0)
+    def Ef_2(self):
+        return 20.0 * jnp.tanh(self._Ef_2_inv / 5.0)
 
     @property
     def dB(self):
@@ -116,12 +116,98 @@ class HeterogenousReactionParams(Params):
         return jnp.power(10, self._K_het_inv)
 
 
+class AbsorptionReactionParams(Params):
+    _alpha_sol_inv: Scalar
+    _K0_sol_inv: Scalar
+    _Ef_sol_inv: Scalar
+    _alpha_abs_inv: Scalar
+    _K0_abs_inv: Scalar
+    _K_A_abs_inv: Scalar
+    _K_A_des_inv: Scalar
+    _K_B_abs_inv: Scalar
+    _K_B_des_inv: Scalar
+    _dB_inv: Scalar
+
+    def __init__(
+        self,
+        alpha_sol: Scalar,
+        K0_sol: Scalar,
+        Ef_sol: Scalar,
+        alpha_abs: Scalar,
+        K0_abs: Scalar,
+        K_A_abs: Scalar,
+        K_A_des: Scalar,
+        K_B_abs: Scalar,
+        K_B_des: Scalar,
+        dB: Scalar,
+    ):
+        self._alpha_sol_inv = 3.0 * logit(alpha_sol)
+        self._K0_sol_inv = jnp.log10(K0_sol)
+        self._Ef_sol_inv = 5.0 * jnp.arctanh(Ef_sol / 20.0)
+
+        self._alpha_abs_inv = 3.0 * logit(alpha_abs)
+        self._K0_abs_inv = jnp.log10(K0_abs)
+
+        self._K_A_abs_inv = jnp.log2(K_A_abs)
+        self._K_A_des_inv = jnp.log2(K_A_des)
+        self._K_B_abs_inv = jnp.log2(K_B_abs)
+        self._K_B_des_inv = jnp.log2(K_B_des)
+
+        self._dB_inv = jnp.log2(dB)
+
+    @property
+    def alpha_sol(self):
+        return sigmoid(self._alpha_sol_inv / 3.0)
+
+    @property
+    def K0_sol(self):
+        return jnp.power(10, self._K0_sol_inv)
+
+    @property
+    def Ef_sol(self):
+        return 20.0 * jnp.tanh(self._Ef_sol_inv / 5.0)
+
+    @property
+    def alpha_abs(self):
+        return sigmoid(self._alpha_abs_inv / 3.0)
+
+    @property
+    def K0_abs(self):
+        return jnp.power(10, self._K0_abs_inv)
+
+    @property
+    def Ef_abs(self):
+        return self.Ef_sol + jnp.log(
+            (self.K_A_abs / self.K_A_des / (self.K_B_abs / self.K_B_des))
+        )
+
+    @property
+    def K_A_abs(self):
+        return jnp.power(2, self._K_A_abs_inv)
+
+    @property
+    def K_A_des(self):
+        return jnp.power(2, self._K_A_des_inv)
+
+    @property
+    def K_B_abs(self):
+        return jnp.power(2, self._K_B_abs_inv)
+
+    @property
+    def K_B_des(self):
+        return jnp.power(2, self._K_B_des_inv)
+
+    @property
+    def dB(self):
+        return jnp.power(2, self._dB_inv)
+
+
 class SecondOrderECirreMechanismFDMParams(Params):
     _alpha_inv: Scalar
     _K0_inv: Scalar
     _Kplus_inv: Scalar
     _Kminus_inv: Scalar
-    _E0_inv: Scalar
+    _Ef_inv: Scalar
     _dB_inv: Scalar
     _dY_inv: Scalar
     _dZ_inv: Scalar
@@ -141,7 +227,7 @@ class SecondOrderECirreMechanismFDMParams(Params):
         self._K0_inv = jnp.log10(K0)
         self._Kplus_inv = jnp.log(Kminus)
         self._Kminus_inv = jnp.log(Kplus)
-        self._E0_inv = 5.0 * jnp.arctanh(E0 / 20.0)
+        self._Ef_inv = 5.0 * jnp.arctanh(E0 / 20.0)
         self._dB_inv = jnp.log2(dB)
         self._dY_inv = jnp.log2(dY)
         self._dZ_inv = jnp.log2(dZ)
@@ -156,7 +242,7 @@ class SecondOrderECirreMechanismFDMParams(Params):
 
     @property
     def E0(self):
-        return 20.0 * jnp.tanh(self._E0_inv / 5.0)
+        return 20.0 * jnp.tanh(self._Ef_inv / 5.0)
 
     @property
     def dB(self):

@@ -19,12 +19,12 @@ class HeterogeneousReactionSamplingExperiment(AbstractSamplingExperiment):
     @property
     def true_parameters(self) -> HeterogenousReactionParams:
         return HeterogenousReactionParams(
-            alpha1=jnp.array(0.6),
-            K1_0=jnp.array(10.0),
-            E1_f=jnp.array(0.5),
-            alpha2=jnp.array(0.6),
-            K2_0=jnp.array(30.0),
-            E2_f=jnp.array(0.2),
+            alpha_1=jnp.array(0.6),
+            K0_1=jnp.array(10.0),
+            Ef_1=jnp.array(0.5),
+            alpha_2=jnp.array(0.6),
+            K0_2=jnp.array(30.0),
+            Ef_2=jnp.array(0.2),
             dB=jnp.array(0.8),
             dC=jnp.array(0.8),
             dD=jnp.array(0.8),
@@ -56,12 +56,12 @@ class HeterogeneousReactionSamplingExperiment(AbstractSamplingExperiment):
             return -jnp.sum((samples - current) ** 2)
 
         init_params = HeterogenousReactionParams(
-            alpha1=jnp.linspace(0.5, 0.7, NUM_CPUS),
-            K1_0=jnp.linspace(5.0, 15.0, NUM_CPUS),
-            E1_f=jnp.linspace(0.2, 0.7, NUM_CPUS),
-            alpha2=jnp.linspace(0.5, 0.7, NUM_CPUS),
-            K2_0=jnp.linspace(5.0, 15.0, NUM_CPUS),
-            E2_f=jnp.linspace(0.2, 0.7, NUM_CPUS),
+            alpha_1=jnp.linspace(0.5, 0.7, NUM_CPUS),
+            K0_1=jnp.linspace(5.0, 15.0, NUM_CPUS),
+            Ef_1=jnp.linspace(0.2, 0.7, NUM_CPUS),
+            alpha_2=jnp.linspace(0.5, 0.7, NUM_CPUS),
+            K0_2=jnp.linspace(5.0, 15.0, NUM_CPUS),
+            Ef_2=jnp.linspace(0.2, 0.7, NUM_CPUS),
             dB=jnp.linspace(0.8, 1.4, NUM_CPUS),
             dC=jnp.linspace(0.8, 1.4, NUM_CPUS),
             dD=jnp.linspace(0.8, 1.4, NUM_CPUS),
