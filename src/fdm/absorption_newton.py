@@ -1,5 +1,6 @@
 from typing import Callable, Tuple
 
+import jax
 import jax.numpy as jnp
 from chex import dataclass
 from jax import vmap
@@ -11,6 +12,8 @@ from src.params import AbsorptionReactionParams
 from src.solvers import pentadiagonal_solve
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
+
+jax.config.update("jax_enable_x64", True)
 
 
 @dataclass
@@ -98,7 +101,7 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
                 -self.dt * x.K_ox_abs
                 - self.dt * params.K_B_abs * self.beta * sol[3]
                 - self.dt * params.K_B_des * self.beta
-                - 1
+                - 1.0
             )
 
             df1_dCB = self.dt * params.K_B_abs * self.beta * (1 - (sol[0] + sol[1]))
@@ -112,8 +115,6 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
                 + self.h0 * params.K_A_abs * (1 - (sol[0] + sol[1]))
             )
 
-            df2_dCA = -self.h0 * x.K_ox_sol
-
             df2_dCB = -self.h0 * x.K_ox_sol
 
             df2_dCA1 = -1.0
@@ -122,13 +123,14 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
 
             df3_dphiB = (
                 -self.h0 * params.K_B_abs * sol[3] / params.dB
-                - self.h0 * params.K_B_des * sol[1] / params.dB
+                - self.h0 * params.K_B_des / params.dB
             )
 
             df3_dCA = -self.h0 * x.K_red_sol / params.dB
 
             df3_dCB = (
-                1.0 * self.h0 * x.K_ox_sol / params.dB
+                1.0
+                + self.h0 * x.K_ox_sol / params.dB
                 + self.h0 * params.K_B_abs * (1 - (sol[0] + sol[1])) / params.dB
             )
 
@@ -192,7 +194,7 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
                 + self.dt
                 * params.K_A_abs
                 * self.beta
-                * sol[3]
+                * sol[2]
                 * (1 - (sol[0] + sol[1]))
                 - self.dt * params.K_A_des * self.beta * sol[0]
                 - sol[0]
@@ -205,7 +207,7 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
                 + self.dt
                 * params.K_B_abs
                 * self.beta
-                * sol[4]
+                * sol[3]
                 * (1 - (sol[0] + sol[1]))
                 - self.dt * params.K_B_des * self.beta * sol[1]
                 - sol[1]
@@ -229,28 +231,20 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
                 * sol[3]
                 * (1 - (sol[0] + sol[1]))
                 / params.dB
-                - self.h0 * params.K_B_des * sol[0] / params.dB
+                - self.h0 * params.K_B_des * sol[1] / params.dB
                 - sol[5]
             )
 
             f_CA_inner = (
-                self.alpha_inner
-                * sol[2:-4:2]
-                * (1 - (self.alpha_inner + self.sigma_inner))
-                * sol[4:-2:2]
-                * self.sigma_inner
-                * sol[6::2]
+                self.alpha_inner * sol[2:-4:2]
+                + (1 - (self.alpha_inner + self.sigma_inner)) * sol[4:-2:2]
+                + self.sigma_inner * sol[6::2]
             )
 
             f_CB_inner = (
-                params.dB
-                * self.alpha_inner
-                * sol[3:-4:2]
-                * (1 - params.dB * (self.alpha_inner + self.sigma_inner))
-                * sol[5:-2:2]
-                * params.dB
-                * self.sigma_inner
-                * sol[7::2]
+                params.dB * self.alpha_inner * sol[3:-4:2]
+                + (1 - params.dB * (self.alpha_inner + self.sigma_inner)) * sol[5:-2:2]
+                + params.dB * self.sigma_inner * sol[7::2]
             )
 
             f_CA_final = sol[-2] - 1.0
@@ -283,13 +277,12 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
 
             d2l, dl, d, du, d2u = build_J_diags(y.sol)
 
-            print(d2l.shape, dl.shape, d.shape, du.shape, d2u.shape, F.shape)
             delta_sol = pentadiagonal_solve(d2l, dl, d, du, d2u, -F)
 
             sol = y.sol + delta_sol
 
-            new_x = WhileOpArgs(sol=sol, delta_sol=delta_sol)
-            return new_x
+            new_y = WhileOpArgs(sol=sol, delta_sol=delta_sol)
+            return new_y
 
         y = WhileOpArgs(
             sol=sol_prev,
@@ -313,9 +306,11 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
 
         K_A_eq = params.K_A_abs / params.K_A_des
         K_B_eq = params.K_B_abs / params.K_B_des
+
         phiA_init = K_A_eq / (1.0 + K_A_eq)
         phiB_init = K_B_eq / (1.0 + K_A_eq)
         phi_init = jnp.array([phiA_init, phiB_init])
+
         c_init = interleave_concat_2d(jnp.ones(self.Nx), jnp.zeros(self.Nx))
 
         init_sol = jnp.concat([phi_init, c_init])
