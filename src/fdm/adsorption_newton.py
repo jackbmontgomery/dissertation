@@ -8,7 +8,7 @@ from jax.lax import scan, while_loop
 from jaxtyping import Array, Scalar
 
 from src.fdm.base import AbstractFDSolver, setup_fd_discritisation
-from src.params import AbsorptionReactionParams
+from src.params import AdsorptionReactionParams
 from src.solvers import pentadiagonal_solve
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
@@ -24,13 +24,13 @@ class WhileOpArgs:
 
 @dataclass
 class ScanInputSequence:
-    K_red_abs: Scalar
-    K_ox_abs: Scalar
+    K_red_ads: Scalar
+    K_ox_ads: Scalar
     K_red_sol: Scalar
     K_ox_sol: Scalar
 
 
-class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
+class AdsorptionReactionNewtonDFSolver(AbstractFDSolver):
     applied_potentials: Scalar
     Nx: int
     alpha_inner: Scalar
@@ -60,69 +60,70 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
         # Dimensionless Saturation Parameter
         self.beta = 1.0
 
-    def compute_current(self, solution: Array, x: ScanInputSequence) -> Scalar:
-        gamma_A = solution[0]
-        gamma_B = solution[1]
-        cA_0 = solution[2]
-        cB_0 = solution[3]
+    def compute_current(self, sol: Array, x: ScanInputSequence) -> Scalar:
+        gamma_A = sol[0]
+        gamma_B = sol[1]
+        cA_0 = sol[2]
+        cB_0 = sol[3]
 
         return -(
             x.K_red_sol * cA_0
             - x.K_ox_sol * cB_0
-            + x.K_red_abs * gamma_A
-            - x.K_ox_abs * gamma_B
+            + x.K_red_ads * gamma_A
+            - x.K_ox_ads * gamma_B
         )
 
     def create_build_J_diags(
-        self, params: AbsorptionReactionParams, x: ScanInputSequence
+        self, params: AdsorptionReactionParams, x: ScanInputSequence
     ) -> Callable[[Scalar], Tuple[Scalar, Scalar, Scalar, Scalar, Scalar]]:
         d_A_inner = 1 - (self.alpha_inner + self.sigma_inner)
         d_B_inner = 1 - params.dB * (self.alpha_inner + self.sigma_inner)
 
         def build_J_diags(sol: Scalar) -> Tuple[Scalar, Scalar, Scalar, Scalar, Scalar]:
             df0_dphiA = (
-                -self.dt * x.K_red_abs
-                - self.dt * params.K_A_abs * self.beta * sol[2]
+                -self.dt * x.K_red_ads
+                - self.dt * params.K_A_ads * self.beta * sol[2]
                 - self.dt * params.K_A_des * self.beta
                 - 1.0
             )
 
             df0_dphiB = (
-                self.dt * x.K_ox_abs - self.dt * params.K_A_abs * self.beta * sol[2]
+                self.dt * x.K_ox_ads - self.dt * params.K_A_ads * self.beta * sol[2]
             )
 
-            df0_dCA = self.dt * params.K_A_abs * self.beta * (1 - (sol[0] + sol[1]))
+            df0_dCA = self.dt * params.K_A_ads * self.beta * (1 - (sol[0] + sol[1]))
 
             df1_dphiA = (
-                self.dt * x.K_red_abs - self.dt * params.K_B_abs * self.beta * sol[3]
+                self.dt * x.K_red_ads - self.dt * params.K_B_ads * self.beta * sol[3]
             )
 
             df1_dphiB = (
-                -self.dt * x.K_ox_abs
-                - self.dt * params.K_B_abs * self.beta * sol[3]
+                -self.dt * x.K_ox_ads
+                - self.dt * params.K_B_ads * self.beta * sol[3]
                 - self.dt * params.K_B_des * self.beta
                 - 1.0
             )
 
-            df1_dCB = self.dt * params.K_B_abs * self.beta * (1 - (sol[0] + sol[1]))
+            df1_dCB = self.dt * params.K_B_ads * self.beta * (1 - (sol[0] + sol[1]))
 
-            df2_dphiA = -self.h0 * params.K_A_abs * sol[2] - self.h0 * params.K_A_des
-            df2_dphiB = -self.h0 * params.K_A_abs * sol[2]
+            df2_dphiA = -self.h0 * params.K_A_ads * sol[2] - self.h0 * params.K_A_des
+
+            df2_dphiB = -self.h0 * params.K_A_ads * sol[2]
 
             df2_dCA = (
                 1.0
                 + self.h0 * x.K_red_sol
-                + self.h0 * params.K_A_abs * (1 - (sol[0] + sol[1]))
+                + self.h0 * params.K_A_ads * (1 - (sol[0] + sol[1]))
             )
 
             df2_dCB = -self.h0 * x.K_ox_sol
 
             df2_dCA1 = -1.0
 
-            df3_dphiA = -self.h0 * params.K_B_abs * sol[3] / params.dB
+            df3_dphiA = -self.h0 * params.K_B_ads * sol[3] / params.dB
 
             df3_dphiB = (
-                -self.h0 * params.K_B_abs * sol[3] / params.dB
+                -self.h0 * params.K_B_ads * sol[3] / params.dB
                 - self.h0 * params.K_B_des / params.dB
             )
 
@@ -131,7 +132,7 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
             df3_dCB = (
                 1.0
                 + self.h0 * x.K_ox_sol / params.dB
-                + self.h0 * params.K_B_abs * (1 - (sol[0] + sol[1])) / params.dB
+                + self.h0 * params.K_B_ads * (1 - (sol[0] + sol[1])) / params.dB
             )
 
             df3_dCB1 = -1.0
@@ -184,53 +185,41 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
         return build_J_diags
 
     def create_build_F(
-        self, params: AbsorptionReactionParams, sol_prev: Scalar, x: ScanInputSequence
+        self, params: AdsorptionReactionParams, sol_prev: Scalar, x: ScanInputSequence
     ) -> Callable[[Scalar], Scalar]:
         def build_F(sol: Scalar) -> Scalar:
             f0 = (
                 sol_prev[0]
-                - self.dt * x.K_red_abs * sol[0]
-                + self.dt * x.K_ox_abs * sol[1]
-                + self.dt
-                * params.K_A_abs
-                * self.beta
-                * sol[2]
-                * (1 - (sol[0] + sol[1]))
+                - self.dt * x.K_red_ads * sol[0]
+                + self.dt * x.K_ox_ads * sol[1]
+                + self.dt * params.K_A_ads * self.beta * sol[2] * (1 - sol[0] - sol[1])
                 - self.dt * params.K_A_des * self.beta * sol[0]
                 - sol[0]
             )
 
             f1 = (
                 sol_prev[1]
-                + self.dt * x.K_red_abs * sol[0]
-                - self.dt * x.K_ox_abs * sol[1]
-                + self.dt
-                * params.K_B_abs
-                * self.beta
-                * sol[3]
-                * (1 - (sol[0] + sol[1]))
+                + self.dt * x.K_red_ads * sol[0]
+                - self.dt * x.K_ox_ads * sol[1]
+                + self.dt * params.K_B_ads * self.beta * sol[3] * (1 - sol[0] - sol[1])
                 - self.dt * params.K_B_des * self.beta * sol[1]
                 - sol[1]
             )
 
             f2 = (
-                sol[2]
-                + self.h0 * x.K_red_sol * sol[2]
+                self.h0 * x.K_red_sol * sol[2]
                 - self.h0 * x.K_ox_sol * sol[3]
-                + self.h0 * params.K_A_abs * sol[2] * (1 - (sol[0] + sol[1]))
+                + self.h0 * params.K_A_ads * sol[2] * (1 - sol[0] - sol[1])
                 - self.h0 * params.K_A_des * sol[0]
                 - sol[4]
+                + sol[2]
             )
 
             f3 = (
                 sol[3]
                 - self.h0 * x.K_red_sol * sol[2] / params.dB
                 + self.h0 * x.K_ox_sol * sol[3] / params.dB
-                + self.h0
-                * params.K_B_abs
-                * sol[3]
-                * (1 - (sol[0] + sol[1]))
-                / params.dB
+                + self.h0 * params.K_B_ads * sol[3] * (1 - sol[0] - sol[1]) / params.dB
                 - self.h0 * params.K_B_des * sol[1] / params.dB
                 - sol[5]
             )
@@ -239,12 +228,14 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
                 self.alpha_inner * sol[2:-4:2]
                 + (1 - (self.alpha_inner + self.sigma_inner)) * sol[4:-2:2]
                 + self.sigma_inner * sol[6::2]
+                - sol_prev[4:-2:2]
             )
 
             f_CB_inner = (
                 params.dB * self.alpha_inner * sol[3:-4:2]
                 + (1 - params.dB * (self.alpha_inner + self.sigma_inner)) * sol[5:-2:2]
                 + params.dB * self.sigma_inner * sol[7::2]
+                - sol_prev[5:-2:2]
             )
 
             f_CA_final = sol[-2] - 1.0
@@ -262,9 +253,9 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
         return build_F
 
     def newton_solve(
-        self, sol_prev: Scalar, params: AbsorptionReactionParams, x: ScanInputSequence
+        self, sol_prev: Scalar, params: AdsorptionReactionParams, x: ScanInputSequence
     ):
-        a_tol = 1e-4
+        a_tol = 1e-8
 
         build_F = self.create_build_F(params, sol_prev, x)
         build_J_diags = self.create_build_J_diags(params, x)
@@ -293,34 +284,34 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
 
         return y.sol
 
-    def create_stepper(self, params: AbsorptionReactionParams) -> Callable:
+    def create_stepper(self, params: AdsorptionReactionParams) -> Callable:
         def stepper(sol_prev: Scalar, x: ScanInputSequence):
-            c = self.newton_solve(sol_prev, params, x)
-            current = self.compute_current(c, x)
-            return c, current
+            sol = self.newton_solve(sol_prev, params, x)
+            current = self.compute_current(sol, x)
+            return sol, current
 
         return stepper
 
-    def solve(self, params: AbsorptionReactionParams) -> Scalar:
+    def solve(self, params: AdsorptionReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
-        K_A_eq = params.K_A_abs / params.K_A_des
-        K_B_eq = params.K_B_abs / params.K_B_des
+        K_A_eq = params.K_A_ads / params.K_A_des
 
         phiA_init = K_A_eq / (1.0 + K_A_eq)
-        phiB_init = K_B_eq / (1.0 + K_A_eq)
+        phiB_init = 0.0
+
         phi_init = jnp.array([phiA_init, phiB_init])
 
         c_init = interleave_concat_2d(jnp.ones(self.Nx), jnp.zeros(self.Nx))
 
         init_sol = jnp.concat([phi_init, c_init])
 
-        K_red_abs = params.K0_abs * jnp.exp(
-            -params.alpha_abs * (self.applied_potentials - params.Ef_abs)
+        K_red_ads = params.K0_ads * jnp.exp(
+            -params.alpha_ads * (self.applied_potentials - params.Ef_ads)
         )
 
-        K_ox_abs = params.K0_abs * jnp.exp(
-            (1 - params.alpha_abs) * (self.applied_potentials - params.Ef_abs)
+        K_ox_ads = params.K0_ads * jnp.exp(
+            (1 - params.alpha_ads) * (self.applied_potentials - params.Ef_ads)
         )
 
         K_red_sol = params.K0_sol * jnp.exp(
@@ -332,8 +323,8 @@ class AbsorptionReactionNewtonDFSolver(AbstractFDSolver):
         )
 
         xs = ScanInputSequence(
-            K_red_abs=K_red_abs,
-            K_ox_abs=K_ox_abs,
+            K_red_ads=K_red_ads,
+            K_ox_ads=K_ox_ads,
             K_red_sol=K_red_sol,
             K_ox_sol=K_ox_sol,
         )

@@ -1,6 +1,6 @@
 from src.fdm.base import AbstractFDSolver
 
-from .absorption_newton import AbsorptionReactionNewtonDFSolver
+from .adsorption_newton import AdsorptionReactionNewtonDFSolver
 from .electron_reaction import ElectronReactionFDSolver
 from .heterogeneous_reaction import HeterogeneousReactionFDSolver
 from .second_order_backward_implicit import SecondOrderECirreFDMSolverBackwardImplicit
@@ -11,7 +11,7 @@ __all__ = [
     "AbstractFDSolver",
     "ElectronReactionFDSolver",
     "HeterogeneousReactionFDSolver",
-    "AbsorptionReactionNewtonDFSolver",
+    "AdsorptionReactionNewtonDFSolver",
     "SecondOrderECirreFDMSolverExplicit",
     "SecondOrderECirreFDMSolverNewton",
     "SecondOrderECirreFDMSolverBackwardImplicit",

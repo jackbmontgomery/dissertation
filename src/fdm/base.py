@@ -43,6 +43,7 @@ def setup_fd_discritisation(
     # Einstein on Brownian Motion
     x_max = 6.0 * jnp.sqrt(voltammetry.t_max)
     X = exponential_discretisation(x_max, h0, omega)
+
     print("Discretisation", f"X: {X.shape}", f"T: {T.shape}")
 
     X_plus = X[2:] - X[1:-1]

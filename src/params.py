@@ -116,15 +116,15 @@ class HeterogenousReactionParams(Params):
         return jnp.power(10, self._K_het_inv)
 
 
-class AbsorptionReactionParams(Params):
+class AdsorptionReactionParams(Params):
     _alpha_sol_inv: Scalar
     _K0_sol_inv: Scalar
     _Ef_sol_inv: Scalar
-    _alpha_abs_inv: Scalar
-    _K0_abs_inv: Scalar
-    _K_A_abs_inv: Scalar
+    _alpha_ads_inv: Scalar
+    _K0_ads_inv: Scalar
+    _K_A_ads_inv: Scalar
     _K_A_des_inv: Scalar
-    _K_B_abs_inv: Scalar
+    _K_B_ads_inv: Scalar
     _K_B_des_inv: Scalar
     _dB_inv: Scalar
 
@@ -133,11 +133,11 @@ class AbsorptionReactionParams(Params):
         alpha_sol: Scalar,
         K0_sol: Scalar,
         Ef_sol: Scalar,
-        alpha_abs: Scalar,
-        K0_abs: Scalar,
-        K_A_abs: Scalar,
+        alpha_ads: Scalar,
+        K0_ads: Scalar,
+        K_A_ads: Scalar,
         K_A_des: Scalar,
-        K_B_abs: Scalar,
+        K_B_ads: Scalar,
         K_B_des: Scalar,
         dB: Scalar,
     ):
@@ -145,12 +145,12 @@ class AbsorptionReactionParams(Params):
         self._K0_sol_inv = jnp.log10(K0_sol)
         self._Ef_sol_inv = 5.0 * jnp.arctanh(Ef_sol / 20.0)
 
-        self._alpha_abs_inv = 3.0 * logit(alpha_abs)
-        self._K0_abs_inv = jnp.log10(K0_abs)
+        self._alpha_ads_inv = 3.0 * logit(alpha_ads)
+        self._K0_ads_inv = jnp.log10(K0_ads)
 
-        self._K_A_abs_inv = jnp.log2(K_A_abs)
+        self._K_A_ads_inv = jnp.log2(K_A_ads)
         self._K_A_des_inv = jnp.log2(K_A_des)
-        self._K_B_abs_inv = jnp.log2(K_B_abs)
+        self._K_B_ads_inv = jnp.log2(K_B_ads)
         self._K_B_des_inv = jnp.log2(K_B_des)
 
         self._dB_inv = jnp.log2(dB)
@@ -168,30 +168,30 @@ class AbsorptionReactionParams(Params):
         return 20.0 * jnp.tanh(self._Ef_sol_inv / 5.0)
 
     @property
-    def alpha_abs(self):
-        return sigmoid(self._alpha_abs_inv / 3.0)
+    def alpha_ads(self):
+        return sigmoid(self._alpha_ads_inv / 3.0)
 
     @property
-    def K0_abs(self):
-        return jnp.power(10, self._K0_abs_inv)
+    def K0_ads(self):
+        return jnp.power(10, self._K0_ads_inv)
 
     @property
-    def Ef_abs(self):
-        return self.Ef_sol + jnp.log(
-            (self.K_A_abs / self.K_A_des / (self.K_B_abs / self.K_B_des))
+    def Ef_ads(self):
+        return self.Ef_sol - jnp.log(
+            (self.K_A_ads / self.K_A_des) / (self.K_B_ads / self.K_B_des)
         )
 
     @property
-    def K_A_abs(self):
-        return jnp.power(2, self._K_A_abs_inv)
+    def K_A_ads(self):
+        return jnp.power(2, self._K_A_ads_inv)
 
     @property
     def K_A_des(self):
         return jnp.power(2, self._K_A_des_inv)
 
     @property
-    def K_B_abs(self):
-        return jnp.power(2, self._K_B_abs_inv)
+    def K_B_ads(self):
+        return jnp.power(2, self._K_B_ads_inv)
 
     @property
     def K_B_des(self):
