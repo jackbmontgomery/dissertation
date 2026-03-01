@@ -1,6 +1,5 @@
 from typing import Callable, Tuple
 
-import jax
 import jax.numpy as jnp
 from chex import dataclass
 from jax import vmap
@@ -12,8 +11,6 @@ from src.params import AdsorptionReactionParams
 from src.solvers import pentadiagonal_solve
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
-
-jax.config.update("jax_enable_x64", True)
 
 
 @dataclass
@@ -30,7 +27,7 @@ class ScanInputSequence:
     K_ox_sol: Scalar
 
 
-class AdsorptionReactionNewtonDFSolver(AbstractFDSolver):
+class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     applied_potentials: Scalar
     Nx: int
     alpha_inner: Scalar
@@ -137,9 +134,13 @@ class AdsorptionReactionNewtonDFSolver(AbstractFDSolver):
 
             df3_dCB1 = -1.0
 
+            f2_multiplier = df3_dphiA / df2_dphiA
+
             d2l = jnp.concat(
                 [
-                    jnp.array([0.0, 0.0, df2_dphiA, df3_dphiB - df3_dphiA * df2_dphiB]),
+                    jnp.array(
+                        [0.0, 0.0, df2_dphiA, df3_dphiB - f2_multiplier * df2_dphiB]
+                    ),
                     interleave_concat_2d(
                         self.alpha_inner, params.dB * self.alpha_inner
                     ),
@@ -150,7 +151,7 @@ class AdsorptionReactionNewtonDFSolver(AbstractFDSolver):
             dl = jnp.concat(
                 [
                     jnp.array(
-                        [0.0, df1_dphiA, df2_dphiB, df3_dCA - df3_dphiA * df2_dCA]
+                        [0.0, df1_dphiA, df2_dphiB, df3_dCA - f2_multiplier * df2_dCA]
                     ),
                     jnp.zeros(2 * self.Nx - 2),
                 ]
@@ -159,7 +160,12 @@ class AdsorptionReactionNewtonDFSolver(AbstractFDSolver):
             d = jnp.concat(
                 [
                     jnp.array(
-                        [df0_dphiA, df1_dphiB, df2_dCA, df3_dCB - df3_dphiA * df2_dCB]
+                        [
+                            df0_dphiA,
+                            df1_dphiB,
+                            df2_dCA,
+                            df3_dCB - f2_multiplier * df2_dCB,
+                        ]
                     ),
                     interleave_concat_2d(d_A_inner, d_B_inner),
                     jnp.array([1.0, 1.0]),
@@ -167,7 +173,10 @@ class AdsorptionReactionNewtonDFSolver(AbstractFDSolver):
             )
 
             du = jnp.concat(
-                [jnp.array([df0_dphiB, 0.0, df2_dCB, 0.0]), jnp.zeros(2 * self.Nx - 2)]
+                [
+                    jnp.array([df0_dphiB, 0.0, df2_dCB, -f2_multiplier * df2_dCA1]),
+                    jnp.zeros(2 * self.Nx - 2),
+                ]
             )
 
             d2u = jnp.concat(
@@ -241,9 +250,15 @@ class AdsorptionReactionNewtonDFSolver(AbstractFDSolver):
             f_CA_final = sol[-2] - 1.0
             f_CB_final = sol[-1]
 
+            df2_dphiA = -self.h0 * params.K_A_ads * sol[2] - self.h0 * params.K_A_des
+
+            df3_dphiA = -self.h0 * params.K_B_ads * sol[3] / params.dB
+
+            f2_multiplier = df3_dphiA / df2_dphiA
+
             F = jnp.concat(
                 [
-                    jnp.array([f0, f1, f2, f3]),
+                    jnp.array([f0, f1, f2, f3 - f2_multiplier * f2]),
                     interleave_concat_2d(f_CA_inner, f_CB_inner),
                     jnp.array([f_CA_final, f_CB_final]),
                 ]

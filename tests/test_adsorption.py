@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import pytest
 
-from src.fdm import AdsorptionReactionNewtonDFSolver
+from src.fdm import AdsorptionReactionNewtonFDSolver
 from src.params import AdsorptionReactionParams
 from src.voltammetry import CyclicDC, LinearSweepDC
 
@@ -10,7 +10,7 @@ from src.voltammetry import CyclicDC, LinearSweepDC
 @pytest.fixture
 def adsorption_reaction():
     voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=40)
-    fdm_solver = AdsorptionReactionNewtonDFSolver(
+    fdm_solver = AdsorptionReactionNewtonFDSolver(
         voltammetry, h0=1e-6, dtheta=1e-1, omega=1.1
     )
     return dict(fdm_solver=fdm_solver, sigma=voltammetry.sigma)
