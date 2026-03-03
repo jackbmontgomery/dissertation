@@ -14,8 +14,6 @@ from .base import AbstractFDSolver, setup_fd_discritisation
 
 @dataclass
 class ScanInputSequence:
-    K1_red: Scalar
-    K1_ox: Scalar
     K2_red: Scalar
     K2_ox: Scalar
     B0_A_coef: Scalar
@@ -57,20 +55,24 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
         self.alpha_inner = alpha_inner
         self.sigma_inner = sigma_inner
 
-    def compute_current(
-        self,
-        c: Array,
-        K1_red: Scalar,
-        K1_ox: Scalar,
-        K2_red: Scalar,
-        K2_ox: Scalar,
-    ) -> Scalar:
+    def compute_current(self, c: Array, params: HeterogenousReactionParams) -> Scalar:
         c0_A = c[2 * self.Nx - 2]
-        c0_B = c[2 * self.Nx - 1]
-        c0_C = c[2 * self.Nx]
-        c0_D = c[2 * self.Nx + 1]
+        c1_A = c[2 * self.Nx - 4]
+        c2_A = c[2 * self.Nx - 6]
 
-        return -(K1_red * c0_A - K1_ox * c0_B + K2_red * c0_C - K2_ox * c0_D)
+        c0_C = c[2 * self.Nx]
+        c1_C = c[2 * self.Nx + 2]
+        c2_C = c[2 * self.Nx + 4]
+
+        h1 = self.X[1] - self.X[0]
+        h2 = self.X[2] - self.X[0]
+
+        dcA_dx = (h2**2 * (c0_A - c1_A) + h1**2 * (c2_A - c0_A)) / (h1 * h2 * (h1 - h2))
+        dcC_dx = (h2**2 * (c0_C - c1_C) + h1**2 * (c2_C - c0_C)) / (h1 * h2 * (h1 - h2))
+
+        K_het_cB = params.K_het * c[2 * self.Nx - 1]
+
+        return -(dcA_dx + params.dC * dcC_dx + K_het_cB)
 
     def create_stepper(self, params: HeterogenousReactionParams):
         sigma_inner_AB = jnp.flip(self.sigma_inner)
@@ -106,11 +108,11 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
         )
 
         n = self.Nx - 2
-        dl_inner_AB = jnp.zeros((2 * n,))
-        dl_inner_CD = jnp.zeros((2 * n,))
+        dl_inner_AB = jnp.zeros(2 * n)
+        dl_inner_CD = jnp.zeros(2 * n)
 
-        du_inner_AB = jnp.zeros((2 * n,))
-        du_inner_CD = jnp.zeros((2 * n,))
+        du_inner_AB = jnp.zeros(2 * n)
+        du_inner_CD = jnp.zeros(2 * n)
 
         d_inner_AB = interleave_concat_2d(
             1 - (alpha_inner_AB + sigma_inner_AB),
@@ -174,9 +176,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
             c = pentadiagonal_solve(d2l, dl, d, du, d2u, rhs)
 
-            current = self.compute_current(c, x.K1_red, x.K1_ox, x.K2_red, x.K2_ox)
-
-            return c, current
+            return c, c
 
         return stepper
 
@@ -221,8 +221,6 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
         C0_D_coef = -self.h0 * K2_ox / params.dC
 
         xs = ScanInputSequence(
-            K1_red=K1_red,
-            K1_ox=K1_ox,
             K2_red=K2_red,
             K2_ox=K2_ox,
             B0_A_coef=B0_A_coef,
@@ -236,6 +234,8 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             C0_D_coef=C0_D_coef,
         )
 
-        _, current = scan(stepper, c_init, xs)
+        _, c = scan(stepper, c_init, xs)
+
+        current = vmap(self.compute_current, in_axes=(0, None))(c, params)
 
         return current

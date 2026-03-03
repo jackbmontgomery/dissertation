@@ -50,5 +50,5 @@ def setup_fd_discritisation(
     X_minus = X[1:-1] - X[:-2]
 
     alpha_inner = -(2.0 * dt) / (X_minus * (X_minus + X_plus))
-    sigma_inner = -(2.0 * dt) / (X_plus * (X_minus + X_plus))
-    return T, dt, X, alpha_inner, sigma_inner
+    gamma_inner = -(2.0 * dt) / (X_plus * (X_minus + X_plus))
+    return T, dt, X, alpha_inner, gamma_inner

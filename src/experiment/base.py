@@ -3,14 +3,14 @@ from abc import abstractmethod
 from equinox import Module
 
 from src.sampling import AbstractSamplingAlgorithm
-from src.voltammetry import AbstractVoltammetryTechnique
 
 
 class AbstractSamplingExperiment:
     def run(
         self,
         sampling_algorithm: AbstractSamplingAlgorithm,
-        voltammetry: AbstractVoltammetryTechnique,
+        noise: float,
+        sigma: int,
         seed: int,
     ):
         raise NotImplementedError

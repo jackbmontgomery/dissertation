@@ -34,6 +34,8 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     sigma_inner: Scalar
     dt: float
     h0: Scalar
+    atol: float
+    rtol: float
 
     def __init__(
         self,
@@ -41,6 +43,8 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
         h0: float = 1e-3,
         omega: float = 1.1,
         dtheta: float = 1e-1,
+        atol: float = 1e-8,
+        rtol: float = 1e-6,
     ):
         T, dt, X, alpha_inner, sigma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega
@@ -53,6 +57,9 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
         self.h0 = jnp.array(h0)
         self.alpha_inner = alpha_inner
         self.sigma_inner = sigma_inner
+
+        self.atol = atol
+        self.rtol = rtol
 
         # Dimensionless Saturation Parameter
         self.beta = 1.0
@@ -270,13 +277,14 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     def newton_solve(
         self, sol_prev: Scalar, params: AdsorptionReactionParams, x: ScanInputSequence
     ):
-        a_tol = 1e-8
-
         build_F = self.create_build_F(params, sol_prev, x)
         build_J_diags = self.create_build_J_diags(params, x)
 
         def cond_fun(y: WhileOpArgs):
-            return jnp.less_equal(a_tol, jnp.max(jnp.abs(y.delta_sol)))
+            delta_inf = jnp.max(jnp.abs(y.delta_sol))
+            sol_inf = jnp.max(jnp.abs(y.sol))
+            tol = self.atol + self.rtol * sol_inf
+            return delta_inf > tol
 
         def body_fun(y: WhileOpArgs):
             F = build_F(y.sol)
@@ -303,7 +311,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
         def stepper(sol_prev: Scalar, x: ScanInputSequence):
             sol = self.newton_solve(sol_prev, params, x)
             current = self.compute_current(sol, x)
-            return sol, current
+            return sol, (sol, current)
 
         return stepper
 
@@ -344,6 +352,6 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
             K_ox_sol=K_ox_sol,
         )
 
-        _, current = scan(stepper, init_sol, xs)
+        _, (sol, current) = scan(stepper, init_sol, xs)
 
-        return current
+        return sol, current

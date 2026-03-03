@@ -182,7 +182,7 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
             sol = pentadiagonal_solve(d2l, dl, d, du, d2u, rhs)
 
             current = self.compute_current(sol, x)
-            return sol, current
+            return sol, (sol, current)
 
         return stepper
 
@@ -223,6 +223,6 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
             K_ox_sol=K_ox_sol,
         )
 
-        _, current = scan(stepper, init_sol, xs)
+        _, (sol, current) = scan(stepper, init_sol, xs)
 
-        return current
+        return sol, current

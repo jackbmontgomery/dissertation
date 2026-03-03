@@ -7,6 +7,23 @@ from jaxtyping import Scalar
 Params = Module
 
 
+class EqualDiffusionReactionParams(Params):
+    _alpha_inv: Scalar
+    _K0_inv: Scalar
+
+    def __init__(self, alpha: Scalar, K0: Scalar):
+        self._alpha_inv = 3.0 * logit(alpha)
+        self._K0_inv = jnp.log2(K0)
+
+    @property
+    def alpha(self):
+        return sigmoid(self._alpha_inv / 3.0)
+
+    @property
+    def K0(self):
+        return jnp.power(2, self._K0_inv)
+
+
 class ElectronReactionParams(Params):
     _alpha_inv: Scalar
     _K0_inv: Scalar
@@ -15,7 +32,7 @@ class ElectronReactionParams(Params):
 
     def __init__(self, alpha: Scalar, K0: Scalar, Ef: Scalar, dB: Scalar):
         self._alpha_inv = 3.0 * logit(alpha)
-        self._K0_inv = jnp.log10(K0)
+        self._K0_inv = jnp.log2(K0)
         self._Ef_inv = 5.0 * jnp.arctanh(Ef / 20.0)
         self._dB_inv = jnp.log2(dB)
 
@@ -25,7 +42,7 @@ class ElectronReactionParams(Params):
 
     @property
     def K0(self):
-        return jnp.power(10, self._K0_inv)
+        return jnp.power(2, self._K0_inv)
 
     @property
     def Ef(self):
@@ -62,18 +79,18 @@ class HeterogenousReactionParams(Params):
         K_het: Scalar,
     ):
         self._alpha_1_inv = 3.0 * logit(alpha_1)
-        self._K0_1_inv = jnp.log10(K0_1)
+        self._K0_1_inv = jnp.log2(K0_1)
         self._Ef_1_inv = 5.0 * jnp.arctanh(Ef_1 / 20.0)
 
         self._alpha_2_inv = 3.0 * logit(alpha_2)
-        self._K0_2_inv = jnp.log10(K0_2)
+        self._K0_2_inv = jnp.log2(K0_2)
         self._Ef_2_inv = 5.0 * jnp.arctanh(Ef_2 / 20.0)
 
         self._dB_inv = jnp.log2(dB)
         self._dC_inv = jnp.log2(dC)
         self._dD_inv = jnp.log2(dD)
 
-        self._K_het_inv = jnp.log10(K_het)
+        self._K_het_inv = jnp.log2(K_het)
 
     @property
     def alpha_1(self):
@@ -85,11 +102,11 @@ class HeterogenousReactionParams(Params):
 
     @property
     def K0_1(self):
-        return jnp.power(10, self._K0_1_inv)
+        return jnp.power(2, self._K0_1_inv)
 
     @property
     def K0_2(self):
-        return jnp.power(10, self._K0_2_inv)
+        return jnp.power(2, self._K0_2_inv)
 
     @property
     def Ef_1(self):
@@ -113,7 +130,7 @@ class HeterogenousReactionParams(Params):
 
     @property
     def K_het(self):
-        return jnp.power(10, self._K_het_inv)
+        return jnp.power(2, self._K_het_inv)
 
 
 class AdsorptionReactionParams(Params):

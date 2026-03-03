@@ -1,10 +1,9 @@
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 import pytest
 
 from src.fdm import AdsorptionReactionNewtonFDSolver
 from src.params import AdsorptionReactionParams
-from src.voltammetry import CyclicDC, LinearSweepDC
+from src.voltammetry import CyclicDC
 
 
 @pytest.fixture

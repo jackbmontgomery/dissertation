@@ -10,7 +10,7 @@ from jax import jit, pmap, vmap
 from jax.lax import scan
 from jaxtyping import Array, PRNGKeyArray, PyTree, Scalar
 
-from src.utils import bfgs_minimise
+from src.utils import adam_minimise
 
 NUM_CPUS = multiprocessing.cpu_count()
 
@@ -55,12 +55,17 @@ class AdditiveStepRandomWalkSamplingAlgorithm(AbstractSamplingAlgorithm):
         self.sigma = sigma
 
     def __str__(self):
-        return "MetropolisHastings"
+        return "RW"
 
     def __call__(
         self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
     ) -> Tuple[PyTree, Scalar, Dict]:
         print("--- Running Random Walk Metropolis-Hastings ---")
+
+        # print("--- Running Adam Minimise ---")
+        # init_params = vmap(adam_minimise, in_axes=(0, None, None, None))(
+        #     init_params, 1e-2, 1000, log_density
+        # )
 
         keys = jr.split(key, NUM_CPUS)
 
@@ -132,10 +137,7 @@ class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
             step_size=self.initial_step_size,
             optim=optim,
             num_steps=self.warmup_steps,
-            max_sampling_steps=1000,
         )
-
-        jax.debug.print("Parameters: {x}", x=parameters)
 
         hmc = blackjax.dynamic_hmc(log_density, **parameters)
 

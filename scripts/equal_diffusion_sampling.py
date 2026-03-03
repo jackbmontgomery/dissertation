@@ -8,7 +8,9 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 
 import jax.numpy as jnp
 
-from src.experiment import ElectronReactionSamplingExperiment
+from src.experiment import (
+    EqualDiffusionReactionSamplingExperiment,
+)
 from src.sampling import (
     AdditiveStepRandomWalkSamplingAlgorithm,
     HMCSamplingAlgorithm,
@@ -16,26 +18,26 @@ from src.sampling import (
 
 hyperparams = {
     "RW": {
-        10: jnp.repeat(0.1, 4),
-        1000: jnp.repeat(0.01, 4),
+        100: jnp.repeat(0.2, 2),
+        1000: jnp.repeat(0.05, 2),
     }
 }
 
 
 def main():
-    sampling_experiment = ElectronReactionSamplingExperiment()
-    sigma = 1000
+    sampling_experiment = EqualDiffusionReactionSamplingExperiment()
+    sigma = 100
     noise = 0.1
 
     # --- Random-Walk ---
     sampling_algorithm = AdditiveStepRandomWalkSamplingAlgorithm(
-        n_samples=240_000,
+        n_samples=80_000,
         sigma=hyperparams["RW"][sigma],
     )
     sampling_experiment.run(sampling_algorithm, noise, sigma)
 
     # --- HMC ---
-    # sampling_algorithm = HMCSamplingAlgorithm(24_000, 1e-2, 1e-2, 100)
+    # sampling_algorithm = HMCSamplingAlgorithm(8_000, 1e-2, 1e-2, 100)
     # sampling_experiment.run(sampling_algorithm, noise, sigma)
 
 

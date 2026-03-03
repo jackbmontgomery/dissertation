@@ -6,7 +6,7 @@ from jax import vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
-from src.params import ElectronReactionParams
+from src.params import EqualDiffusionReactionParams
 from src.solvers import tridiagonal_solve
 from src.voltammetry import AbstractVoltammetryTechnique
 
@@ -15,20 +15,18 @@ from .base import AbstractFDSolver, setup_fd_discritisation
 
 @dataclass
 class ScanInputSequence:
-    alpha_A0: Scalar
-    alpha_B0: Scalar
-    beta_A0: Scalar
-    beta_B0: Scalar
+    delta0: Scalar
+    beta0: Scalar
 
 
-class ElectronReactionFDSolver(AbstractFDSolver):
+class EqualDiffusionReactionFDSolver(AbstractFDSolver):
     applied_potentials: Scalar
     X: Array
     Nx: int
     h0: Scalar
     hs: Scalar
     alpha_inner: Scalar
-    sigma_inner: Scalar
+    gamma_inner: Scalar
 
     def __init__(
         self,
@@ -37,7 +35,7 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         omega: float = 1.1,
         dtheta: float = 1e-1,
     ):
-        T, dt, X, alpha_inner, sigma_inner = setup_fd_discritisation(
+        T, dt, X, alpha_inner, gamma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega
         )
 
@@ -47,12 +45,13 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         self.applied_potentials = vmap(voltammetry.applied_potential)(T)
         self.h0 = jnp.array(h0)
         self.alpha_inner = alpha_inner
-        self.sigma_inner = sigma_inner
+        self.gamma_inner = gamma_inner
+        self.beta_inner = 1 - (self.alpha_inner + self.gamma_inner)
 
     def compute_current(self, c: Array) -> Scalar:
-        c0_A = c[self.Nx - 1]
-        c1_A = c[self.Nx - 2]
-        c2_A = c[self.Nx - 3]
+        c0_A = c[0]
+        c1_A = c[1]
+        c2_A = c[2]
 
         h1 = self.X[1] - self.X[0]
         h2 = self.X[2] - self.X[0]
@@ -63,58 +62,41 @@ class ElectronReactionFDSolver(AbstractFDSolver):
 
     def create_stepper(
         self,
-        params: ElectronReactionParams,
+        params: EqualDiffusionReactionParams,
     ) -> Callable[
         [Scalar, ScanInputSequence],
         Tuple[Scalar, Scalar],
     ]:
-        dl_inner_A = jnp.flip(self.sigma_inner)
-        dl_inner_B = params.dB * self.alpha_inner
-
-        d_inner_A = jnp.flip(1 - (self.alpha_inner + self.sigma_inner))
-        d_inner_B = 1 - params.dB * (self.alpha_inner + self.sigma_inner)
-
-        du_inner_A = jnp.flip(self.alpha_inner)
-        du_inner_B = params.dB * self.sigma_inner
-
         def stepper(c_prev: Scalar, x: ScanInputSequence) -> Tuple[Scalar, Scalar]:
             dl = jnp.concat(
                 [
                     jnp.array([0.0]),  # compatibility
-                    dl_inner_A,
-                    jnp.array([-1.0, x.alpha_B0]),
-                    dl_inner_B,
+                    self.alpha_inner,
                     jnp.array([0.0]),
                 ]
             )
 
             d = jnp.concat(
                 [
-                    jnp.array([1.0]),
-                    d_inner_A,
-                    jnp.array([x.beta_A0, x.beta_B0]),
-                    d_inner_B,
+                    jnp.array([x.beta0]),
+                    self.beta_inner,
                     jnp.array([1.0]),
                 ]
             )
 
             du = jnp.concatenate(
                 [
-                    jnp.array([0.0]),
-                    du_inner_A,
-                    jnp.array([x.alpha_A0, -1.0]),
-                    du_inner_B,
+                    jnp.array([-1.0]),
+                    self.gamma_inner,
                     jnp.array([0.0]),  # compatibility
                 ]
             )
 
             rhs = jnp.concat(
                 [
+                    jnp.array([x.delta0]),
+                    c_prev[1:-1],
                     jnp.array([1.0]),
-                    c_prev[1 : self.Nx - 1],
-                    jnp.array([0.0, 0.0]),
-                    c_prev[self.Nx + 1 : -1],
-                    jnp.array([0.0]),
                 ]
             )
 
@@ -124,30 +106,21 @@ class ElectronReactionFDSolver(AbstractFDSolver):
 
         return stepper
 
-    def solve(self, params: ElectronReactionParams) -> Scalar:
+    def solve(self, params: EqualDiffusionReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
-        c_init = jnp.concat([jnp.ones_like(self.X), jnp.zeros_like(self.X)])
+        c_init = jnp.ones_like(self.X)
 
-        K_red = params.K0 * jnp.exp(
-            -params.alpha * (self.applied_potentials - params.Ef)
-        )
+        K_red = params.K0 * jnp.exp(-params.alpha * self.applied_potentials)
 
-        K_ox = params.K0 * jnp.exp(
-            (1 - params.alpha) * (self.applied_potentials - params.Ef)
-        )
+        K_ox = params.K0 * jnp.exp((1 - params.alpha) * self.applied_potentials)
 
-        alpha_A0 = -self.h0 * K_ox
-        alpha_B0 = -self.h0 * K_red / params.dB
-
-        beta_A0 = 1 + self.h0 * K_red
-        beta_B0 = 1 + self.h0 * K_ox / params.dB
+        beta0 = 1 + self.h0 * (K_red + K_ox)
+        delta0 = self.h0 * K_ox
 
         xs = ScanInputSequence(
-            alpha_A0=alpha_A0,
-            alpha_B0=alpha_B0,
-            beta_A0=beta_A0,
-            beta_B0=beta_B0,
+            delta0=delta0,
+            beta0=beta0,
         )
 
         _, C = scan(stepper, c_init, xs)
