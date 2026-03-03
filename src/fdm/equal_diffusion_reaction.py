@@ -111,9 +111,13 @@ class EqualDiffusionReactionFDSolver(AbstractFDSolver):
 
         c_init = jnp.ones_like(self.X)
 
-        K_red = params.K0 * jnp.exp(-params.alpha * self.applied_potentials)
+        K_red = params.K0 * jnp.exp(
+            -params.alpha * (self.applied_potentials - params.Ef)
+        )
 
-        K_ox = params.K0 * jnp.exp((1 - params.alpha) * self.applied_potentials)
+        K_ox = params.K0 * jnp.exp(
+            (1 - params.alpha) * (self.applied_potentials - params.Ef)
+        )
 
         beta0 = 1 + self.h0 * (K_red + K_ox)
         delta0 = self.h0 * K_ox

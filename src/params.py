@@ -10,10 +10,12 @@ Params = Module
 class EqualDiffusionReactionParams(Params):
     _alpha_inv: Scalar
     _K0_inv: Scalar
+    _Ef_inv: Scalar
 
-    def __init__(self, alpha: Scalar, K0: Scalar):
+    def __init__(self, alpha: Scalar, K0: Scalar, Ef: Scalar):
         self._alpha_inv = 3.0 * logit(alpha)
         self._K0_inv = jnp.log2(K0)
+        self._Ef_inv = 2.0 * jnp.arctanh(Ef / 10.0)
 
     @property
     def alpha(self):
@@ -22,6 +24,10 @@ class EqualDiffusionReactionParams(Params):
     @property
     def K0(self):
         return jnp.power(2, self._K0_inv)
+
+    @property
+    def Ef(self):
+        return 10.0 * jnp.tanh(self._Ef_inv / 2.0)
 
 
 class ElectronReactionParams(Params):

@@ -35,4 +35,7 @@
 - Electron Transfer Reaction
 
 ## Ideas:
-- Interesting to investigate the likelihood surface of certain parameters that are being sampled. Perhaps as a justification for not using optimisation techniques.
+- I can play with noise levels in the first experiment because they can actually solve it.
+- In the second there will be too many parameters to play with
+- The final is the ability of the method
+- We can plot the contribution from the different components in the flux by using the reduction and oxidation formations of the current

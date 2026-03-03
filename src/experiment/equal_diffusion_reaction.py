@@ -15,18 +15,17 @@ from .base import AbstractSamplingExperiment
 
 
 def create_init_params(key: PRNGKey, num_chains: int):
-    k1, k2 = jr.split(key, 2)
+    k1, k2, k3 = jr.split(key, 3)
 
     alpha_vals = jnp.linspace(0.5, 0.7, num_chains)
     K0_vals = jnp.linspace(1.0, 20.0, num_chains)
+    Ef_vals = jnp.linspace(0.0, 1.0, num_chains)
 
     alpha = jr.permutation(k1, alpha_vals)
     K0 = jr.permutation(k2, K0_vals)
+    Ef = jr.permutation(k3, Ef_vals)
 
-    return EqualDiffusionReactionParams(
-        alpha=alpha,
-        K0=K0,
-    )
+    return EqualDiffusionReactionParams(alpha=alpha, K0=K0, Ef=Ef)
 
 
 class EqualDiffusionReactionSamplingExperiment(AbstractSamplingExperiment):
@@ -35,6 +34,7 @@ class EqualDiffusionReactionSamplingExperiment(AbstractSamplingExperiment):
         return EqualDiffusionReactionParams(
             alpha=jnp.array(0.6),
             K0=jnp.array(10.0),
+            Ef=jnp.array(0.5),
         )
 
     def run(
@@ -75,6 +75,7 @@ class EqualDiffusionReactionSamplingExperiment(AbstractSamplingExperiment):
             f"./data/{data_file}",
             alpha=samples.alpha,
             K0=samples.K0,
+            Ef=samples.Ef,
             logdensity=logdensity,
         )
         end_time = perf_counter()

@@ -18,8 +18,8 @@ from src.sampling import (
 
 hyperparams = {
     "RW": {
-        100: jnp.repeat(0.2, 2),
-        1000: jnp.repeat(0.05, 2),
+        100: jnp.repeat(0.025, 3),
+        1000: jnp.repeat(0.05, 3),
     }
 }
 
@@ -28,17 +28,18 @@ def main():
     sampling_experiment = EqualDiffusionReactionSamplingExperiment()
     sigma = 100
     noise = 0.1
+    seed = 42
 
     # --- Random-Walk ---
     sampling_algorithm = AdditiveStepRandomWalkSamplingAlgorithm(
-        n_samples=80_000,
+        n_samples=160_000,
         sigma=hyperparams["RW"][sigma],
     )
-    sampling_experiment.run(sampling_algorithm, noise, sigma)
+    sampling_experiment.run(sampling_algorithm, noise, sigma, seed=seed)
 
     # --- HMC ---
-    # sampling_algorithm = HMCSamplingAlgorithm(8_000, 1e-2, 1e-2, 100)
-    # sampling_experiment.run(sampling_algorithm, noise, sigma)
+    sampling_algorithm = HMCSamplingAlgorithm(32_000, 1e-2, 1e-2, 100)
+    sampling_experiment.run(sampling_algorithm, noise, sigma, seed=seed)
 
 
 if __name__ == "__main__":
