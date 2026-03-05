@@ -12,6 +12,7 @@ dependencies = [
     "ipykernel>=7.1.0",
     "ipython>=9.9.0",
     "jax>=0.8.2",
+    "jupyter>=1.1.1",
     "lineax>=0.0.8",
     "matplotlib>=3.10.8",
     "nbstripout>=0.9.0",

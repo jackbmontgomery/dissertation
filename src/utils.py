@@ -1,11 +1,11 @@
-from typing import Callable
+from typing import Callable, Tuple
 
 import jax.numpy as jnp
 import jax.random as jr
 import optax
 import optimistix as optx
 from chex import dataclass
-from equinox import apply_updates, filter, filter_grad, is_array
+from equinox import apply_updates, filter, filter_value_and_grad, is_array
 from jax import vmap
 from jax.lax import scan
 from jaxtyping import PRNGKeyArray, PyTree, Scalar
@@ -45,25 +45,25 @@ def interleave_concat_4d(a, b, c, d):
 
 def adam_minimise(
     params: Params, learning_rate: float, num_steps: int, log_density: Callable
-) -> Params:
+) -> Tuple[Params, Scalar]:
     optim = optax.adam(learning_rate)
-    grad_fn = filter_grad(lambda x: -log_density(x))
+    value_grad_fn = filter_value_and_grad(lambda x: -log_density(x))
 
     def step_fn(carry: AdamMinimiseCarry, _):
         params, opt_state = carry.params, carry.opt_state
-        grads = grad_fn(params)
+        log_likelihood, grads = value_grad_fn(params)
         updates, new_opt_state = optim.update(
             grads, opt_state, filter(params, is_array)
         )
         new_params = apply_updates(params, updates)
         new_carry = AdamMinimiseCarry(opt_state=new_opt_state, params=new_params)
-        return new_carry, None
+        return new_carry, -log_likelihood
 
     opt_state = optim.init(filter(params, is_array))
 
     init_carry = AdamMinimiseCarry(opt_state=opt_state, params=params)
-    final_carry, _ = scan(step_fn, init_carry, None, num_steps)
-    return final_carry.params
+    final_carry, log_likelihood = scan(step_fn, init_carry, None, num_steps)
+    return final_carry.params, log_likelihood
 
 
 def bfgs_minimise(initial_parameters, log_density: Callable):

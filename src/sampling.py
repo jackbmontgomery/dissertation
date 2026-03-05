@@ -1,8 +1,8 @@
 import multiprocessing
-from typing import Callable, Dict, NamedTuple, Tuple
+from time import perf_counter
+from typing import Callable, NamedTuple, Tuple
 
 import blackjax
-import jax
 import jax.numpy as jnp
 import jax.random as jr
 import optax
@@ -42,7 +42,7 @@ inference_loop_multiple_chains: Callable = pmap(
 class AbstractSamplingAlgorithm:
     def __call__(
         self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
-    ) -> Tuple[PyTree, Scalar, Dict]:
+    ) -> Tuple[PyTree, Scalar]:
         raise NotImplementedError
 
     def __str__(self):
@@ -50,23 +50,39 @@ class AbstractSamplingAlgorithm:
 
 
 class AdditiveStepRandomWalkSamplingAlgorithm(AbstractSamplingAlgorithm):
-    def __init__(self, n_samples: int, sigma: Scalar):
+    def __init__(
+        self,
+        n_samples: int,
+        sigma: Scalar,
+        burn_in_lr: float = 1e-1,
+        burn_in_steps: int = 200,
+    ):
         self.n_samples = n_samples
         self.sigma = sigma
+        self.burn_in_lr = burn_in_lr
+        self.burn_in_steps = burn_in_steps
 
     def __str__(self):
         return "RW"
 
     def __call__(
         self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
-    ) -> Tuple[PyTree, Scalar, Dict]:
+    ) -> Tuple[PyTree, Scalar]:
+        start_time = perf_counter()
+
         print("--- Running Random Walk Metropolis-Hastings ---")
 
-        print("--- Running Adam Minimise ---")
-        init_params = vmap(adam_minimise, in_axes=(0, None, None, None))(
-            init_params, 1e-2, 1000, log_density
-        )
+        print("Adam Minimise - ", end="")
+        init_params, log_likelihoods = vmap(
+            adam_minimise, in_axes=(0, None, None, None)
+        )(init_params, self.burn_in_lr, self.burn_in_steps, log_density)
+        for i, log_likelihood in enumerate(log_likelihoods):
+            print(
+                f"Chain {i + 1}: Start: {log_likelihood[0]:.4f} - End: {log_likelihood[-2]:.4f}"
+            )
 
+        warm_up_time = perf_counter()
+        print(f"Time Taken: {warm_up_time - start_time:.4f}")
         keys = jr.split(key, NUM_CPUS)
 
         rw = blackjax.additive_step_random_walk(
@@ -78,7 +94,7 @@ class AdditiveStepRandomWalkSamplingAlgorithm(AbstractSamplingAlgorithm):
 
         num_samples_per_chain = self.n_samples // NUM_CPUS
 
-        print("--- Running Sampling ---")
+        print("Running Sampling - ", end="")
 
         states, infos = inference_loop_multiple_chains(
             keys, jit_step, init_states, num_samples_per_chain
@@ -86,16 +102,15 @@ class AdditiveStepRandomWalkSamplingAlgorithm(AbstractSamplingAlgorithm):
 
         avg_acceptance = jnp.mean(infos.is_accepted)
 
-        sampling_info = {
-            "Average Acceptance": f"{avg_acceptance:.2f}",
-        }
-
         samples: PyTree = states.position
         logdensity: Scalar = states.logdensity
 
         print("--- Sampling Done ---")
+        sampling_time = perf_counter()
+        print(f"Time Taken: {sampling_time - warm_up_time:.4f}")
+        print(f"Average Acceptance: {avg_acceptance:.2f}")
 
-        return samples, logdensity, sampling_info
+        return samples, logdensity
 
 
 class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
@@ -116,8 +131,8 @@ class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
 
     def __call__(
         self, key: PRNGKeyArray, init_params: PyTree, log_density: LogDensity
-    ) -> Tuple[PyTree, Scalar, Dict]:
-        # Cheese Adaption / Warmup
+    ) -> Tuple[PyTree, Scalar]:
+        start_time = perf_counter()
 
         print("--- Running HMC ---")
 
@@ -139,6 +154,12 @@ class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
             num_steps=self.warmup_steps,
         )
 
+        print("Step size:", f"{parameters['step_size']:.4f}")
+        print("Inverse Mass Matrix", parameters["inverse_mass_matrix"])
+        warm_up_time = perf_counter()
+
+        print(f"Chees Warmup Time: {warm_up_time - start_time:.4f}")
+
         hmc = blackjax.dynamic_hmc(log_density, **parameters)
 
         jit_step = jit(hmc.step)
@@ -153,14 +174,14 @@ class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
             keys, jit_step, initial_states, samples_per_chain
         )
 
-        algo_info = {
-            "Average Acceptance": f"{jnp.mean(infos.acceptance_rate):.2f}",
-            "Average Integration Steps": f"{jnp.mean(infos.num_integration_steps):.2f}",
-        }
-
         samples: PyTree = states.position
         logdensity: Scalar = states.logdensity
 
-        print("--- Done ---")
+        print("--- Sampling Done ---")
+        sampling_time = perf_counter()
+        print(f"Sampling Time: {sampling_time - warm_up_time:.4f}")
 
-        return samples, logdensity, algo_info
+        print(f"Average Acceptance: {jnp.mean(infos.acceptance_rate):.2f}")
+        print(f"Average Integration Steps: {jnp.mean(infos.num_integration_steps):.2f}")
+
+        return samples, logdensity

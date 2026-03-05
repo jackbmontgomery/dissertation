@@ -29,6 +29,7 @@ class ScanInputSequence:
 
 class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     applied_potentials: Scalar
+    X: Scalar
     Nx: int
     alpha_inner: Scalar
     sigma_inner: Scalar
@@ -40,9 +41,9 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h0: float = 1e-3,
+        h0: float = 1e-5,
         omega: float = 1.1,
-        dtheta: float = 1e-1,
+        dtheta: float = 2e-1,
         atol: float = 1e-8,
         rtol: float = 1e-6,
     ):
@@ -64,24 +65,24 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
         # Dimensionless Saturation Parameter
         self.beta = 1.0
 
-    def compute_current(self, sol: Array, x: ScanInputSequence) -> Scalar:
-        gamma_A = sol[0]
-        gamma_B = sol[1]
-        cA_0 = sol[2]
-        cB_0 = sol[3]
+    def compute_current(self, sol: Array) -> Scalar:
+        c0_A = sol[:, 2]
+        c1_A = sol[:, 4]
+        c2_A = sol[:, 6]
 
-        return -(
-            x.K_red_sol * cA_0
-            - x.K_ox_sol * cB_0
-            + x.K_red_ads * gamma_A
-            - x.K_ox_ads * gamma_B
-        )
+        h1 = self.X[1] - self.X[0]
+        h2 = self.X[2] - self.X[0]
+
+        dcA_dx = (h2**2 * (c0_A - c1_A) + h1**2 * (c2_A - c0_A)) / (h1 * h2 * (h1 - h2))
+        dgA_dt = jnp.gradient(sol[:, 0], self.dt)
+
+        return -(dcA_dx - dgA_dt / self.beta)  # ty: ignore[unsupported-operator]
 
     def create_build_J_diags(
         self, params: AdsorptionReactionParams, x: ScanInputSequence
     ) -> Callable[[Scalar], Tuple[Scalar, Scalar, Scalar, Scalar, Scalar]]:
         d_A_inner = 1 - (self.alpha_inner + self.sigma_inner)
-        d_B_inner = 1 - params.dB * (self.alpha_inner + self.sigma_inner)
+        d_B_inner = 1 - (self.alpha_inner + self.sigma_inner)
 
         def build_J_diags(sol: Scalar) -> Tuple[Scalar, Scalar, Scalar, Scalar, Scalar]:
             df0_dphiA = (
@@ -124,19 +125,16 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
 
             df2_dCA1 = -1.0
 
-            df3_dphiA = -self.h0 * params.K_B_ads * sol[3] / params.dB
+            df3_dphiA = -self.h0 * params.K_B_ads * sol[3]
 
-            df3_dphiB = (
-                -self.h0 * params.K_B_ads * sol[3] / params.dB
-                - self.h0 * params.K_B_des / params.dB
-            )
+            df3_dphiB = -self.h0 * params.K_B_ads * sol[3] - self.h0 * params.K_B_des
 
-            df3_dCA = -self.h0 * x.K_red_sol / params.dB
+            df3_dCA = -self.h0 * x.K_red_sol
 
             df3_dCB = (
                 1.0
-                + self.h0 * x.K_ox_sol / params.dB
-                + self.h0 * params.K_B_ads * (1 - (sol[0] + sol[1])) / params.dB
+                + self.h0 * x.K_ox_sol
+                + self.h0 * params.K_B_ads * (1 - (sol[0] + sol[1]))
             )
 
             df3_dCB1 = -1.0
@@ -148,9 +146,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
                     jnp.array(
                         [0.0, 0.0, df2_dphiA, df3_dphiB - f2_multiplier * df2_dphiB]
                     ),
-                    interleave_concat_2d(
-                        self.alpha_inner, params.dB * self.alpha_inner
-                    ),
+                    interleave_concat_2d(self.alpha_inner, self.alpha_inner),
                     jnp.array([0.0, 0.0]),
                 ],
             )
@@ -189,9 +185,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
             d2u = jnp.concat(
                 [
                     jnp.array([df0_dCA, df1_dCB, df2_dCA1, df3_dCB1]),
-                    interleave_concat_2d(
-                        self.sigma_inner, params.dB * self.sigma_inner
-                    ),
+                    interleave_concat_2d(self.sigma_inner, self.sigma_inner),
                     jnp.array([0.0, 0.0]),
                 ]
             )
@@ -233,10 +227,10 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
 
             f3 = (
                 sol[3]
-                - self.h0 * x.K_red_sol * sol[2] / params.dB
-                + self.h0 * x.K_ox_sol * sol[3] / params.dB
-                + self.h0 * params.K_B_ads * sol[3] * (1 - sol[0] - sol[1]) / params.dB
-                - self.h0 * params.K_B_des * sol[1] / params.dB
+                - self.h0 * x.K_red_sol * sol[2]
+                + self.h0 * x.K_ox_sol * sol[3]
+                + self.h0 * params.K_B_ads * sol[3] * (1 - sol[0] - sol[1])
+                - self.h0 * params.K_B_des * sol[1]
                 - sol[5]
             )
 
@@ -248,9 +242,9 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
             )
 
             f_CB_inner = (
-                params.dB * self.alpha_inner * sol[3:-4:2]
-                + (1 - params.dB * (self.alpha_inner + self.sigma_inner)) * sol[5:-2:2]
-                + params.dB * self.sigma_inner * sol[7::2]
+                self.alpha_inner * sol[3:-4:2]
+                + (1 - (self.alpha_inner + self.sigma_inner)) * sol[5:-2:2]
+                + self.sigma_inner * sol[7::2]
                 - sol_prev[5:-2:2]
             )
 
@@ -259,7 +253,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
 
             df2_dphiA = -self.h0 * params.K_A_ads * sol[2] - self.h0 * params.K_A_des
 
-            df3_dphiA = -self.h0 * params.K_B_ads * sol[3] / params.dB
+            df3_dphiA = -self.h0 * params.K_B_ads * sol[3]
 
             f2_multiplier = df3_dphiA / df2_dphiA
 
@@ -310,12 +304,11 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     def create_stepper(self, params: AdsorptionReactionParams) -> Callable:
         def stepper(sol_prev: Scalar, x: ScanInputSequence):
             sol = self.newton_solve(sol_prev, params, x)
-            current = self.compute_current(sol, x)
-            return sol, (sol, current)
+            return sol, sol
 
         return stepper
 
-    def solve(self, params: AdsorptionReactionParams) -> Scalar:
+    def solve(self, params: AdsorptionReactionParams) -> Tuple[Array, Scalar]:
         stepper = self.create_stepper(params)
 
         K_A_eq = params.K_A_ads / params.K_A_des
@@ -352,6 +345,8 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
             K_ox_sol=K_ox_sol,
         )
 
-        _, (sol, current) = scan(stepper, init_sol, xs)
+        _, solution = scan(stepper, init_sol, xs)
 
-        return sol, current
+        current = self.compute_current(solution)
+
+        return solution, current

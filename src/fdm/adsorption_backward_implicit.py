@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Tuple
 
 import jax.numpy as jnp
 from chex import dataclass
@@ -78,19 +78,15 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
             CA_CB_coef = self.h0 * x.K_ox_sol
             CA_CA1_coef = 1.0
 
-            CB_phiA_coef = self.h0 * params.K_B_ads * sol_prev[3] / params.dB
+            CB_phiA_coef = self.h0 * params.K_B_ads * sol_prev[3]
             CB_phiB_coef = (
-                self.h0 * params.K_B_des / params.dB
-                + self.h0 * params.K_B_ads * sol_prev[3] / params.dB
+                self.h0 * params.K_B_des + self.h0 * params.K_B_ads * sol_prev[3]
             )
-            CB_CA_coef = self.h0 * x.K_red_sol / params.dB
+            CB_CA_coef = self.h0 * x.K_red_sol
             CB_CB_coef = (
                 -1.0
-                - self.h0 * x.K_ox_sol / params.dB
-                - self.h0
-                * params.K_B_ads
-                * (1.0 - sol_prev[0] - sol_prev[1])
-                / params.dB
+                - self.h0 * x.K_ox_sol
+                - self.h0 * params.K_B_ads * (1.0 - sol_prev[0] - sol_prev[1])
             )
             CB_CB1_coef = 1.0
 
@@ -106,9 +102,7 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
                             CB_phiB_coef - CA_multiplier * CA_phiB_coef,
                         ]
                     ),
-                    interleave_concat_2d(
-                        self.alpha_inner, params.dB * self.alpha_inner
-                    ),
+                    interleave_concat_2d(self.alpha_inner, self.alpha_inner),
                     jnp.array([0.0, 0.0]),
                 ]
             )
@@ -146,7 +140,7 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
                     ),
                     interleave_concat_2d(
                         1 - (self.alpha_inner + self.sigma_inner),
-                        1 - params.dB * (self.alpha_inner + self.sigma_inner),
+                        1 - (self.alpha_inner + self.sigma_inner),
                     ),
                     jnp.array([1.0, 1.0]),
                 ]
@@ -183,9 +177,7 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
                             CB_CB1_coef,
                         ]
                     ),
-                    interleave_concat_2d(
-                        self.sigma_inner, params.dB * self.sigma_inner
-                    ),
+                    interleave_concat_2d(self.sigma_inner, self.sigma_inner),
                     jnp.array([0.0, 0.0]),
                 ]
             )
@@ -202,11 +194,7 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
                 self.h0 * params.K_A_ads * sol_prev[2] * (sol_prev[0] + sol_prev[1])
             )
             CB_rhs = (
-                self.h0
-                * params.K_B_ads
-                * sol_prev[3]
-                * (sol_prev[0] + sol_prev[1])
-                / params.dB
+                self.h0 * params.K_B_ads * sol_prev[3] * (sol_prev[0] + sol_prev[1])
             )
 
             rhs = jnp.concat(
@@ -226,7 +214,7 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
 
         return stepper
 
-    def solve(self, params: AdsorptionReactionParams) -> Scalar:
+    def solve(self, params: AdsorptionReactionParams) -> Tuple[Array, Scalar]:
         stepper = self.create_stepper(params)
 
         K_A_eq = params.K_A_ads / params.K_A_des

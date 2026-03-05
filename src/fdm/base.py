@@ -1,8 +1,8 @@
 from abc import abstractmethod
-from typing import Any
+from typing import Any, Tuple
 
 import jax.numpy as jnp
-from jaxtyping import PyTree, Scalar
+from jaxtyping import Array, PyTree, Scalar
 
 from src.voltammetry import AbstractVoltammetryTechnique
 
@@ -13,7 +13,7 @@ class AbstractFDSolver:
         raise NotImplementedError
 
     @abstractmethod
-    def solve(self, params: PyTree) -> Scalar:
+    def solve(self, params: PyTree) -> Tuple[Array, Scalar]:
         raise NotImplementedError
 
 
