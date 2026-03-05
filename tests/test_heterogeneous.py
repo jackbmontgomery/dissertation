@@ -21,9 +21,6 @@ def heterogeneous_reaction():
         alpha_2=jnp.array(0.0),
         K0_2=jnp.array(0.0),
         Ef_2=jnp.array(0.0),
-        dB=jnp.array(1.0),
-        dC=jnp.array(1.0),
-        dD=jnp.array(1.0),
         K_het=jnp.array(0.0),
     )
 

@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import jax.numpy as jnp
 from chex import dataclass
 from jax import vmap
@@ -41,7 +43,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
         voltammetry: AbstractVoltammetryTechnique,
         h0: float = 1e-3,
         omega: float = 1.1,
-        dtheta: float = 1e-1,
+        dtheta: float = 2e-1,
     ):
         T, dt, X, alpha_inner, sigma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega
@@ -72,24 +74,32 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
         K_het_cB = params.K_het * c[2 * self.Nx - 1]
 
-        return -(dcA_dx + params.dC * dcC_dx + K_het_cB)
+        return -(dcA_dx + dcC_dx + K_het_cB)
 
     def create_stepper(self, params: HeterogenousReactionParams):
-        sigma_inner_AB = jnp.flip(self.sigma_inner)
+        gamma_inner_AB = jnp.flip(self.sigma_inner)
         alpha_inner_AB = jnp.flip(self.alpha_inner)
 
-        sigma_inner_CD = self.sigma_inner
+        gamma_inner_CD = self.sigma_inner
         alpha_inner_CD = self.alpha_inner
+
+        d_inner_AB = interleave_concat_2d(
+            1 - (alpha_inner_AB + gamma_inner_AB),
+            1 - (alpha_inner_AB + gamma_inner_AB),
+        )
+
+        d_inner_CD = interleave_concat_2d(
+            1 - (alpha_inner_CD + gamma_inner_CD),
+            1 - (alpha_inner_CD + gamma_inner_CD),
+        )
 
         d2l = jnp.concat(
             [
                 jnp.array([0.0, 0.0]),
-                interleave_concat_2d(sigma_inner_AB, params.dB * sigma_inner_AB),
+                interleave_concat_2d(gamma_inner_AB, gamma_inner_AB),
                 jnp.array([-1.0, -1.0]),
                 jnp.array([0.0, 0.0]),
-                interleave_concat_2d(
-                    params.dC * alpha_inner_CD, params.dD * alpha_inner_CD
-                ),
+                interleave_concat_2d(alpha_inner_CD, alpha_inner_CD),
                 jnp.array([0.0, 0.0]),
             ]
         )
@@ -97,12 +107,10 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
         d2u = jnp.concat(
             [
                 jnp.array([0.0, 0.0]),
-                interleave_concat_2d(alpha_inner_AB, params.dB * alpha_inner_AB),
+                interleave_concat_2d(alpha_inner_AB, alpha_inner_AB),
                 jnp.array([0.0, 0.0]),
                 jnp.array([-1.0, -1.0]),
-                interleave_concat_2d(
-                    params.dC * sigma_inner_CD, params.dD * sigma_inner_CD
-                ),
+                interleave_concat_2d(gamma_inner_CD, gamma_inner_CD),
                 jnp.array([0.0, 0.0]),
             ]
         )
@@ -113,16 +121,6 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
         du_inner_AB = jnp.zeros(2 * n)
         du_inner_CD = jnp.zeros(2 * n)
-
-        d_inner_AB = interleave_concat_2d(
-            1 - (alpha_inner_AB + sigma_inner_AB),
-            1 - params.dB * (alpha_inner_AB + sigma_inner_AB),
-        )
-
-        d_inner_CD = interleave_concat_2d(
-            1 - params.dC * (alpha_inner_CD + sigma_inner_CD),
-            1 - params.dD * (alpha_inner_CD + sigma_inner_CD),
-        )
 
         def stepper(c_prev: Array, x: ScanInputSequence):
             dl = jnp.concat(
@@ -180,7 +178,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
         return stepper
 
-    def solve(self, params: HeterogenousReactionParams) -> Scalar:
+    def solve(self, params: HeterogenousReactionParams) -> Tuple[Array, Scalar]:
         stepper = self.create_stepper(params)
 
         c_init = jnp.concat(
@@ -208,17 +206,17 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             (1.0 - params.alpha_2) * (self.applied_potentials - params.Ef_2)
         )
 
-        B0_A_coef = -self.h0 * K1_red / params.dB
-        C0_B_coef = jnp.full_like(B0_A_coef, -self.h0 * params.K_het / params.dC)
-        D0_C_coef = -self.h0 * K2_red / params.dD
+        B0_A_coef = -self.h0 * K1_red
+        C0_B_coef = jnp.full_like(B0_A_coef, -self.h0 * params.K_het)
+        D0_C_coef = -self.h0 * K2_red
 
         beta_A_coef = 1.0 + self.h0 * K1_red
-        beta_B_coef = 1.0 + self.h0 * (K1_ox + params.K_het) / params.dB
-        beta_C_coef = 1.0 + self.h0 * K2_red / params.dC
-        beta_D_coef = 1.0 + self.h0 * K2_ox / params.dD
+        beta_B_coef = 1.0 + self.h0 * (K1_ox + params.K_het)
+        beta_C_coef = 1.0 + self.h0 * K2_red
+        beta_D_coef = 1.0 + self.h0 * K2_ox
 
         A0_B_coef = -self.h0 * K1_ox
-        C0_D_coef = -self.h0 * K2_ox / params.dC
+        C0_D_coef = -self.h0 * K2_ox
 
         xs = ScanInputSequence(
             K2_red=K2_red,
@@ -234,8 +232,8 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             C0_D_coef=C0_D_coef,
         )
 
-        _, c = scan(stepper, c_init, xs)
+        _, solution = scan(stepper, c_init, xs)
 
-        current = vmap(self.compute_current, in_axes=(0, None))(c, params)
+        current = vmap(self.compute_current, in_axes=(0, None))(solution, params)
 
-        return current
+        return solution, current

@@ -14,22 +14,30 @@ from src.sampling import (
     HMCSamplingAlgorithm,
 )
 
+hyperparams = {
+    "RW": {
+        10: jnp.repeat(0.075, 7),
+        100: jnp.repeat(0.025, 7),
+        1000: jnp.repeat(0.01, 7),
+    }
+}
+
 
 def main():
     sampling_experiment = HeterogeneousReactionSamplingExperiment()
-    sigma = 10
-    noise = 0.1
+    sigma = 1000
+    noise = 0.25
 
     # --- Metropolis-Hasting ---
-    sampling_algorithm = AdditiveStepRandomWalkSamplingAlgorithm(
-        n_samples=8000,
-        sigma=jnp.repeat(0.001, 10),
-    )
-    sampling_experiment.run(sampling_algorithm, noise, sigma)
+    # sampling_algorithm = AdditiveStepRandomWalkSamplingAlgorithm(
+    #     n_samples=80_000,
+    #     sigma=hyperparams["RW"][sigma],
+    # )
+    # sampling_experiment.run(sampling_algorithm, noise, sigma)
 
     # --- HMC ---
-    # sampling_algorithm = HMCSamplingAlgorithm(4_000, 1e-2, 1e-3, 100)
-    # sampling_experiment.run(sampling_algorithm, noise, sigma)
+    sampling_algorithm = HMCSamplingAlgorithm(8_000, 1e-2, 1e-3, 100)
+    sampling_experiment.run(sampling_algorithm, noise, sigma)
 
 
 if __name__ == "__main__":

@@ -26,12 +26,11 @@ def test_monolayer_analytical(adsorption_reaction):
         K_A_des=jnp.array(1e-3),
         K_B_ads=jnp.array(1.0),
         K_B_des=jnp.array(1e-3),
-        dB=jnp.array(1.0),
     )
     fdm_solver = adsorption_reaction["fdm_solver"]
     sigma = adsorption_reaction["sigma"]
 
-    current = fdm_solver.solve(params)
+    solution, current = fdm_solver.solve(params)
 
     analytical_flux = (
         -sigma
