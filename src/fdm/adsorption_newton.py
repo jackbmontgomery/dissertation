@@ -43,7 +43,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
         voltammetry: AbstractVoltammetryTechnique,
         h0: float = 1e-5,
         omega: float = 1.1,
-        dtheta: float = 2e-1,
+        dtheta: float = 5e-2,
         atol: float = 1e-8,
         rtol: float = 1e-6,
     ):

@@ -1,0 +1,107 @@
+\chapter{Introduction}
+
+Electrochemistry is a branch of chemistry that is concerned with the
+relationship between electrical applied potential and chemical
+change. These reactions arise at the interface between an electronic
+conductor and an ionic conductor, where charge transfer drives
+oxidation and reduction of chemical species. The study of these
+reactions has applications in biochemical sensing, energy storage,
+technology and many others that underpin much of modern biology and
+nanotechnology. In particular,
+electroanalytical techniques have enabled the detection of trace
+analytes in biological fluids, the development of rechargeable
+batteries and fuel cells, and the fabrication of nanoscale electronic
+devices, underlining the broad relevance of electrochemical science
+across disciplines.
+
+Voltammetry is a common technique to analyse an electroactive
+species in solution. Voltammetry measures the current that is induced
+into an electrochemical circuit as the potential of the working
+electrode is varied with respect to the reference electrode. The
+current response arises from Faradaic processes, in which electrons
+are transferred between the electrode surface and the electroactive
+species, and its magnitude reflects both the kinetics of this charge
+transfer and the rate at which species are transported to the
+electrode. Voltammetric techniques are distinguished by how the
+applied potential is varied over time. In cyclic voltammetry, the
+potential is swept linearly between two limits and then reversed,
+producing a characteristic current--potential curve from which
+thermodynamic and kinetic parameters may be inferred. Other
+waveforms, such as the sinusoidal perturbations of electrochemical
+impedance spectroscopy or the staircase profiles of square-wave
+voltammetry, offer complementary sensitivity and resolution.
+
+Voltammetry has been extensively studied mathematically and
+numerically. The electron transfer kinetics at the electrode surface
+are described by the Butler--Volmer model, which relates the rate of
+the electrode reaction to the applied overpotential through
+exponential anodic and cathodic contributions, or alternatively by
+the Marcus--Hush framework, which grounds the kinetics in a
+quantum-mechanical treatment of solvent reorganisation. At
+equilibrium, the Nernst equation dictates the ratio of oxidised to
+reduced species concentrations at the electrode surface as a function
+of the applied potential. The transport of electroactive species
+through the solution is governed by Fick's laws of diffusion, which,
+combined with the electrode boundary conditions described above,
+yield a partial differential equation (PDE) that fully characterises
+the evolution of the concentration profile in the cell. The solution
+of this system--the so-called forward problem--predicts the
+current response given a known set of physical parameters, and has
+been extensively studied both analytically and numerically
+\cite{compton2014understanding}.
+
+We are interested in the inverse of this process: given the
+measured current response from a voltammetric experiment, we wish to
+infer the underlying physical parameters that characterise the
+electroactive species in solution. These parameters may include the
+formal potential, diffusion coefficients, and electron transfer rate
+constants, knowledge of which provides quantitative insight into the
+thermodynamics and kinetics of the redox system under study. This
+constitutes the inverse problem, and its solution is considerably
+more challenging than the forward problem. The mapping from
+parameters to current is nonlinear and the measurements are
+corrupted by noise, meaning that naive inversion is typically ill-posed
+and that uncertainty in the inferred parameters must be carefully
+quantified.
+
+Many different techniques have been employed to solve this inverse
+problem. Deterministic optimisation methods, such as least-squares
+fitting, provide point estimates of the parameters but offer no
+principled account of uncertainty. Bayesian inference addresses this
+limitation by treating the parameters as random variables and seeking
+their posterior distribution conditioned on the observed data. Markov
+chain Monte Carlo (MCMC) methods have emerged as the dominant
+computational approach to posterior sampling in electrochemistry,
+enabling rigorous uncertainty quantification without requiring
+analytical tractability of the posterior \cite{gavaghan2018bayesian}. However,
+standard MCMC algorithms such as the random-walk Metropolis--Hastings
+sampler can mix poorly in high-dimensional or geometrically complex
+parameter spaces, and the requirement to repeatedly solve the forward
+PDE makes the burn-in phase computationally expensive.
+
+With the advent of modern automatic differentiation (AD) software,
+it is now possible to efficiently compute exact derivatives of
+arbitrary numerical programs, including complete PDE solvers, with
+respect to their inputs \cite{chen2026differentiable}. This capability opens
+new avenues for gradient-based inference in electrochemistry. In
+particular, the gradient of the simulated current with respect to the
+model parameters can be obtained at a cost comparable to a single
+forward solve, enabling the use of gradient-informed algorithms both
+during the burn-in phase and throughout the sampling procedure. During
+burn-in, gradient information can be exploited to drive the chain
+rapidly toward regions of high posterior probability, dramatically
+reducing the number of forward solves required before convergence.
+Once in the posterior, gradient-based samplers such as Hamiltonian Monte
+Carlo (HMC) use the gradient to make more informed proposals,
+resulting in higher acceptance rates and faster exploration of the
+posterior landscape compared with gradient-free alternatives.
+
+This dissertation demonstrates the applicability of gradient-based
+methodologies to solve the inverse problem in electrochemical
+experiments. We develop a differentiable PDE solver for common
+voltammetric waveforms, validate it against known analytical results,
+and integrate it with gradient-informed MCMC algorithms to perform
+Bayesian inference of electrochemical parameters. We show that the
+use of automatic differentiation yields substantial improvements in
+computational efficiency over gradient-free methods, and we
+illustrate the approach on both synthetic and experimental data.

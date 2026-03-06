@@ -7,7 +7,7 @@ from src.fdm import AdsorptionReactionExplicitFDSolver, AdsorptionReactionNewton
 from src.params import AdsorptionReactionParams
 from src.sampling import NUM_CPUS, AbstractSamplingAlgorithm
 from src.utils import generate_noisy_samples
-from src.voltammetry import CyclicDC
+from src.voltammetry import CyclicAC, CyclicDC, VoltammetryType
 
 from .base import AbstractSamplingExperiment
 
@@ -68,14 +68,21 @@ class AdsorptionSamplingExperiment(AbstractSamplingExperiment):
         sampling_algorithm: AbstractSamplingAlgorithm,
         noise: float,
         sigma: int,
+        voltammetry_type: VoltammetryType,
         seed: int = 0,
     ):
         key = jr.key(seed)
-        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=sigma)
+
+        if voltammetry_type == "DC":
+            voltammetry = CyclicDC(theta_i=20.0, theta_v=-20.0, sigma=sigma)
+        else:
+            voltammetry = CyclicAC(theta_i=20.0, theta_v=-20.0, sigma=sigma)
 
         param_key, sampling_key, key = jr.split(key, 3)
 
-        exp_fdm_solver = AdsorptionReactionNewtonFDSolver(voltammetry)
+        exp_fdm_solver = AdsorptionReactionNewtonFDSolver(
+            voltammetry, h0=1e-4, dtheta=1e-1
+        )
 
         _, base_current = exp_fdm_solver.solve(self.true_parameters)
 
@@ -86,7 +93,9 @@ class AdsorptionSamplingExperiment(AbstractSamplingExperiment):
             key=key,
         )
 
-        fd_solver = AdsorptionReactionExplicitFDSolver(voltammetry)
+        fd_solver = AdsorptionReactionExplicitFDSolver(
+            voltammetry, h0=1e-4, dtheta=1e-1
+        )
 
         def logdensity_fn(params: AdsorptionReactionParams, samples=samples):
             _, current = fd_solver.solve(params)
@@ -94,11 +103,13 @@ class AdsorptionSamplingExperiment(AbstractSamplingExperiment):
 
         init_params = create_init_params(param_key, NUM_CPUS)
 
-        samples, logdensity, info = sampling_algorithm(
+        samples, logdensity = sampling_algorithm(
             sampling_key, init_params, logdensity_fn
         )
 
-        data_file = f"A_{sampling_algorithm}_{noise:.2f}_{sigma:.0f}.npz"
+        data_file = (
+            f"A_{voltammetry_type}_{sampling_algorithm}_{noise:.2f}_{sigma:.0f}.npz"
+        )
 
         np.savez_compressed(
             f"./data/{data_file}",

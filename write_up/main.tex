@@ -4,8 +4,6 @@
 \usepackage{amsmath}
 \usepackage{hyperref}
 
-%input macros (i.e. write your own macros file called mymacros.tex
-%and uncomment the next line)
 %\include{mymacros}
 
 \title{Numerical Solutions to Problems in Electrochemistry}
@@ -13,7 +11,6 @@
 \author{Jack Montgomery}
 \college{St Anne's College}
 
-%\renewcommand{\submittedtext}{change the default text here if needed}
 \degree{Masters in Mathematical Sciences}     %the degree
 \degreedate{Trinity 2026}         %the degree date
 
@@ -29,8 +26,6 @@
 \setcounter{tocdepth}{3}
 
 \maketitle                  % create a title page from the preamble info
-\include{dedication}        % include a dedication.tex file
-\include{acknowledgements}  % include an acknowledgements.tex file
 \include{abstract}          % include the abstract
 
 \begin{romanpages}          % start roman page numbering
@@ -38,10 +33,14 @@
   \listoffigures              % generate and include a list of figures
 \end{romanpages}            % end roman page numbering
 
-%now include the files of latex for each of the chapters etc
-\include{chapter1}
-\include{chapter2}
-\include{conclusions}
+\include{1_introduction}
+\include{2_electrochem}
+\include{3_numerical}
+\include{4_mcmc}
+\include{5_electron}
+\include{6_heterogeneous}
+\include{7_adsorption}
+\include{8_conclusions}
 
 %now enable appendix numbering format and include any appendices
 \appendix
@@ -52,7 +51,7 @@
 \addcontentsline{toc}{chapter}{Bibliography}
 %uncomment next line to change bibliography name to references
 %\renewcommand{\bibname}{References}
-\bibliography{refs}        %use a bibtex bibliography file refs.bib
+\bibliography{references}
 \bibliographystyle{plain}  %use the plain bibliography style
 
 \end{document}

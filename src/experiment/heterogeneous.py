@@ -1,5 +1,3 @@
-from time import perf_counter
-
 import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
@@ -9,7 +7,7 @@ from src.fdm import HeterogeneousReactionFDSolver
 from src.params import HeterogenousReactionParams
 from src.sampling import NUM_CPUS, AbstractSamplingAlgorithm
 from src.utils import generate_noisy_samples
-from src.voltammetry import CyclicDC
+from src.voltammetry import CyclicAC, CyclicDC, VoltammetryType
 
 from .base import AbstractSamplingExperiment
 
@@ -62,10 +60,14 @@ class HeterogeneousReactionSamplingExperiment(AbstractSamplingExperiment):
         sampling_algorithm: AbstractSamplingAlgorithm,
         noise: float,
         sigma: int,
+        voltammetry_type: VoltammetryType,
         seed: int = 0,
     ):
         key = jr.key(seed)
-        voltammetry = CyclicDC(sigma=sigma)
+        if voltammetry_type == "DC":
+            voltammetry = CyclicDC(sigma=sigma)
+        else:
+            voltammetry = CyclicAC(sigma=sigma)
 
         param_key, sampling_key, key = jr.split(key, 3)
 
@@ -86,14 +88,13 @@ class HeterogeneousReactionSamplingExperiment(AbstractSamplingExperiment):
 
         init_params = create_init_params(param_key, NUM_CPUS)
 
-        start_time = perf_counter()
-        samples, logdensity, info = sampling_algorithm(
+        samples, logdensity = sampling_algorithm(
             sampling_key, init_params, logdensity_fn
         )
-        samples.alpha_1.block_until_ready()
-        end_time = perf_counter()
 
-        data_file = f"H_{sampling_algorithm}_{noise:.2f}_{sigma:.0f}.npz"
+        data_file = (
+            f"H_{voltammetry_type}_{sampling_algorithm}_{noise:.2f}_{sigma:.0f}.npz"
+        )
 
         np.savez_compressed(
             f"./data/{data_file}",
@@ -106,8 +107,3 @@ class HeterogeneousReactionSamplingExperiment(AbstractSamplingExperiment):
             K_het=samples.K_het,
             logdensity=logdensity,
         )
-
-        print(f"Time Taken: {end_time - start_time:.2f}s")
-
-        for k, v in info.items():
-            print(f"{k}: {v}")

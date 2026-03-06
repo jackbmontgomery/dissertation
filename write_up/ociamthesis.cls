@@ -1,7 +1,3 @@
-%
-% ociamthesis v2.2
-% By Keith A. Gillow <gillow@maths.ox.ac.uk>
-% Version 1.0 released 26/11/1997
 %-------------------------- identification ---------------------
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{ociamthesis}[2010/11/22 v2.2 OCIAM thesis class]
@@ -35,10 +31,6 @@
 \def\degree#1{\gdef\@degree{#1}}
 % The name of your Oxford college (e.g. Christ Church, Pembroke)
 \def\college#1{\gdef\@college{#1}}
-
-%
-% Setup choosen crest/logo
-%
 
 \ifthenelse{\equal{\logoversion}{shieldcrest}}%
 {

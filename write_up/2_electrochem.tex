@@ -1,7 +1,50 @@
-\chapter{Electrochemical Systems}\label{eq:electrochemistry}
+\chapter{Electrochemical Systems}
 
-The reaction happens at the electrode surface.
-Include diagram of macroelectode
+\section{Voltammetry}
+
+In a typical cyclic voltammetry experiment the applied potential is
+swept linearly with time from some starting potential $E_i$ where the
+species A is stable to some other, more negative potential, $E_v$, at
+which electron transfer occurs rapidly to form species $B$. The
+potential is then swept back to $E_i$ causing electron transfer in
+the opposite direction and the reformation of $A$.
+
+% NOTE: Might need to add something about AC voltammatry here
+
+Throughout this process the current, $I$, is recorded. Plotting the
+current induces against the applied potential gives us a
+voltammagram.
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{figures/figure_1_voltammagram.png}
+  \end{center}
+  \caption[Applied potential and voltammagram example]{Left applied
+    potentials and right is the
+  voltammagram}
+  \label{fig:potential_voltammagram}
+\end{figure}
+
+This technique is useful as the resulting peak shaped signal provides
+a signature of the features of the reduction and oxidation processes.
+Analysis of the position and shape of the peaks can give important
+information about the nature of the electrochemical process taking
+place and about the chemical species themselves.
+
+The scan rate, $\nu, (Vs^{-1})$, is the constant rate at which the
+voltage sweeps from the initial potential to the vertex potential and
+back again.
+
+\begin{equation}
+  \nu = \frac{d E}{d t}
+  \label{eq:scan_rate}
+\end{equation}
+
+As seen in \autoref{fig:potential_voltammagram}
+
+\section{Mathematical Description}
+
+We can represent a typical reduction process at the electrode as
 
 \begin{equation}\label{eq:eMechanism}
   \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B}
@@ -15,6 +58,7 @@ For a macroband electrode:
   \frac{\partial c_j}{\partial t} = D_j \frac{\partial^2 c_j}{\partial x^2}
   \label{eq:masstransport_macroband}
 \end{equation}
+
 Where $D_j$ is the diffusion coefficient associated with the species
 $j$. In the case of \autoref{eq:eMechanism}, we obtain a mass transport
 equation for each of species A and B:

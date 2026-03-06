@@ -1,5 +1,3 @@
-from time import perf_counter
-
 import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
@@ -9,7 +7,7 @@ from src.fdm import ElectronReactionFDSolver
 from src.params import ElectronReactionParams
 from src.sampling import NUM_CPUS, AbstractSamplingAlgorithm
 from src.utils import generate_noisy_samples
-from src.voltammetry import CyclicDC
+from src.voltammetry import CyclicAC, CyclicDC, VoltammetryType
 
 from .base import AbstractSamplingExperiment
 
@@ -46,12 +44,15 @@ class ElectronSamplingExperiment(AbstractSamplingExperiment):
         sampling_algorithm: AbstractSamplingAlgorithm,
         noise: float,
         sigma: int,
+        voltammetry_type: VoltammetryType,
         seed: int = 0,
     ):
-        start_time = perf_counter()
         key = jr.key(seed)
 
-        voltammetry = CyclicDC(sigma=sigma)
+        if voltammetry_type == "DC":
+            voltammetry = CyclicDC(sigma=sigma)
+        else:
+            voltammetry = CyclicAC(sigma=sigma)
 
         param_key, sampling_key, key = jr.split(key, 3)
 
@@ -71,10 +72,12 @@ class ElectronSamplingExperiment(AbstractSamplingExperiment):
             return -jnp.sum((samples - current) ** 2)
 
         init_params = create_init_params(param_key, NUM_CPUS)
-        samples, logdensity, info = sampling_algorithm(
+        samples, logdensity = sampling_algorithm(
             sampling_key, init_params, logdensity_fn
         )
-        data_file = f"E_{sampling_algorithm}_{noise:.2f}_{sigma:.0f}.npz"
+        data_file = (
+            f"E_{voltammetry_type}_{sampling_algorithm}_{noise:.2f}_{sigma:.0f}.npz"
+        )
         np.savez_compressed(
             f"./data/{data_file}",
             alpha=samples.alpha,
@@ -82,9 +85,3 @@ class ElectronSamplingExperiment(AbstractSamplingExperiment):
             Ef=samples.Ef,
             logdensity=logdensity,
         )
-        end_time = perf_counter()
-
-        print(f"Time Taken: {end_time - start_time:.2f}s")
-
-        for k, v in info.items():
-            print(f"{k}: {v}")

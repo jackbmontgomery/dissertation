@@ -34,7 +34,7 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
         voltammetry: AbstractVoltammetryTechnique,
         h0: float = 1e-5,
         omega: float = 1.1,
-        dtheta: float = 2e-1,
+        dtheta: float = 5e-2,
     ):
         T, dt, X, alpha_inner, sigma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega

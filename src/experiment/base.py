@@ -1,8 +1,10 @@
 from abc import abstractmethod
+from typing import Literal
 
 from equinox import Module
 
 from src.sampling import AbstractSamplingAlgorithm
+from src.voltammetry import VoltammetryType
 
 
 class AbstractSamplingExperiment:
@@ -11,6 +13,7 @@ class AbstractSamplingExperiment:
         sampling_algorithm: AbstractSamplingAlgorithm,
         noise: float,
         sigma: int,
+        voltammetry_type: VoltammetryType,
         seed: int,
     ):
         raise NotImplementedError
