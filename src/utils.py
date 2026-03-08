@@ -8,7 +8,7 @@ from chex import dataclass
 from equinox import apply_updates, filter, filter_value_and_grad, is_array
 from jax import vmap
 from jax.lax import scan
-from jaxtyping import PRNGKeyArray, PyTree, Scalar
+from jaxtyping import Array, PRNGKeyArray, PyTree, Scalar
 
 from src.params import Params
 
@@ -45,7 +45,7 @@ def interleave_concat_4d(a, b, c, d):
 
 def adam_minimise(
     params: Params, learning_rate: float, num_steps: int, log_density: Callable
-) -> Tuple[Params, Scalar]:
+) -> Tuple[Params, Scalar, Params]:
     optim = optax.adam(learning_rate)
     value_grad_fn = filter_value_and_grad(lambda x: -log_density(x))
 
@@ -57,13 +57,15 @@ def adam_minimise(
         )
         new_params = apply_updates(params, updates)
         new_carry = AdamMinimiseCarry(opt_state=new_opt_state, params=new_params)
-        return new_carry, -log_likelihood
+        return new_carry, (-log_likelihood, params)
 
     opt_state = optim.init(filter(params, is_array))
 
     init_carry = AdamMinimiseCarry(opt_state=opt_state, params=params)
-    final_carry, log_likelihood = scan(step_fn, init_carry, None, num_steps)
-    return final_carry.params, log_likelihood
+    final_carry, (log_likelihood, params_path) = scan(
+        step_fn, init_carry, None, num_steps
+    )
+    return final_carry.params, log_likelihood, params_path
 
 
 def bfgs_minimise(initial_parameters, log_density: Callable):

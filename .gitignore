@@ -20,3 +20,13 @@ write_up/*
 !write_up/oxlogo.png
 !write_up/references.bib
 !write_up/figures
+!write_up/planning.md
+
+# Presentation
+presentation/*
+!presentation/
+!presentation/main.pdf
+!presentation/*.tex
+!presentation/*.sty
+!presentation/*.png
+

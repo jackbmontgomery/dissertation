@@ -13,6 +13,9 @@ from src.voltammetry import AbstractVoltammetryTechnique
 
 from .base import AbstractFDSolver, setup_fd_discritisation
 
+# TODO:
+# I am pretty sure there will be a way I can translate this into a tridiagonal system with the assumption of the equal diffusion coefficients. I will come back to this after doing the derivation of the finite difference method write up
+
 
 @dataclass
 class ScanInputSequence:

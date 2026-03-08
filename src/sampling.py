@@ -73,7 +73,7 @@ class AdditiveStepRandomWalkSamplingAlgorithm(AbstractSamplingAlgorithm):
         print("--- Running Random Walk Metropolis-Hastings ---")
 
         print("Adam Minimise - ", end="")
-        init_params, log_likelihoods = vmap(
+        init_params, log_likelihoods, _ = vmap(
             adam_minimise, in_axes=(0, None, None, None)
         )(init_params, self.burn_in_lr, self.burn_in_steps, log_density)
         for i, log_likelihood in enumerate(log_likelihoods):
