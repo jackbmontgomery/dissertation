@@ -29,4 +29,4 @@ presentation/*
 !presentation/*.tex
 !presentation/*.sty
 !presentation/*.png
-
+!presentation/figures

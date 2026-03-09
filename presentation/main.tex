@@ -24,13 +24,12 @@ Parameter Inference}
     \centering
     \begin{subfigure}[b]{0.45\textwidth}
       \centering
-      \includegraphics[width=\textwidth]{figures/cyclic-voltammetry.png}
+      \includegraphics[width=\textwidth]{figures/circuit-flow.png}
     \end{subfigure}
-    \pause
     \hfill
     \begin{subfigure}[b]{0.45\textwidth}
       \centering
-      \includegraphics[scale=0.4]{figures/voltammagram.png}
+      \includegraphics[scale=0.4]{figures/cyclic-voltammetry.png}
     \end{subfigure}
   \end{figure}
 \end{frame}
@@ -66,13 +65,14 @@ Parameter Inference}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Mathematical Description}
+  \frametitle{Dimensionless Mathematical Description}
   Assuming $D_A = D_B$
   \begin{itemize}
     \item \textbf{Diffusion}: $\frac{\partial C_A}{\partial t} =
       \frac{\partial^2 C_A}{\partial x^2}$
     \item \textbf{Initial Condition}: $C_A(0, X) = 1$
-    \item \textbf{Infinite Boundary Conditions}: $C_A(t, X_{\text{max}}) = 1$
+    \item \textbf{Semi-Infinite Boundary Conditions}: $C_A(t,
+      X_{\text{max}}) = 1$
     \item \textbf{Electrode Boundary Condition} (Butler-Volmer):
       $\frac{\partial C_A}{\partial X}\bigg|_{X=0} =
       K_0 \left[ C_A(T,0)\, e^{-\alpha (\theta(T) - \theta^0_f)}
@@ -84,85 +84,156 @@ Parameter Inference}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Forward Problem}
-  \begin{itemize}
-    \item Set $\phi = \left( \alpha, K_0, \theta_f \right)$
-    \item Finite Difference Solver: $\mathcal{P}(\phi) = J$
-  \end{itemize}
-  % NOTE: I need to change the heading in the plots
-  \includegraphics[scale=0.45]{figures/forward-problem.png}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Inverse Problem}
+  \frametitle{Parameter Effects}
   \begin{center}
-    \begin{minipage}[c]{0.5\textwidth}
-      \centering
-      \includegraphics[scale=0.3]{figures/noisy-samples.png}
-    \end{minipage}
-    \hspace{0.3cm}
-    $\longrightarrow$
-    \hspace{0.3cm}
-    \begin{minipage}[c]{0.2\textwidth}
-      \centering
-      $\phi$
-    \end{minipage}
+    \includegraphics[scale=0.45]{figures/forward-problem.png}
   \end{center}
 \end{frame}
 
-%TODO: A slide on putting this into a Bayesian framing
+\begin{frame}
+  \frametitle{Forward and Inverse Problem}
+
+  \begin{itemize}
+    \item Let $\phi = (\alpha, K_0, \theta_f) \in \Phi \subseteq \mathbb{R}^3$
+      be the parameter vector
+    \item The finite difference solver defines a map:
+      $$\mathcal{P} : \Phi \to \mathcal{F}, \qquad \mathcal{P}(\phi) = J(T)$$
+      where $\mathcal{F}$ is the space of dimensionless flux trajectories
+    \item \textbf{Forward Problem:} Given $\phi$, compute
+      $\mathcal{P}(\phi) = J(T)$
+    \item \textbf{Inverse Problem:} Given noisy observations
+      $y \approx J(T)$, recover
+      $$\phi^* = \underset{\phi \in \Phi}{\arg\min} \;
+      \|\mathcal{P}(\phi) - y\|$$
+    \item The inverse problem is generally \textbf{ill-posed}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Bayesian Inference}
+  \begin{itemize}
+    \item \textbf{Noise model:} $y_i = \mathcal{P}(\phi)_i + \varepsilon_i,
+      \quad \varepsilon_i \overset{\text{iid}}{\sim} \mathcal{N}(0, \sigma^2)$
+    \item \textbf{Prior:} Uninformative uniform prior over $\Phi$,
+      so $P(\phi) \propto 1$
+    \item \textbf{Posterior:} $P(\phi \mid y) \propto L(y \mid \phi)
+      \cdot P(\phi) \propto
+      L(y \mid \phi)$
+    \item \textbf{Likelihood:}
+      $$L(y \mid \phi) = \prod_{i=1}^{N} \frac{1}{\sqrt{2\pi\sigma^2}}
+      \exp\left(-\frac{(y_i - \mathcal{P}(\phi)_i)^2}{2\sigma^2}\right)$$
+    \item \textbf{Log-likelihood:}
+      \begin{align*}
+        \ell(\phi \mid y) &= -\frac{N}{2}\log(2\pi\sigma^2)
+        - \frac{1}{2\sigma^2}\sum_{i=1}^{N}(y_i - \mathcal{P}(\phi)_i)^2 \\
+        &\propto -\frac{1}{2\sigma^2}\sum_{i=1}^{N}(y_i - \mathcal{P}(\phi)_i)^2
+      \end{align*}
+  \end{itemize}
+\end{frame}
 
 \begin{frame}
   \frametitle{MCMC}
   \begin{itemize}
-    \item Aim to approximate the posterior distribution $P(\phi |
-      y)$, where $y$ is the experimental data
-    \item Based on simulating a Markov chain whose limiting
-      distribution is the posterior distribution
-    \item Parameters are proposed based on a proposal distribution
-      $q(\phi_{\text{cand} | \phi})$
-    \item Proposals are accepted with probability: $$ r  = min\left\{
-      \frac{L(\phi_{\text{cand}} | y)}{L(\theta_i | y)}, 1 \right\}$$
+    \item \textbf{Goal:} Approximate the posterior $P(\phi \mid y)$
+      using samples $\{\phi^{(t)}\}_{t=1}^{T}$ from a Markov chain
+
+    \item \textbf{Convergence:} Under mild regularity conditions,
+      the empirical distribution of the chain converges to $P(\phi \mid y)$
+      as $T \to \infty$
+
+    \item \textbf{Proposal:} At each step, candidate parameters
+      $\phi_{\text{cand}}$ are drawn from a proposal distribution
+      $q(\phi_{\text{cand}} \mid \phi^{(t)})$
+
+    \item \textbf{Metropolis-Hastings acceptance:} Accept
+      $\phi_{\text{cand}}$ with probability
+      $$r = \min\left\{ \frac{P(\phi_{\text{cand}} \mid
+      y)}{P(\phi^{(t)} \mid y)}, 1 \right\}$$
+      otherwise set $\phi^{(t+1)} = \phi^{(t)}$
+
   \end{itemize}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Random-Walk Metropolis Hastings}
-  $q(\theta|\theta_t) \sim \mathcal{N}(0, \Sigma)$ %NOTE: This is not
-  \includegraphics[scale=0.5]{figures/no-burn-in.png}
+  \frametitle{Random-Walk Metropolis-Hastings}
+  \begin{itemize}
+    \item \textbf{Proposal:}
+      $$q(\phi_{\text{cand}} \mid \phi^{(t)}) =
+      \mathcal{N}(\phi^{(t)}, \Sigma)$$
+  \end{itemize}
+  \begin{center}
+    \includegraphics[scale=0.5]{figures/no-burn-in.png}
+  \end{center}
 \end{frame}
 
 \begin{frame}
   \frametitle{Burn-in}
-  \includegraphics[scale=0.5]{figures/normal-burn-in.png}
+  \begin{center}
+    \includegraphics[scale=0.5]{figures/normal-burn-in.png}
+  \end{center}
 \end{frame}
 
 \begin{frame}
   \frametitle{Differentiable Simulator}
   \begin{itemize}
-    \item $\mathcal{P}$ is a composition of differentiable functions
-      so it is itself differentiable.
-    \item Hard to derive analytically, but we can compute the
-      dervatives efficiently using automatic differentiation
-    \item Compute $\Delta_{\phi} L$
+    \item \textbf{Why $\mathcal{P}$ is differentiable:} The finite
+      difference discretisation reduces the PDE to a sequence of linear
+      solves and pointwise nonlinear operations (Butler-Volmer), all of
+      which are differentiable
+
+    \item \textbf{Gradient of the log-likelihood:} We require
+      $\nabla_\phi \ell(\phi \mid y)$
+
+    \item \textbf{Reverse mode AD:} Since $\ell$ is scalar, reverse
+      mode AD computes $\nabla_\phi \ell$ in a single backward pass
+      through $\mathcal{P}$, at comparable cost to a forward evaluation
+
+    \item \textbf{Applications:}
+      \begin{itemize}
+        \item \textbf{Burn-in removal:} Gradient descent on $-\ell(\phi
+          \mid y)$ to initialise the chain near the posterior mode
+        \item \textbf{Hamiltonian Monte Carlo:} Gradient informed MCMC
+          yielding faster mixing and better exploration of $P(\phi \mid y)$
+      \end{itemize}
   \end{itemize}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Burn-in}
-  Performing gradient descent on the
-  likelihood can help us enter areas of high density faster.
-  \includegraphics[scale=0.35]{figures/burn-in-comparison.png}
-  % TODO: Plot of the gradient descent steps for K_0 and \alpha
-  % TODO: Plot of the posterior
+  \frametitle{Burn-in removal}
+  \begin{center}
+    \includegraphics[scale=0.35]{figures/burn-in-comparison.png}
+  \end{center}
 \end{frame}
 
 \begin{frame}
   \frametitle{Hamiltonian Monte Carlo}
+  \begin{itemize}
+    \item Augments parameter space with auxiliary momentum variables,
+      using $\nabla_\phi \ell$ to make informed moves through the posterior
+    \item \textbf{Effective Sample Size:} Autocorrelated samples carry
+      less information than independent draws — ESS quantifies the
+      equivalent number of independent samples:
+      $$\text{ESS} = \frac{T}{1 + 2\sum_{k=1}^{\infty} \rho_k}$$
+      where $\rho_k$ is the autocorrelation at lag $k$
+  \end{itemize}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Further Work}
+  \frametitle{ESS}
+  \begin{center}
+    \includegraphics[scale=0.45]{figures/mixing.png}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Further Results}
+  \begin{itemize}
+    \item \textbf{Higher dimensional inference:} Sampling and numerical
+      results for experiments with a greater number of parameters to infer
+    \item \textbf{Non-linear PDEs:} Sampling and numerical results for
+      electrochemical models requiring Newton's method or linearisation
+      at each time step of the finite difference solver
+  \end{itemize}
 \end{frame}
 
 \end{document}
