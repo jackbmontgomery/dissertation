@@ -177,6 +177,8 @@ class HMCSamplingAlgorithm(AbstractSamplingAlgorithm):
         samples: PyTree = states.position
         logdensity: Scalar = states.logdensity
 
+        logdensity.block_until_ready()
+
         print("--- Sampling Done ---")
         sampling_time = perf_counter()
         print(f"Sampling Time: {sampling_time - warm_up_time:.4f}")

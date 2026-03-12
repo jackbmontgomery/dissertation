@@ -41,7 +41,7 @@ fd_solver = ElectronReactionFDSolver(voltammetry)
 
 _, current = fd_solver.solve(true_params)
 
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3))
 
 ax1.plot(fd_solver.applied_potentials)
 ax1.yaxis.set_inverted(True)
@@ -119,7 +119,7 @@ ax1.set_title(r"$K_0$")
 ax1.set_xlabel(r"$\theta$")
 ax1.legend()
 
-ax2.set_title(r"$E_f$")
+ax2.set_title(r"$\theta_f$")
 ax2.set_xlabel(r"$\theta$")
 ax2.legend()
 
@@ -129,35 +129,6 @@ plt.tight_layout()
 plt.savefig("./presentation/figures/forward-problem.png", dpi=1000)
 plt.show()
 
-
-# %% Noisy Samples
-true_params = ElectronReactionParams(
-    alpha=jnp.array(0.6),
-    K0=jnp.array(10.0),
-    Ef=jnp.array(0.5),
-)
-
-plt.figure(figsize=(8, 6))
-
-voltammetry = CyclicDC()
-fd_solver = ElectronReactionFDSolver(voltammetry)
-_, base_current = fd_solver.solve(true_params)
-
-for sigma in [0.5, 0.25, 0.1]:
-    noise_key, key = jr.split(key)
-    noisy_current = generate_noisy_samples(1, base_current, sigma=sigma, key=noise_key)[
-        0
-    ]
-    plt.plot(fd_solver.applied_potentials, noisy_current)
-
-
-plt.ylabel(r"$J$")
-plt.xlabel(r"$\theta$")
-
-plt.gca().invert_xaxis()
-plt.gca().invert_yaxis()
-plt.savefig("./presentation/figures/noisy-samples.png", dpi=1000)
-plt.show()
 
 # %% Random-Walk Metropolis Hasting with no burn-in
 
@@ -205,26 +176,41 @@ states, infos = inference_loop(sampling_key, rw_jit_step, init_states, 5_000)
 samples = states.position
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 4))
-options = {"bins": 50, "density": True}
+options = {"bins": 25, "density": True}
 
 ax1.set_title(r"$\alpha$")
 ax1.hist(samples.alpha, **options)
-ax1.axvline(x=true_params.alpha, linestyle="--", color="black")
+ax1.axvline(x=true_params.alpha, linestyle="--", color="black", label="True Value")
+ax1.set_ylabel("Density")
 ax2.set_title(r"$K_0$")
 ax2.hist(samples.K0, **options)
 ax2.axvline(x=true_params.K0, linestyle="--", color="black")
 ax3.set_title(r"$\theta_f^0$")
 ax3.hist(samples.Ef, **options)
 ax3.axvline(x=true_params.Ef, linestyle="--", color="black")
+
+handles, labels = ax1.get_legend_handles_labels()
+fig.legend(handles, labels, loc="lower center", ncol=2)
+plt.tight_layout(rect=(0, 0.1, 1, 1))
+plt.savefig("./presentation/figures/no-burn-in.png", dpi=1000)
 plt.show()
 
 # %% Scatter plot for no burn-in
 idx = jnp.arange(len(samples.alpha))
 plt.scatter(samples.alpha, samples.K0, c=idx, cmap="viridis", s=0.5)
 plt.colorbar(label="Sample Index")
+plt.scatter(
+    [true_params.alpha],
+    [true_params.K0],
+    marker="x",
+    s=75.0,
+    label="True Value",
+    c="black",
+)
 plt.xlabel(r"$\alpha$")
 plt.ylabel(r"$K_0$")
 plt.tight_layout()
+plt.savefig("./presentation/figures/normal-burn-in.png", dpi=1000)
 plt.show()
 
 
@@ -234,28 +220,18 @@ minimised_init_params, log_likelihood, params_path = adam_minimise(
     init_params, learning_rate=1e-1, num_steps=50, log_density=log_density
 )
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 6), sharex=True, sharey=True)
+idx = jnp.arange(len(params_path.alpha))
 
-n_mh = 100
-n_gd = len(params_path.alpha)
-
-mh_cost_per_step = 1
-gd_cost_per_step = 2
-
-mh_cumulative_cost = jnp.arange(n_mh) * mh_cost_per_step  # 0, 1, 2, ...99
-gd_cumulative_cost = jnp.arange(n_gd) * gd_cost_per_step  # 0, 2, 4, ...
-
-vmax = max(mh_cumulative_cost[-1], gd_cumulative_cost[-1])
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharex=True, sharey=True)
 
 sc1 = ax1.scatter(
-    samples.alpha[:n_mh],
-    samples.K0[:n_mh],
-    c=mh_cumulative_cost,
+    samples.alpha[:50],
+    samples.K0[:50],
+    c=idx,
     cmap="viridis",
     s=5.0,
-    vmin=0,
-    vmax=vmax,
 )
+
 ax1.set_title("MCMC (Metropolis–Hastings)")
 ax1.set_xlabel(r"$\alpha$")
 ax1.set_ylabel(r"$K_0$")
@@ -267,11 +243,9 @@ minimised_init_params, log_likelihood, params_path = adam_minimise(
 sc2 = ax2.scatter(
     params_path.alpha,
     params_path.K0,
-    c=gd_cumulative_cost,
+    c=idx,
     cmap="viridis",
     s=5.0,
-    vmin=0,
-    vmax=vmax,
 )
 ax2.set_title("Gradient Descent (Adam)")
 ax2.set_xlabel(r"$\alpha$")
@@ -280,10 +254,11 @@ ax2.set_xlabel(r"$\alpha$")
 fig.subplots_adjust(right=0.85)
 cbar_ax = fig.add_axes([0.88, 0.15, 0.02, 0.7])
 
-sm = cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=vmax))
-fig.colorbar(sm, cax=cbar_ax, label="Cumulative compute")
+sm = cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(vmin=0, vmax=50))
+fig.colorbar(sm, cax=cbar_ax, label="Step")
 
 plt.tight_layout(rect=[0, 0, 0.85, 1])
+plt.savefig("./presentation/figures/burn-in-comparison.png", dpi=1000)
 plt.show()
 
 # %% MH sampling with minimised_init_params

@@ -13,9 +13,6 @@ from src.voltammetry import AbstractVoltammetryTechnique
 
 from .base import AbstractFDSolver, setup_fd_discritisation
 
-# TODO:
-# I am pretty sure there will be a way I can translate this into a tridiagonal system with the assumption of the equal diffusion coefficients. I will come back to this after doing the derivation of the finite difference method write up
-
 
 @dataclass
 class ScanInputSequence:
@@ -98,7 +95,6 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
         d2l = jnp.concat(
             [
-                jnp.array([0.0, 0.0]),
                 interleave_concat_2d(gamma_inner_AB, gamma_inner_AB),
                 jnp.array([-1.0, -1.0]),
                 jnp.array([0.0, 0.0]),
@@ -114,24 +110,20 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
                 jnp.array([0.0, 0.0]),
                 jnp.array([-1.0, -1.0]),
                 interleave_concat_2d(gamma_inner_CD, gamma_inner_CD),
-                jnp.array([0.0, 0.0]),
             ]
         )
 
         n = self.Nx - 2
-        dl_inner_AB = jnp.zeros(2 * n)
-        dl_inner_CD = jnp.zeros(2 * n)
-
-        du_inner_AB = jnp.zeros(2 * n)
-        du_inner_CD = jnp.zeros(2 * n)
+        dl_inner = jnp.zeros(2 * n)
+        du_inner = jnp.zeros(2 * n)
 
         def stepper(c_prev: Array, x: ScanInputSequence):
             dl = jnp.concat(
                 [
-                    jnp.array([0.0, 0.0]),
-                    dl_inner_AB,
+                    jnp.array([0.0]),
+                    dl_inner,
                     jnp.array([0.0, x.B0_A_coef, x.C0_B_coef, x.D0_C_coef]),
-                    dl_inner_CD,
+                    dl_inner,
                     jnp.array([0.0, 0.0]),
                 ]
             )
@@ -151,7 +143,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             du = jnp.concat(
                 [
                     jnp.array([0.0, 0.0]),
-                    du_inner_AB,
+                    du_inner,
                     jnp.array(
                         [
                             x.A0_B_coef,
@@ -160,8 +152,8 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
                             0.0,
                         ]
                     ),
-                    du_inner_CD,
-                    jnp.array([0.0, 0.0]),
+                    du_inner,
+                    jnp.array([0.0]),
                 ]
             )
 

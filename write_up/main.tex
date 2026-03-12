@@ -3,55 +3,46 @@
 \usepackage{amssymb}
 \usepackage{amsmath}
 \usepackage{hyperref}
+\usepackage[capitalise]{cleveref}
+\usepackage{tikz}
+\usepackage{xcolor}
 
-%\include{mymacros}
-
-\title{Numerical Solutions to Problems in Electrochemistry}
+\title{Differentiable Electrochemical Simulation for Efficient
+Bayesian Inference}
 
 \author{Jack Montgomery}
 \college{St Anne's College}
 
-\degree{Masters in Mathematical Sciences}     %the degree
-\degreedate{Trinity 2026}         %the degree date
+\degree{Masters in Mathematical Sciences}
+\degreedate{Trinity 2026}
 
-%end the preamble and start the document
 \begin{document}
 
-%this baselineskip gives sufficient line spacing for an examiner to easily
-%markup the thesis with comments
 \baselineskip=18pt plus1pt
 
-%set the number of sectioning levels that get number and appear in the contents
 \setcounter{secnumdepth}{3}
 \setcounter{tocdepth}{3}
 
-\maketitle                  % create a title page from the preamble info
-\include{abstract}          % include the abstract
+\maketitle
+\include{abstract}
 
-\begin{romanpages}          % start roman page numbering
-  \tableofcontents            % generate and include a table of contents
-  \listoffigures              % generate and include a list of figures
-\end{romanpages}            % end roman page numbering
+\begin{romanpages}
+  \tableofcontents
+  \listoffigures
+\end{romanpages}
 
 \include{1_introduction}
 \include{2_electrochem}
 \include{3_numerical}
-\include{4_mcmc}
-\include{5_electron}
-\include{6_heterogeneous}
-\include{7_adsorption}
-\include{8_conclusions}
+\include{4_bayesian}
+\include{5_differentiating}
+\include{6_hmc}
+\include{7_heterogeneous}
+\include{8_adsorption}
+\include{9_conclusions}
 
-%now enable appendix numbering format and include any appendices
-\appendix
-\include{appendix1}
-\include{appendix2}
-
-%next line adds the Bibliography to the contents page
 \addcontentsline{toc}{chapter}{Bibliography}
-%uncomment next line to change bibliography name to references
-%\renewcommand{\bibname}{References}
 \bibliography{references}
-\bibliographystyle{plain}  %use the plain bibliography style
+\bibliographystyle{plain}
 
 \end{document}

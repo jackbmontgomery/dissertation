@@ -1,0 +1,38 @@
+from time import perf_counter
+
+import jax
+import jax.numpy as jnp
+
+from src.fdm import HeterogeneousReactionFDSolver
+from src.params import HeterogenousReactionParams
+from src.voltammetry import CyclicDC
+
+for dtheta in [0.01, 0.05, 0.1, 0.2]:
+    print("dtheta:", dtheta)
+    voltammetry = CyclicDC()
+    fdm_solver = HeterogeneousReactionFDSolver(voltammetry, dtheta=dtheta)
+
+    true_params = HeterogenousReactionParams(
+        alpha_1=jnp.array(0.6),
+        K0_1=jnp.array(10.0),
+        Ef_1=jnp.array(0.5),
+        alpha_2=jnp.array(0.4),
+        K0_2=jnp.array(5.0),
+        Ef_2=jnp.array(0.2),
+        K_het=jnp.array(20.0),
+    )
+
+    _, true_current = fdm_solver.solve(true_params)
+
+    def loss_fn(params: HeterogenousReactionParams):
+        _, pred_current = fdm_solver.solve(params)
+        return jnp.square(jnp.mean(pred_current - true_current))
+
+    params = true_params
+    # Forward solve only
+    fwd_jaxpr = jax.make_jaxpr(lambda p: loss_fn(p))(params)
+    print(f"Forward intermediates: {len(fwd_jaxpr.jaxpr.eqns)}")
+
+    # Gradient computation (forward + backward)
+    grad_jaxpr = jax.make_jaxpr(jax.grad(loss_fn))(params)
+    print(f"Grad intermediates: {len(grad_jaxpr.jaxpr.eqns)}")

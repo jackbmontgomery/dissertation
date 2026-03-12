@@ -1,0 +1,143 @@
+\chapter{Differentiating Through the Forward Solver}\label{ch:adjoint}
+
+The previous chapter postulated that gradient information is could be desirable
+both for initialising the Markov chain and for
+constructing more efficient MCMC proposals. Computing the gradient of the
+log-likelihood~\cref{eq:log-likelihood} with respect to the
+parameters~$\phi$ requires differentiating through the forward
+map~$\mathcal{P}$, which itself involves solving a sequence of tridiagonal
+linear systems. In this chapter we describe how these derivatives are
+obtained efficiently.
+
+\section{Discretise Then Optimise}\label{sec:disc-then-opt}
+
+There are broadly two strategies for differentiating through a numerical
+solver. In the \emph{optimise then discretise} approach one derives the
+continuous adjoint equations analytically and then discretises them; in the
+\emph{discretise then optimise} approach one first discretises the forward
+problem and then differentiates the discrete computation. Generally,
+the discretise then optimise is preferable as it computes the exact
+gradient of the quantity that is actually evaluated in code, avoiding
+the consistency errors that can arise
+when the adjoint PDE is discretised independently of the forward PDE
+\cite{kidger2021neural}. We
+adopt this approach throughout.
+
+Concretely, our forward map~$\mathcal{P}$ is implemented as a
+sequence of algebraic operations --- assembling tridiagonal systems and
+solving them via the Thomas algorithm at each timestep, then extracting
+the surface flux. The gradient we seek is therefore the derivative of a
+composition of these discrete operations with respect to the
+parameters~$\phi$.
+
+\section{Reverse Mode Automatic Differentiation}\label{sec:reverse-ad}
+
+The log-likelihood is a scalar-valued function of the parameter
+vector. In this setting  reverse mode
+automatic differentiation (AD) is the
+natural choice, as it computes the full gradient in a single backward
+pass regardless of the number of parameters.
+
+Reverse mode AD decomposes the gradient computation into a sequence of
+\emph{vector--Jacobian products} (VJPs). If the forward computation is
+written as a composition $f = f_L \circ f_{L-1} \circ \cdots \circ f_1$,
+then the chain rule gives
+\begin{equation}
+  \frac{\partial f}{\partial \phi}
+  = \frac{\partial f_L}{\partial f_{L-1}}
+  \cdot \frac{\partial f_{L-1}}{\partial f_{L-2}}
+  \cdots
+  \frac{\partial f_1}{\partial \phi}.
+  \label{eq:chain-rule}
+\end{equation}
+In reverse mode, this product is evaluated from left to right: at each
+stage a row vector (the adjoint, or cotangent) is multiplied by the
+Jacobian of the corresponding primitive operation. The intermediate
+Jacobians are never formed explicitly; only the VJP of each primitive is
+required.
+
+For the forward map~$\mathcal{P}$ the dominant primitives are the
+tridiagonal solves --- one per timestep. The question therefore reduces
+to: how should the VJP of a tridiagonal solve be implemented?
+
+\section{Differentiating Through Linear Solves}\label{sec:diff-linear}
+
+Consider a single linear system $A x = b$, where $A$ depends on the
+parameters~$\phi$ and
+$b$ depends on the solution at the previous timestep. A na\"ive approach
+is to record every intermediate value of the Thomas algorithm on the
+forward pass and replay them in reverse during the backward pass. This is
+what a generic AD framework will do if the Thomas algorithm is
+implemented as a sequence of elementary operations: the entire
+computational graph of the factorisation and back-substitution is stored
+on a tape.
+
+For a single tridiagonal solve on $n$ unknowns the memory overhead of
+taping is modest. However, the forward map involves $m$ consecutive
+solves (one per timestep), and the tape must be retained across all of
+them because the backward pass traverses the full time history in
+reverse. The total memory cost therefore scales as $O(mn)$, which becomes
+prohibitive for fine spatial and temporal grids. Worse, the overhead of
+maintaining and traversing the tape degrades runtime performance even when
+memory is not the binding constraint.
+
+\section{Adjoint of the Tridiagonal Solve}\label{sec:adjoint-solve}
+
+A more efficient approach exploits the structure of the linear solve
+directly. Suppose the forward pass solves $Ax = b$ and the backward pass
+receives the adjoint (cotangent) $\bar{x} = \partial \ell / \partial x$.
+We require the adjoint with respect to~$b$:
+\begin{equation}
+  \bar{b} = \frac{\partial \ell}{\partial b}
+  = \bar{x}^T \frac{\partial x}{\partial b}
+  = \bar{x}^T A^{-1}.
+  \label{eq:adjoint-b}
+\end{equation}
+This is equivalent to solving the \emph{adjoint system}
+\begin{equation}
+  A^T \lambda = \bar{x},
+  \label{eq:adjoint-system}
+\end{equation}
+and setting $\bar{b} = \lambda^T$. Similarly, the adjoint with respect to
+the matrix entries of~$A$ is
+\begin{equation}
+  \bar{A} = -\lambda\, x^T,
+  \label{eq:adjoint-A}
+\end{equation}
+which follows from differentiating the identity $A x = b$ and
+substituting the solution of the adjoint system.
+
+The key observation is that $A^T$ is also tridiagonal (with the sub- and
+super-diagonals transposed), so the adjoint system~\cref{eq:adjoint-system}
+can be solved by the Thomas algorithm at the same $O(n)$ cost as the
+forward solve. Crucially, this approach requires only the matrix~$A$ and
+the forward solution~$x$ to be stored --- not the full tape of
+intermediate values from the factorisation. The memory cost per timestep
+is therefore $O(n)$ rather than the $O(n)$ per operation of na\"ive
+taping, and the total cost across all $m$ timesteps is reduced from
+taping the entire forward history to storing only the tridiagonal
+coefficients and solutions at each level.
+
+In practice we implement this by defining a custom VJP rule for the
+tridiagonal solve in \emph{JAX} \cite{jax2018github}. On the forward
+pass the Thomas algorithm solves
+$Ax = b$ and caches $A$ and~$x$. On the backward pass the custom rule
+receives~$\bar{x}$, solves $A^T \lambda = \bar{x}$ using the banded
+transpose, and returns $\bar{b} = \lambda^T$ and
+$\bar{A} = -\lambda\, x^T$. No taping of the Thomas algorithm's internal
+operations is required.
+
+\section{Extension to Pentadiagonal Systems}\label{sec:pentadiagonal}
+
+The benefits of the custom adjoint become even more pronounced for
+higher-order discretisations that produce pentadiagonal (or wider banded)
+systems. A pentadiagonal factorisation involves substantially more
+intermediate values than a tridiagonal one, and taping the full forward
+computation through the banded solver would incur a correspondingly
+larger memory and runtime penalty. The adjoint approach sidesteps this
+entirely: the transpose of a pentadiagonal matrix is again
+pentadiagonal, so the adjoint system is solved by a banded solver at the
+same $O(n)$ cost per timestep. The custom VJP rule generalises directly
+--- one simply solves with the transposed band structure --- making this
+a crucial step in enabling the use of higher-order spatial
+discretisations within the differentiable forward map.

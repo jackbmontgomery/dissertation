@@ -1,21 +1,3 @@
-% NOTE:
-% 1. Speak about electrochemical systems, their setup with the
-% electrochemical cell. Mention the setup of a redox reaction.
-% 2. Move into voltammetry where we change the applied potential of
-% the working electrode and measure the current that is induced in
-% the electrochemical cell. And then move onto mention cyclic
-% voltammetry as a particular method that is popular to understand
-% chemical and thermodynamical properties of the species in solution.
-% 3. Elecrode kinetics as the model of how we translate the applied
-% potential into the change in concentration of the species. Fast. ie
-% reversible reaction approximated by the Nernst equation. But in the
-% case of slower, finite, electrode kinetics we have the butler voltmer
-% equation at the surface of the electrode surface.
-% 4. Diffusion of the species in solution and how that brings new
-% molecules to the surface and transports reduces species away from
-% the surface. Mention Fick's second law that predicts how the
-% diffusion causes the concentration field to change with time.
-
 \chapter{Electrochemical Systems}
 
 A typical electrochemical experiment uses an electrochemical cell to drive
@@ -27,17 +9,34 @@ completes the circuit. A third \emph{reference electrode} is commonly
 included to provide a stable, known potential against which the potential
 of the working electrode is measured and controlled. A device called a
 \emph{potentiostat} maintains the desired potential difference between the
-working and reference electrodes whilst measuring the current that flows
-between the working and counter electrodes.
+working and reference electrodes, drives the current through the circuit
+formed by the working and counter electrodes, and simultaneously measures
+that current.
 
-A one-electron redox reaction can be written as:
+\begin{figure}
+  \centering
+  \input{figures/electrochemical-cell.tex}
+  \caption{Schematic of a three-electrode electrochemical cell. The
+    potentiostat controls the potential difference between the working
+    and reference electrodes whilst driving current (red) through the
+    circuit formed by the working and counter electrodes via the
+  analyte solution.}
+  \label{fig:electrochemical-cell}
+\end{figure}
+
+The reaction occurring at the working electrode surface depends on the
+applied potential and the chemical species present in solution. In the
+simplest case, a solution-phase species undergoes a single-electron redox
+reaction:
 \begin{equation}\label{eq:redox}
   \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B},
 \end{equation}
-where species $\mathrm{A}$ is reduced -- that is, it gains one electron --
+where species $\mathrm{A}$ is reduced --- that is, it gains one electron ---
 to form species $\mathrm{B}$. The reverse process, in which $\mathrm{B}$
 loses an electron to regenerate $\mathrm{A}$, is the corresponding
-oxidation.
+oxidation. Throughout this chapter we restrict attention to this
+single-electron ($n = 1$) process and adopt the convention that a
+\emph{positive} current corresponds to net reduction (cathodic current).
 
 \section{Voltammetry}
 
@@ -45,209 +44,442 @@ Voltammetry is the class of electroanalytical techniques in which the
 potential applied to the working electrode is varied in a prescribed
 manner and the resulting current is recorded. Because the current is
 directly related to the rate of the electrochemical reaction at the
-electrode surface, the current--potential curve -- called a
-\emph{voltammogram} -- encodes information about the thermodynamics and
-kinetics of the redox process as well as the transport of chemical species
-in solution.
+electrode surface, the current--potential curve --- called a
+\emph{voltammogram} --- encodes information about the kinetics of the
+redox process as well as the transport of chemical species in solution.
 
 In a cyclic voltammetry (CV) experiment the applied potential is swept
-linearly with time from some starting potential $E_i$, at which the
-species $\mathrm{A}$ is stable and no significant reaction occurs, to a
-vertex potential $E_v$, at which electron transfer occurs rapidly to form
-species $\mathrm{B}$. The potential is then swept back to $E_i$, causing
-electron transfer in the opposite direction and the reformation of
-$\mathrm{A}$. This triangular waveform is illustrated in the left panel of
-\autoref{fig:potential_voltammagram}.
+linearly with time from a starting potential~$E_i$, chosen so that the
+overpotential is insufficient to drive any significant reaction, towards
+more negative values (for a reduction) until a vertex potential~$E_v$ is
+reached. The vertex potential is chosen sufficiently beyond the formal
+potential of the redox couple that the reaction is driven to completion at
+the electrode surface; it serves only as the turning point of the sweep.
+The potential is then swept back to~$E_i$, reversing the direction of
+electron transfer and reforming~$\mathrm{A}$. This triangular waveform is
+illustrated in the left panel of \cref{fig:potential-voltammagram}.
 
 Throughout this process the current $I$ is recorded. Plotting the current
 against the applied potential gives the voltammogram shown in the right
-panel of \autoref{fig:potential_voltammagram}. The forward sweep produces
+panel of \cref{fig:potential-voltammagram}. The forward sweep produces
 a reduction (cathodic) peak as the potential moves through the range at
 which $\mathrm{A}$ is converted to $\mathrm{B}$; the return sweep produces
 an oxidation (anodic) peak as $\mathrm{B}$ is reconverted to $\mathrm{A}$.
-The peak shape arises from competition between the electrode kinetics,
-which accelerate as the driving potential increases, and the depletion of
-$\mathrm{A}$ near the electrode surface caused by the ongoing reaction.
+
+The peak shape arises from competition between two rate-limiting
+processes. During the early part of the forward sweep the applied
+potential is positive relative to the formal potential of the redox
+couple, so there is insufficient driving force to reduce $\mathrm{A}$ and
+negligible current flows. As the potential is swept to more negative
+values the reduction reaction becomes progressively more
+thermodynamically favourable and the current increases: during this rising
+portion the system is under \emph{kinetic control}, meaning that the rate
+of electron transfer at the electrode surface is the rate-limiting step.
+Eventually the concentration of~$\mathrm{A}$ in the immediate vicinity of
+the electrode is depleted to near zero and the current reaches a peak.
+Beyond this point the current decays despite the continued increase in
+thermodynamic driving force, because the reaction has passed into
+\emph{diffusional control}: the rate at which fresh~$\mathrm{A}$ can be
+transported to the electrode by diffusion is now the limiting factor.
 
 \begin{figure}
   \begin{center}
-    \includegraphics[width=0.95\textwidth]{figures/figure_1_voltammagram.png}
+    \includegraphics[width=0.8\textwidth]{figures/applied-potential-and-voltammagram.png}
   \end{center}
   \caption[Applied potential and voltammogram example]{Left: the triangular
     potential waveform applied in a cyclic voltammetry experiment. Right:
-    the resulting voltammogram showing cathodic (reduction) and anodic
-  (oxidation) current peaks.}
-  \label{fig:potential_voltammagram}
+    the resulting reversible reaction's voltammogram showing the cathodic
+    (reduction) peak which occurs on the forward sweep and the anodic
+  (oxidation) peak which occurs on the reverse sweep.}
+  \label{fig:potential-voltammagram}
 \end{figure}
 
-This technique is particularly useful because the position, shape, and
+Cyclic Voltammetry is particularly useful because the position, shape, and
 relative heights of the peaks provide a signature of the
 electrochemical process. The potential at which each peak occurs is related
-to the standard reduction potential $E^{\circ}$, and the separation between
+to the formal potential $E^{\circ}_f$, and the separation between
 the cathodic and anodic peaks carries information about the electrode
-kinetics, as discussed in \autoref{sec:electrode_kinetics}.
+kinetics, as discussed in \cref{sec:electrode-kinetics}.
 
 The \emph{scan rate} $\nu$ $(\mathrm{V\,s^{-1}})$ is the constant rate at
 which the potential is swept, defined as
 \begin{equation}
   \nu = \frac{dE}{dt}.
+  \label{eq:scan_rate}
 \end{equation}
 The scan rate is an important experimental parameter: faster scans probe
 shorter timescales and can resolve kinetic processes that would otherwise
 reach equilibrium on a slower scan, whilst slower scans allow more time for
 diffusion and can reveal coupled chemical reactions.
 
-\section{Electrode Kinetics}\label{sec:electrode_kinetics}
+\section{Mathematical Description}
 
-In order to model the reaction~\eqref{eq:redox} in a voltammetry
-experiment we require a description of how the applied potential drives
-the interconversion of $\mathrm{A}$ and $\mathrm{B}$ at the electrode
-surface. The electrode reaction rate is commonly expressed through the
-\emph{flux} $J$ $(\mathrm{mol\,m^{-2}\,s^{-1}})$ of material consumed or
-produced at the surface.
+We now formulate the governing equations for the system. The first
+assumption we make is that we have a ``macro''-electrode: specifically, we
+consider a planar disc electrode of radius~$\epsilon$, whose characteristic
+dimension is much larger than the distance over which species can diffuse
+on the timescale of the experiment. As a consequence, edge effects are
+negligible and we can model only the diffusion perpendicular to the
+electrode surface, reducing the problem to one spatial dimension.
 
-\subsection{The Nernst Equation: Reversible Kinetics}
+\begin{figure}
+  \centering
+  \input{figures/electrode-reaction.tex}
+  \caption{Schematic of the one-dimensional electrode reaction. Species
+    $\mathrm{A}$ diffuses from the bulk solution towards the electrode
+    surface, where it is reduced ($+e^-$) to form species $\mathrm{B}$.
+    The reverse oxidation ($-e^-$) converts $\mathrm{B}$ back to
+    $\mathrm{A}$. Species $\mathrm{B}$ diffuses away from the electrode
+  into the bulk.}
+\end{figure}
 
-When the rate of electron transfer is very fast relative to the timescale
-of the experiment, the concentrations of $\mathrm{A}$ and $\mathrm{B}$ at
-the electrode surface are in thermodynamic equilibrium with the applied
-potential at every instant. In this \emph{reversible} (or
-\emph{Nernstian}) limit, the surface concentrations $c_{\mathrm{A}}(0,t)$
-and $c_{\mathrm{B}}(0,t)$ are related to the applied potential $E(t)$ by
-the Nernst equation,
-\begin{equation}\label{eq:nernst}
-  E(t) = E^{\circ} + \frac{RT}{F}
-  \ln\frac{c_{\mathrm{A}}(0,t)}{c_{\mathrm{B}}(0,t)},
-\end{equation}
-where $R$ is the universal gas constant, $T$ is the absolute temperature,
-and $F$ is Faraday's constant. Equation~\eqref{eq:nernst} serves as a
-boundary condition at the electrode surface; combined with the diffusion
-equation introduced in \autoref{sec:diffusion}, it fully determines the
-concentration fields and hence the current in the reversible limit.
+\subsection{Diffusion: Fick's Second Law}\label{sec:diffusion}
 
-\subsection{The Butler--Volmer Equation: Finite Electrode Kinetics}
-
-When the electron-transfer rate is finite, the surface concentrations
-depart from the Nernstian equilibrium values, and the reaction rate must
-be modelled explicitly. The standard model for electrode kinetics is the
-\emph{Butler--Volmer} equation \cite{dickinson2020butler}, which
-gives the flux at the electrode
-surface as
-\begin{equation}\label{eq:butler_volmer}
-  J = k_{0}\!\left[c_{\mathrm{A}}(0,t)\,
-    \exp\!\left(-\frac{\alpha F}{RT}\eta(t)\right)
-    - c_{\mathrm{B}}(0,t)\,
-  \exp\!\left(\frac{(1-\alpha) F}{RT}\eta(t)\right)\right],
-\end{equation}
-where $k_{0}$ $(\mathrm{m\,s^{-1}})$ is the standard rate constant,
-$\alpha \in (0,1)$ is the transfer coefficient (often taken to be $0.5$
-for a symmetric energy barrier), and
+We model the transport of species in quiescent (unstirred) solution using
+Fick's second law~\cite{crank1979mathematics}, which describes the
+evolution of a concentration field $c(x,t)$ due to diffusion. For the
+couple $\mathrm{A}/\mathrm{B}$ on the planar
+electrode we have the system
 \begin{equation}
-  \eta(t) = E(t) - E^{\circ}
+  \begin{aligned}
+    \frac{\partial c_A}{\partial t}
+    &= D_A \frac{\partial^2 c_A}{\partial x^2}, \\
+    \frac{\partial c_B}{\partial t}
+    &= D_B \frac{\partial^2 c_B}{\partial x^2},
+  \end{aligned}
+  \label{eq:diffusion}
 \end{equation}
-is the \emph{overpotential}, measuring the deviation of the applied
-potential from the equilibrium value. The two exponential terms in
-\eqref{eq:butler_volmer} represent the reduction and oxidation
-contributions respectively: a negative overpotential ($E < E^{\circ}$)
-drives reduction, whilst a positive overpotential drives oxidation.
+where $D_A$ and $D_B$ $(\mathrm{m^2\,s^{-1}})$ are the diffusion
+coefficients of the respective species and $x$ denotes the distance from
+the electrode surface. Each equation is a linear parabolic partial
+differential equation defined on the semi-infinite domain $x \geq 0$.
 
-The Butler--Volmer equation interpolates naturally between two limits.
-When $k_{0}$ is large, the exponential terms force the surface
-concentrations towards the Nernstian equilibrium values~\eqref{eq:nernst},
-recovering reversible behaviour. When $k_{0}$ is small, the reaction is
-kinetically limited and the flux is directly proportional to $k_{0}$,
-giving \emph{irreversible} behaviour. The current measured in the external
-circuit is related to the flux by
+\subsection{Fick's First Law and Electrode
+Kinetics}\label{sec:electrode-kinetics}
+
+Fick's first law~\cite{crank1979mathematics} states that the diffusive
+flux through a plane normal to the $x$-axis at a point $x^*$ is
+proportional to the concentration gradient at that point:
 \begin{equation}
-  I(t) = F A\, J(t),
+  j_{x^*} = -D\left(\frac{\partial c}{\partial x}\right)\bigg|_{x = x^*},
+  \label{eq:ficks-first}
 \end{equation}
-where $A$ $(\mathrm{m}^2)$ is the electrode area.
+where the negative sign indicates that the flux is directed down the
+concentration gradient.
 
-\section{Diffusion}\label{sec:diffusion}
-
-The electrode reaction consumes $\mathrm{A}$ and produces $\mathrm{B}$ at
-the surface. Fresh $\mathrm{A}$ must therefore be transported from the
-bulk of the solution to the electrode, and $\mathrm{B}$ must be
-transported away. In quiescent (unstirred) solutions, the dominant
-transport mechanism is \emph{diffusion}: the net movement of molecules
-down concentration gradients driven by random thermal motion.
-
-We model each species by a concentration field $c(x,t)$, where $x$
-denotes the distance from the electrode surface and $t$ denotes time.
-For a planar electrode, the evolution of the concentration is governed by
-\emph{Fick's second law} \cite{crank1979mathematics},
-\begin{equation}\label{eq:ficks_second}
-  \frac{\partial c}{\partial t} = D\frac{\partial^{2} c}{\partial x^{2}},
-\end{equation}
-where $D$ $(\mathrm{m}^2\,\mathrm{s}^{-1})$ is the diffusion coefficient
-of the species. Equation~\eqref{eq:ficks_second} is a linear
-parabolic partial differential equation.
-
-For the couple $\mathrm{A}/\mathrm{B}$ we therefore have a system of two
-diffusion equations,
-
-\begin{align}
-  \frac{\partial c_{\mathrm{A}}}{\partial t}
-  &= D_{\mathrm{A}}\frac{\partial^{2} c_{\mathrm{A}}}{\partial x^{2}},
-  \label{eq:diffusion_A}\\
-  \frac{\partial c_{\mathrm{B}}}{\partial t}
-  &= D_{\mathrm{B}}\frac{\partial^{2} c_{\mathrm{B}}}{\partial x^{2}},
-  \label{eq:diffusion_B}
-\end{align}
-
-where $D_{\mathrm{A}}$ and $D_{\mathrm{B}}$ are the respective diffusion
-coefficients. These equations hold on the semi-infinite domain $x > 0$,
-representing the bulk solution, and are supplemented by initial conditions
-and boundary conditions. Initially the solution is homogeneous:
+The rate at which the electrode reaction~\cref{eq:redox} proceeds is
+governed by the applied potential. The standard model for electrode
+kinetics is the Butler--Volmer equation~\cite{dickinson2020butler}, which
+relates the applied potential $E(t)$ to the net flux of $\mathrm{A}$ at
+the electrode surface:
 \begin{equation}
-  c_{\mathrm{A}}(x,0) = c_{\mathrm{A}}^{\ast}, \qquad
-  c_{\mathrm{B}}(x,0) = 0,
+  j_{0, A} = k_0 \left[ c_A(t,0)\,
+    e^{-\alpha \frac{F}{\mathcal{R}\mathcal{T}} (E(t) - E^0_f)}
+    - c_B(t,0)\,
+    e^{(1-\alpha) \frac{F}{\mathcal{R}\mathcal{T}} (E(t) - E^0_f)}
+  \right],
+  \label{eq:butler-volmer}
 \end{equation}
-where $c_{\mathrm{A}}^{\ast}$ is the bulk concentration of $\mathrm{A}$.
-Far from the electrode the concentrations recover their bulk values,
+where $k_0$ $(\mathrm{m\,s^{-1}})$ is the standard rate constant, $\alpha
+\in (0,1)$ is the transfer coefficient, $F$ is Faraday's constant,
+$\mathcal{R}$ is the
+universal gas constant, and $\mathcal{T}$ is the absolute temperature.
+The quantity $E(t) - E^0_f$ is the overpotential, measuring the
+deviation of the applied potential from the formal potential. The first
+exponential term represents the reduction contribution: a negative
+overpotential ($E(t) < E^0_f$) enhances this term and drives the
+conversion of $\mathrm{A}$ to $\mathrm{B}$. The second exponential
+represents the oxidation contribution, which dominates when the
+overpotential is positive. In the limit of large $k_0$ the exponential
+terms force the surface concentrations towards thermodynamic equilibrium
+and the system exhibits reversible behaviour; when $k_0$ is small the
+reaction is kinetically limited and the flux is directly proportional
+to~$k_0$, giving irreversible behaviour.
+
+Combining \cref{eq:ficks-first,eq:butler-volmer} at the electrode surface
+($x = 0$) yields a Neumann boundary condition for the diffusion
+equations:
 \begin{equation}
-  c_{\mathrm{A}}(x,t) \to c_{\mathrm{A}}^{\ast}, \qquad
-  c_{\mathrm{B}}(x,t) \to 0 \qquad \text{as } x \to \infty,
+  -D_A\left(\frac{\partial c_A}{\partial x}\right)\bigg|_{x = 0} =
+  k_0 \left[ c_A(t,0)\,
+    e^{-\alpha \frac{F}{\mathcal{R}\mathcal{T}} (E(t) - E^0_f)}
+    - c_B(t,0)\,
+    e^{(1-\alpha) \frac{F}{\mathcal{R}\mathcal{T}} (E(t) - E^0_f)}
+  \right].
+  \label{eq:electrode-boundary-condition}
 \end{equation}
-whilst at the electrode surface ($x = 0$) the diffusive fluxes are
-coupled to the electrode reaction through flux-conservation conditions.
-Conservation of matter at the surface requires
-\begin{equation}\label{eq:flux_conservation}
-  D_{\mathrm{A}}\frac{\partial c_{\mathrm{A}}}{\partial x}\bigg|_{x=0}
-  = -D_{\mathrm{B}}\frac{\partial c_{\mathrm{B}}}{\partial x}\bigg|_{x=0}
-  = J(t),
+Conservation of mass at the electrode surface requires that whatever is
+consumed of $\mathrm{A}$ is produced as $\mathrm{B}$, and vice versa. Since
+we consider a single-electron process with no homogeneous reactions in
+solution, this is simply stoichiometric conservation:
+\begin{equation}
+  D_B\left(\frac{\partial c_B}{\partial x}\right)\bigg|_{x = 0} =
+  -D_A\left(\frac{\partial c_A}{\partial x}\right)\bigg|_{x = 0}.
+  \label{eq:mass-conservation}
 \end{equation}
-where $J(t)$ is the reaction flux given by the Butler--Volmer
-equation~\eqref{eq:butler_volmer} (or, in the reversible limit, determined
-  implicitly by the Nernst equation~\eqref{eq:nernst} together with the
-constraint~\eqref{eq:flux_conservation}).
 
-The complete mathematical description -- comprising the two diffusion
-equations~\eqref{eq:diffusion_A} -- \eqref{eq:diffusion_B}, the initial and
-far-field conditions, and the surface boundary conditions -- constitutes a
-well-posed initial-boundary value problem whose solution gives the
-concentration fields and, via~\eqref{eq:flux_conservation}, the current
-$I(t)$ as a function of time during a cyclic voltammetry experiment. The
-remainder of this thesis is concerned with the analysis and numerical
-solution of this problem.
+\subsection{Boundary and Initial Conditions}
 
-\subsection{Dimensionless Coordinates}
+At the start of the experiment we assume that $\mathrm{A}$ is at some
+bulk concentration $c_A^*$ and that $\mathrm{B}$ is at bulk concentration
+$c_B^*$:
+\begin{equation}
+  \begin{aligned}
+    c_A(0, x) &= c_A^*, \\
+    c_B(0, x) &= c_B^*.
+  \end{aligned}
+  \label{eq:initial-conditions}
+\end{equation}
+Far from the electrode surface, the redox reaction has no effect on the
+concentrations, so the bulk values are recovered:
+\begin{equation}
+  \begin{aligned}
+    c_A(t, x) &\to c_A^* \quad \text{as } x \to \infty, \\
+    c_B(t, x) &\to c_B^* \quad \text{as } x \to \infty.
+  \end{aligned}
+  \label{eq:infinite-boundary-condition}
+\end{equation}
 
-There are many non-dimensionalisations that can be performed on the
-described problem. We follow the transformations similar to those done
-in \cite{compton2014understanding}
+\subsection{Current}
 
-\begin{tabular}{ll}
-  \hline Parameter & Normalisation \\
-  \hline concentration & $C_j=c_j / c_{\mathrm{A}}^*$ \\
-  diffusion coefficient & $d_j=D_j / D_{\mathrm{A}}$ \\
-  spatial coordinate & $X=x / \epsilon$ \\
-  time & $T=D_{\mathrm{A}} t / \epsilon^2$ \\
-  potential & $\theta=(\mathrm{F} / \mathcal{R}
-  \mathcal{T})\left(E-E_{\mathrm{f}}^0\right)$ \\
-  scan rate & $\sigma=\left(\epsilon^2 /
-  D_{\mathrm{A}}\right)(\mathrm{F} / \mathcal{R} \mathcal{T}) \nu$ \\
-  current & $J=I /\left(\pi \epsilon \mathrm{F} D_{\mathrm{A}}
-  c_{\mathrm{A}}^*\right)$ \\
-  \hline
-\end{tabular}
+The primary experimental observable of a voltammetry experiment is the
+current measured by the potentiostat. At any instant the current for the
+single-electron reduction of species $\mathrm{A}$ is
+\begin{equation}
+  I = F A_{\mathrm{el}}\, j_{0, A},
+  \label{eq:current}
+\end{equation}
+where $A_{\mathrm{el}} = \pi\epsilon^2$ is the area of the disc electrode
+and $j_{0, A}$ is the net flux of species $\mathrm{A}$ at the electrode
+surface, which is proportional to the concentration gradient at that point
+by Fick's first law~\cref{eq:ficks-first}. Under our sign convention a
+positive $j_{0,A}$ corresponds to net consumption of~$\mathrm{A}$ at the
+surface (reduction) and hence a positive current. Computing the current
+therefore reduces to evaluating how $j_{0, A}$ evolves in time.
+
+\section{Non-Dimensionalisation}
+
+The combination of
+\cref{eq:diffusion,eq:electrode-boundary-condition,eq:mass-conservation,%
+eq:initial-conditions,eq:infinite-boundary-condition} constitutes an
+initial-boundary value problem. It is advantageous to solve a
+non-dimensional version of this problem: the results of a single
+non-dimensional simulation can be rescaled to any combination of physical
+parameters without rerunning the computation. We non-dimensionalise in the
+standard way, scaling concentrations by the bulk concentration
+of~$\mathrm{A}$, diffusion coefficients by~$D_A$, lengths by the
+electrode radius~$\epsilon$, and potentials by the thermal voltage
+$\mathcal{R}\mathcal{T}/F$.
+
+We present a summary of the normalisation in \cref{tab:normalisation}.
+
+\begin{table}[ht]
+  \centering
+  \begin{tabular}{ll}
+    \hline
+    Parameter & Normalisation \\
+    \hline
+    concentration & $C_j = c_j / c_{\mathrm{A}}^*$ \\
+    diffusion coefficient & $d_j = D_j / D_{\mathrm{A}}$ \\
+    spatial coordinate & $X = x / \epsilon$ \\
+    time & $T = D_{\mathrm{A}} t / \epsilon^2$ \\
+    applied potential & $\theta = (F / \mathcal{R}\mathcal{T})\,E$ \\
+    formal potential & $\theta_f = (F /
+    \mathcal{R}\mathcal{T})\,E_{\mathrm{f}}^0$ \\
+    rate constant & $K_0 = k_0\,\epsilon / D_{\mathrm{A}}$ \\
+    scan rate & $\sigma = (\epsilon^2 / D_{\mathrm{A}})(F /
+    \mathcal{R}\mathcal{T})\,\nu$ \\
+    current & $J = I / (\pi \epsilon F D_{\mathrm{A}} c_{\mathrm{A}}^*)$ \\
+    \hline
+  \end{tabular}
+  \caption{Dimensionless normalisation of variables. Here $\epsilon$ is the
+  radius of the disc electrode.}
+  \label{tab:normalisation}
+\end{table}
+
+We define the dimensionless concentration, diffusion coefficient, spatial
+coordinate, and time as
+\begin{equation}
+  C_j = \frac{c_j}{c_A^*}, \quad d_j = \frac{D_j}{D_A}, \quad X =
+  \frac{x}{\epsilon}, \quad T = \frac{D_A\, t}{\epsilon^2},
+  \label{eq:nd_CdXT}
+\end{equation}
+and the dimensionless rate constant as
+\begin{equation}
+  K_0 = \frac{k_0\,\epsilon}{D_A}.
+  \label{eq:nd_K0}
+\end{equation}
+We now substitute these into the governing equations, initial conditions,
+and boundary conditions.
+
+\subsection{Governing Equation}
+
+Considering the left-hand side of \cref{eq:diffusion}:
+$$
+\frac{\partial c_j}{\partial t}
+= \frac{\partial c_j}{\partial C_j}\frac{\partial C_j}{\partial t}
+= c_A^*\frac{\partial C_j}{\partial t}
+= \frac{c_A^* D_A}{\epsilon^2}\frac{\partial C_j}{\partial T}.
+$$
+Now the right-hand side:
+$$
+D_j \frac{\partial^2 c_j}{\partial x^2}
+= D_j \frac{c_A^*}{\epsilon^2}\frac{\partial^2 C_j}{\partial X^2}
+= d_j \frac{c_A^* D_A}{\epsilon^2}\frac{\partial^2 C_j}{\partial X^2}.
+$$
+Equating gives the dimensionless diffusion equation:
+\begin{equation}
+  \frac{\partial C_j}{\partial T} = d_j \frac{\partial^2 C_j}{\partial X^2}.
+  \label{eq:nd_diffusion}
+\end{equation}
+
+\subsection{Initial and Far-Field Conditions}
+
+The initial conditions become
+\begin{equation}
+  \begin{aligned}
+    C_A(0, X) &= 1, \\
+    C_B(0, X) &= C_B^*.
+  \end{aligned}
+  \label{eq:nondim_initial_conditions}
+\end{equation}
+
+In practice we cannot simulate a semi-infinite domain. Einstein's analysis
+of Brownian motion~\cite{einstein1905brownian} shows that the root-mean-square
+displacement of a diffusing particle is $x_{\mathrm{rms}} = \sqrt{2Dt}$.
+To ensure the outer boundary is sufficiently remote that it is unaffected
+by diffusion, we truncate the domain at $X_{\mathrm{max}} =
+6\sqrt{T_{\mathrm{sim}}}$
+in dimensionless form. The far-field boundary conditions are then
+\begin{equation}
+  \begin{aligned}
+    C_A(T,\, X_{\mathrm{max}}) &= 1, \\
+    C_B(T,\, X_{\mathrm{max}}) &= C_B^*.
+  \end{aligned}
+  \label{eq:nd_far_field}
+\end{equation}
+
+\subsection{Electrode Surface Boundary}
+
+We define the dimensionless applied and formal potentials as
+\begin{equation}
+  \begin{aligned}
+    \theta(T) &= \frac{F}{\mathcal{R}\mathcal{T}}\, E(t), \\
+    \theta_f &= \frac{F}{\mathcal{R}\mathcal{T}}\, E^0_f.
+  \end{aligned}
+  \label{eq:nondim-potentials}
+\end{equation}
+Substituting the dimensionless variables into
+\cref{eq:electrode-boundary-condition,eq:mass-conservation} and using the
+definition of~$K_0$ from \cref{eq:nd_K0}, the Butler--Volmer boundary
+condition and the mass conservation condition become
+\begin{equation}
+  \begin{aligned}
+    \frac{\partial C_A}{\partial X}\bigg|_{X=0} &=
+    K_0 \left[ C_A(T,0)\, e^{-\alpha(\theta(T) - \theta_f)}
+    - C_B(T,0)\, e^{(1-\alpha)(\theta(T) - \theta_f)} \right], \\
+    d_B \frac{\partial C_B}{\partial X}\bigg|_{X=0} &=
+    -\frac{\partial C_A}{\partial X}\bigg|_{X=0}.
+  \end{aligned}
+  \label{eq:nondim-electrode-boundary}
+\end{equation}
+
+\subsection{Scan Rate}
+
+As defined in \cref{eq:scan_rate}, the scan rate is the rate of change of
+potential with respect to time. We therefore define a dimensionless scan
+rate $\sigma$ as the rate of change of dimensionless potential with
+respect to dimensionless time:
+\begin{equation}
+  \sigma = \frac{d\theta}{dT}.
+  \label{eq:nd_scan_rate}
+\end{equation}
+To relate $\sigma$ to $\nu$ we note that
+$$
+\nu = \frac{\partial E}{\partial t}
+= \frac{\mathcal{R}\mathcal{T}}{F}\frac{\partial \theta}{\partial t}
+= \frac{\mathcal{R}\mathcal{T} D_A}{F \epsilon^2}\frac{\partial
+\theta}{\partial T},
+$$
+and hence
+\begin{equation}
+  \sigma = \frac{F \epsilon^2}{\mathcal{R}\mathcal{T} D_A}\, \nu.
+  \label{eq:sigma_nu}
+\end{equation}
+
+\subsection{Current}
+
+Since the model is now in dimensionless units we cannot compute the flux
+$j_{0,A}$ directly, but we can compute a dimensionless flux and relate the
+two. We define
+\begin{equation}
+  J_{X^*,\, j} = -d_j \left(\frac{\partial C_j}{\partial X}\right)_{X^*}.
+  \label{eq:nd_flux}
+\end{equation}
+To recover the dimensional flux, we note that
+$$
+j_j = -D_j \left(\frac{\partial c_j}{\partial x}\right)_{x^*}
+= -d_j \frac{c_A^* D_A}{\epsilon}\frac{\partial C_j}{\partial X}
+= \frac{c_A^* D_A}{\epsilon}\, J_j.
+$$
+Substituting into \cref{eq:current} with $A_{\mathrm{el}} = \pi\epsilon^2$
+gives
+\begin{equation}
+  I = \pi \epsilon\, F\, D_A\, c_A^*\, J_{0,A}.
+  \label{eq:nondim_current}
+\end{equation}
+When we run a simulation we record the dimensionless flux $J$ as a
+function of the dimensionless potential $\theta$. To obtain the physical
+voltammogram the results need only be scaled by the values of $c_A^*$,
+$D_A$, and $\epsilon$. Consequently, the results of a single simulation
+apply to any set of these parameters; the simulation does not need to be
+rerun when, for example, the bulk concentration of $\mathrm{A}$ is
+changed.
+
+\section{Equal Diffusion Coefficients}
+
+For the remainder of this dissertation we assume that all diffusion
+coefficients are equal, i.e.\ $d_B = 1$. This assumption allows us to
+solve for the concentration of $\mathrm{A}$ alone and infer the
+concentration of $\mathrm{B}$.
+
+From the mass conservation condition~\cref{eq:nondim-electrode-boundary}, when
+$d_B = 1$ the surface flux condition simplifies to
+\begin{equation}
+  \frac{\partial C_B}{\partial X}\bigg|_{X=0}
+  = -\frac{\partial C_A}{\partial X}\bigg|_{X=0}.
+  \label{eq:equal_diff_surface}
+\end{equation}
+Since the diffusion coefficients are equal and both species satisfy the
+same diffusion equation, the sum $C_A + C_B$ satisfies
+\begin{equation}
+  \frac{\partial(C_A + C_B)}{\partial T}
+  = \frac{\partial^2(C_A + C_B)}{\partial X^2}
+\end{equation}
+with homogeneous Neumann conditions at $X = 0$ (by
+\cref{eq:equal_diff_surface}) and constant far-field values. Together with
+the initial conditions, this implies that $C_A + C_B$ is constant
+everywhere in space and time. Any decrease in $C_A$ is therefore matched
+by an equal increase in $C_B$, and vice versa, so that
+\begin{equation}
+  C_A + C_B = 1 + C_B^*.
+\end{equation}
+We henceforth drop the subscript and write $C \equiv C_A$, with
+$C_B = 1 + C_B^* - C$. The electrode boundary condition then reduces to
+\begin{equation}
+  \frac{\partial C}{\partial X}\bigg|_{X=0} =
+  K_0 \left[ C(T,0)\, e^{-\alpha(\theta(T) - \theta_f)}
+  - (1 + C_B^* - C(T,0))\, e^{(1-\alpha)(\theta(T) - \theta_f)} \right].
+  \label{eq:equal_diff_bc}
+\end{equation}
+
+For ease of notation we denote:
+\begin{equation}
+  \begin{aligned}
+    K_{\text{red}} &= K_0 \exp\bigg[-\alpha(\theta(T) - \theta_f)\bigg], \\
+    K_{\text{ox}} &= K_0 \exp\bigg[(1-\alpha)(\theta(T) - \theta_f)\bigg].
+  \end{aligned}
+  \label{eq:kred_kox}
+\end{equation}
+These shorthand expressions are used extensively in the numerical
+discretisation that follows in next chapter.

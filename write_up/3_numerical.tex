@@ -1,3 +1,290 @@
-\chapter{Numerical Methods}
-\section{Finite Difference Methods}
-\section{Automatic Differentiation}
+\chapter{Numerical Methods}\label{ch:numerical-methods}
+
+In this chapter we discretise the dimensionless initial-boundary value
+problem derived in the previous chapter and describe how the resulting
+linear system is solved at each timestep. The reader is assumed to be
+familiar with finite difference methods; we focus on the aspects specific
+to the electrochemical setting, namely the exponentially expanding spatial
+mesh and the incorporation of the Butler--Volmer boundary condition into
+the tridiagonal system.
+
+For the remainder of this chapter we assume $C_B^* = 0$ (no product
+initially present in solution), so that the equal-diffusion-coefficient
+boundary condition~\cref{eq:equal_diff_bc} becomes
+\begin{equation}
+  \frac{\partial C}{\partial X}\bigg|_{X=0} =
+  K_{\mathrm{red}}(T)\, C(T,0)
+  - K_{\mathrm{ox}}(T)\, \big(1 - C(T,0)\big),
+  \label{eq:num_bc}
+\end{equation}
+where $K_{\mathrm{red}}$ and $K_{\mathrm{ox}}$ were defined
+in~\cref{eq:kred_kox} and depend on time through the applied
+potential~$\theta(T)$.
+
+\section{Discretisation}\label{sec:discretisation}
+
+\subsection{Temporal Grid}
+
+We divide the simulation interval $[0, T_{\mathrm{max}}]$ into $m$
+uniform steps of size
+\begin{equation}
+  \Delta T = \frac{T_{\mathrm{max}}}{m},
+\end{equation}
+so that the discrete time levels are $T^k = k\,\Delta T$ for
+$k = 0, 1, \ldots, m$. Here $T_{\mathrm{max}}$ is determined by the
+scan rate and the potential window of the experiment: for a cyclic
+voltammogram sweeping from~$\theta_i$ to~$\theta_v$ and back,
+$T_{\mathrm{max}} = \frac{2|\theta_v - \theta_i|}{\sigma}$.
+
+\subsection{Spatial Grid}
+
+The electrochemical reaction occurs at the electrode surface and its
+influence on the concentration profile is confined to a thin diffusion
+layer near $X = 0$. Far from the electrode the concentration remains at
+its bulk value and contributes little to the dynamics. It is therefore
+desirable to concentrate spatial resolution near the electrode surface
+whilst using coarser spacing in the far field. We achieve this with an
+exponentially expanding mesh controlled by two parameters: the initial
+spacing $h_0 > 0$ and an expansion factor $\omega > 1$.
+
+We define $n$ spatial nodes $\{X_0, X_1, \ldots, X_{n-1}\}$ by
+\begin{equation}
+  X_i =
+  \begin{cases}
+    \displaystyle \sum_{k=0}^{i-1} h_0\,\omega^k, & 0 \leq i \leq n-2, \\[6pt]
+    X_{\mathrm{max}},                               & i = n-1,
+  \end{cases}
+  \label{eq:spatial_grid}
+\end{equation}
+with $X_0 = 0$ corresponding to the electrode surface. The local spacings
+about point~$i$ are
+\begin{equation}
+  \Delta X_+ = X_{i+1} - X_i, \qquad
+  \Delta X_- = X_i - X_{i-1}.
+  \label{eq:local_spacings}
+\end{equation}
+For $0 \leq i \leq n-2$ the spacing grows geometrically as
+$\Delta X_+ = h_0\,\omega^i$, so the mesh is finest at the electrode and
+coarsens exponentially into the bulk. The final point $(i = n-1)$ is placed at
+$X_{\mathrm{max}} = 6\sqrt{T_{\mathrm{max}}}$ as discussed in the
+previous chapter, ensuring the far-field boundary does not influence the
+solution.
+
+\section{Finite Difference Scheme}\label{sec:fd-scheme}
+
+We discretise the dimensionless diffusion
+equation~\cref{eq:nd_diffusion} (with $d_j = 1$) using a backward Euler
+(fully implicit) scheme in time and a three-point central difference
+approximation for the second spatial derivative on the non-uniform mesh.
+
+Writing $C_i^k \approx C(T^k, X_i)$, the scheme at an interior node
+$1 \leq i \leq n - 2$ reads
+\begin{equation}
+  \frac{C_i^k - C_i^{k-1}}{\Delta T}
+  = \frac{1}{\tfrac{1}{2}(\Delta X_+ + \Delta X_-)}
+  \left(
+    \frac{C_{i+1}^k - C_i^k}{\Delta X_+}
+    - \frac{C_i^k - C_{i-1}^k}{\Delta X_-}
+  \right).
+  \label{eq:fd_stencil}
+\end{equation}
+The implicit treatment evaluates the spatial operator at the new time
+level~$k$, which makes the scheme unconditionally stable and avoids a
+restrictive CFL condition on the timestep.
+
+\subsection{Interior Coefficients}
+
+Rearranging~\cref{eq:fd_stencil} so that all unknowns at time level~$k$
+appear on the left and the known value at level~$k-1$ appears on the
+right, we obtain
+\begin{equation}
+  \alpha_i\, C_{i-1}^k + \beta_i\, C_i^k + \gamma_i\, C_{i+1}^k
+  = C_i^{k-1},
+  \qquad 1 \leq i \leq n-2,
+  \label{eq:tridiag_interior}
+\end{equation}
+where the tridiagonal coefficients are
+\begin{equation}
+  \begin{aligned}
+    \alpha_i &= -\frac{2\,\Delta T}
+    {\Delta X_-\,(\Delta X_+ + \Delta X_-)}, \\[4pt]
+    \gamma_i &= -\frac{2\,\Delta T}
+    {\Delta X_+\,(\Delta X_+ + \Delta X_-)}, \\[4pt]
+    \beta_i  &= 1 - \alpha_i - \gamma_i.
+  \end{aligned}
+  \label{eq:interior_coeffs}
+\end{equation}
+
+\subsection{Electrode Boundary ($i = 0$)}
+
+At the electrode surface we approximate the spatial gradient
+in~\cref{eq:num_bc} with a two-point forward difference:
+\begin{equation}
+  \frac{C_1^k - C_0^k}{h_0}
+  = K_{\mathrm{red}}^k\, C_0^k
+  - K_{\mathrm{ox}}^k\,(1 - C_0^k),
+  \label{eq:fd_electrode_raw}
+\end{equation}
+where $K_{\mathrm{red}}^k$ and $K_{\mathrm{ox}}^k$ denote the values
+of $K_{\mathrm{red}}$ and $K_{\mathrm{ox}}$ evaluated at the potential
+$\theta(T^k)$. Rearranging into the form
+$\beta_0\, C_0^k + \gamma_0\, C_1^k = b_0$ gives
+\begin{equation}
+  \begin{aligned}
+    \beta_0  &= 1 + h_0\, K_{\mathrm{red}}^k + h_0\, K_{\mathrm{ox}}^k, \\
+    \gamma_0 &= -1, \\
+    b_0      &= h_0\, K_{\mathrm{ox}}^k.
+  \end{aligned}
+  \label{eq:electrode_coeffs}
+\end{equation}
+
+\subsection{Far-Field Boundary ($i = n-1$)}
+
+The Dirichlet condition $C(T, X_{\mathrm{max}}) = 1$ is imposed directly:
+\begin{equation}
+  \begin{aligned}
+    \beta_{n-1}  &= 1, \\
+    b_{n-1}      &= 1,
+  \end{aligned}
+  \label{eq:farfield_coeffs}
+\end{equation}
+with $\alpha_{n-1} = \gamma_{n-1} = 0$.
+
+\subsection{Solution of the Tridiagonal System}
+
+At each time level~$k$ the discretisation
+produces a tridiagonal linear system with lower diagonal
+$(\alpha_1, \ldots, \alpha_{n-1})$, main diagonal
+$(\beta_0, \ldots, \beta_{n-1})$, and upper diagonal
+$(\gamma_0, \ldots, \gamma_{n-2})$. Because the electrode boundary
+coefficients depend on the applied potential, the first row of the system
+is reassembled at each timestep; the interior coefficients are
+time-independent and can be precomputed.
+
+This system is solved in $O(n)$ operations using the Thomas algorithm
+(tridiagonal LU factorisation), making the cost per timestep linear in
+the number of spatial nodes.
+
+\section{The Forward Solver as a Mapping}\label{sec:forward-map}
+
+The implicit finite difference solver computes the concentration field at
+every node in the spatial--temporal mesh. However, the experimentally
+observable quantity is not the concentration profile but the current,
+which is proportional to the surface flux~$J_{0,A}$ recorded at each
+timestep. It is therefore natural to regard the solver as a mapping from
+the set of model parameters to the predicted dimensionless current
+response.
+
+We define the \emph{forward map}
+\begin{equation}
+  \mathcal{P} \colon \Phi \to \mathcal{J}, \qquad
+  \phi \mapsto \mathcal{P}(\phi),
+\end{equation}
+where $\Phi \subseteq \mathbb{R}^3$ is the parameter space with
+$\phi = (\alpha,\, K_0,\, \theta_f)$, and $\mathcal{J}$ is the space of
+dimensionless flux trajectories $J_{0,A}(T)$ evaluated at the discrete
+time levels. Given a parameter vector~$\phi$, a single evaluation
+of~$\mathcal{P}$ consists of assembling and solving the tridiagonal system
+at each of the $m$~timesteps and extracting the surface flux at each step.
+
+Although the electrode boundary condition is discretised with a two-point
+approximation (to preserve the tridiagonal structure), the surface flux
+used to compute the current is evaluated with a higher-order three-point
+formula. Writing $h_1 = X_1 - X_0$ and $h_2 = X_2 - X_0$, we fit a
+quadratic through $(X_0, C_0^k)$, $(X_1, C_1^k)$, $(X_2, C_2^k)$ and
+differentiate at $X_0$ to obtain
+\begin{equation}
+  J_{0,A}^k
+  = -\left(\frac{\partial C}{\partial X}\right)\bigg|_{X=0}
+  \approx -\frac{h_2^2\,(C_1^k - C_0^k) - h_1^2\,(C_2^k - C_0^k)}
+  {h_1\, h_2\,(h_2 - h_1)}.
+  \label{eq:numerical_flux}
+\end{equation}
+
+This forward map is the central object in the inference problems discussed in
+the next chapter: given experimental data, we seek the
+parameters~$\phi$ for which $\mathcal{P}(\phi)$ best reproduces the
+observed current response.
+
+\section{Effect of Butler--Volmer Parameters}\label{sec:bv-effects}
+
+In the electron-transfer reaction we have been discussing there are
+three parameters of interest: the transfer coefficient~$\alpha$, the
+dimensionless rate constant~$K_0$, and the dimensionless formal
+potential~$\theta_f$. Each parameter has a distinct qualitative effect on
+the shape of the voltammogram. We illustrate these effects by varying
+each parameter in turn about a quasi-reversible baseline in
+\cref{fig:elec-parameter-effect-quasi}.
+
+Increasing the transfer coefficient~$\alpha$ enhances the cathodic peak
+current whilst diminishing the anodic peak; decreasing~$\alpha$ has the
+opposite effect. This asymmetry arises because~$\alpha$ weights the
+reduction and oxidation exponentials in the Butler--Volmer equation: a
+larger~$\alpha$ favours the cathodic branch at the expense of the anodic
+branch. The dimensionless rate constant~$K_0$ has a symmetrising effect
+on the voltammogram. As~$K_0$ increases, the cathodic and anodic peaks
+sharpen, grow in magnitude, and move closer together, reflecting the
+transition from kinetically limited to near-reversible behaviour.
+Finally, the formal potential~$\theta_f$ translates the entire
+voltammogram along the potential axis without altering the peak shapes,
+since it simply shifts the point about which the overpotential is
+measured.
+
+\begin{figure}[ht]
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{figures/3-parameter-effect-quasi.png}
+  \end{center}
+  \caption{Effect of each Butler--Volmer parameter on the dimensionless
+    voltammogram for a quasi-reversible reaction. In each panel one
+    parameter is varied while the others are held fixed. Left:
+    varying~$\alpha$ changes the relative heights of the cathodic and
+    anodic peaks. Centre: increasing~$K_0$ symmetrises and sharpens the
+    voltammogram. Right: varying~$\theta_f$ translates the peaks along
+  the potential axis.}
+  \label{fig:elec-parameter-effect-quasi}
+\end{figure}
+
+The interplay between these parameters is important to note. Because
+changes in one parameter can produce features in the voltammogram that
+partially resemble changes in another, there is potential for
+compensating errors in parameter estimation. For instance, a rate
+constant that is too small --- which broadens the peaks and shifts them
+apart --- could be partially offset by an adjustment in the formal
+potential that translates the peaks back towards the observed positions.
+Such parameter correlations suggest that a point estimate obtained by
+optimisation alone may not capture the full uncertainty in the inferred
+values.
+
+The situation is compounded in the reversible limit.
+\Cref{fig:alpha-parameter-effect-rev} shows the effect of varying
+$\alpha$ at $K_0 = 200$, well into the reversible regime. The three
+voltammograms for $\alpha = 0.3,\, 0.5,\, 0.7$ are nearly
+indistinguishable: when the rate constant is large the exponential terms
+in the Butler--Volmer equation force the surface concentrations to their
+thermodynamic equilibrium values regardless of~$\alpha$, and the transfer
+coefficient effectively drops out of the problem. In this regime, any
+attempt to estimate~$\alpha$ from the voltammogram alone --- whether by
+maximum likelihood or other point-estimation methods --- will yield an
+essentially uninformative result.
+
+\begin{figure}[ht]
+  \begin{center}
+    \includegraphics[width=0.6\textwidth]{figures/3-alpha-effect-reversible.png}
+  \end{center}
+  \caption{Effect of the transfer coefficient~$\alpha$ on the
+    voltammogram in the reversible regime ($K_0 = 200$). The three
+    curves are nearly indistinguishable, demonstrating that~$\alpha$
+    has negligible influence on the voltammogram when the reaction
+  kinetics are fast.}
+  \label{fig:alpha-parameter-effect-rev}
+\end{figure}
+
+The combination of parameter correlations in the quasi-reversible regime,
+the practical non-identifiability of~$\alpha$ in the reversible regime,
+and the inherent noise present in experimental data means that estimating
+the Butler--Volmer parameters is a problem better suited to a
+probabilistic framework than to a purely optimisation-based approach. A
+probabilistic treatment naturally quantifies the uncertainty in each
+parameter and reveals correlations between them, providing a more
+complete picture than a single point estimate. We develop this approach
+in the following chapter.

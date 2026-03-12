@@ -10,23 +10,3 @@ dissertation.egg-info
 # Virtual environments
 
 .venv
-
-# Write Up
-write_up/*
-!write_up/
-!write_up/main.pdf
-!write_up/*.tex
-!write_up/ociamthesis.cls
-!write_up/oxlogo.png
-!write_up/references.bib
-!write_up/figures
-!write_up/planning.md
-
-# Presentation
-presentation/*
-!presentation/
-!presentation/main.pdf
-!presentation/*.tex
-!presentation/*.sty
-!presentation/*.png
-!presentation/figures

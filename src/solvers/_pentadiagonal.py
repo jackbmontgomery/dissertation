@@ -1,8 +1,35 @@
 import jax.numpy as jnp
 from chex import dataclass
-from jax import tree_util
+from jax import custom_vjp, tree_util
 from jax.lax import scan
 from jaxtyping import Scalar
+
+
+@custom_vjp
+def pentadiagonal_solve(e, a, b, c, f, d):
+    return pentadiagonal_solve_impl(e, a, b, c, f, d)
+
+
+def pentadiagonal_solve_fwd(e, a, b, c, f, d):
+    x = pentadiagonal_solve_impl(e, a, b, c, f, d)
+    return x, (e, a, b, c, f, x)
+
+
+def pentadiagonal_solve_bwd(res, g):
+    e, a, b, c, f, x = res
+    lam = pentadiagonal_solve_impl(f, c, b, a, e, g)
+
+    g_b = -lam * x
+    g_a = -lam[1:] * x[:-1]
+    g_c = -lam[:-1] * x[1:]
+    g_e = -lam[2:] * x[:-2]
+    g_f = -lam[:-2] * x[2:]
+    g_d = lam
+
+    return g_e, g_a, g_b, g_c, g_f, g_d
+
+
+pentadiagonal_solve.defvjp(pentadiagonal_solve_fwd, pentadiagonal_solve_bwd)
 
 
 @dataclass
@@ -34,7 +61,7 @@ class PentaRow:
     d: Scalar
 
 
-def pentadiagonal_solve(
+def pentadiagonal_solve_impl(
     e: Scalar,
     a: Scalar,
     b: Scalar,
@@ -42,8 +69,6 @@ def pentadiagonal_solve(
     f: Scalar,
     d: Scalar,
 ) -> Scalar:
-    # NOTE: First element of a is zero, first two elements of e are zero last two elements of f are zero and last element of c is zero. This is aligned with row-wise storage ie. indexed by their row.
-
     mod_1_denom = b[0]
 
     c_mod_1 = c[0] / mod_1_denom
@@ -52,11 +77,11 @@ def pentadiagonal_solve(
 
     mod_1 = PentaMod(c=c_mod_1, f=f_mod_1, d=d_mod_1)
 
-    mod_2_denom = b[1] - a[1] * c_mod_1
+    mod_2_denom = b[1] - a[0] * c_mod_1
 
-    c_mod_2 = (c[1] - a[1] * f_mod_1) / mod_2_denom
+    c_mod_2 = (c[1] - a[0] * f_mod_1) / mod_2_denom
     f_mod_2 = f[1] / mod_2_denom
-    d_mod_2 = (d[1] - a[1] * d_mod_1) / mod_2_denom
+    d_mod_2 = (d[1] - a[0] * d_mod_1) / mod_2_denom
 
     mod_2 = PentaMod(c=c_mod_2, f=f_mod_2, d=d_mod_2)
 
@@ -81,7 +106,15 @@ def pentadiagonal_solve(
         return new_carry, carry.mod_m2
 
     init_carry = PentaFwdCarry(mod_m1=mod_2, mod_m2=mod_1)
-    xs = PentaRow(e=e[2:], a=a[2:], b=b[2:], c=c[2:], f=f[2:], d=d[2:])
+
+    xs = PentaRow(
+        e=e,
+        a=a[1:],
+        b=b[2:],
+        c=jnp.concat([c[2:], jnp.zeros(1)]),
+        f=jnp.concat([f[2:], jnp.zeros(2)]),
+        d=d[2:],
+    )
 
     carry, mods = scan(fwd, init_carry, xs)
 

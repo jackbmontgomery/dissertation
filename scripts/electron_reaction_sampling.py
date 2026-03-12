@@ -37,7 +37,7 @@ def main():
 
     # --- HMC ---
     sampling_algorithm = HMCSamplingAlgorithm(16_000, 1e-1, 1e-3, 500)
-    sampling_experiment.run(sampling_algorithm, noise, sigma, seed)
+    sampling_experiment.run(sampling_algorithm, noise, sigma, "DC", seed)
 
 
 if __name__ == "__main__":

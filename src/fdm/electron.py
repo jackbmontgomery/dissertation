@@ -70,7 +70,6 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         def stepper(c_prev: Scalar, x: ScanInputSequence) -> Tuple[Scalar, Scalar]:
             dl = jnp.concat(
                 [
-                    jnp.array([0.0]),  # compatibility
                     self.alpha_inner,
                     jnp.array([0.0]),
                 ]
@@ -88,7 +87,6 @@ class ElectronReactionFDSolver(AbstractFDSolver):
                 [
                     jnp.array([-1.0]),
                     self.gamma_inner,
-                    jnp.array([0.0]),  # compatibility
                 ]
             )
 

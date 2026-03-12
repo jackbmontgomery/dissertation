@@ -29,11 +29,11 @@ def main():
     noise = 0.01
 
     # --- Metropolis-Hasting ---
-    sampling_algorithm = AdditiveStepRandomWalkSamplingAlgorithm(
-        n_samples=240_000,
-        sigma=hyperparams["RW"][sigma],
-    )
-    sampling_experiment.run(sampling_algorithm, noise, sigma, "AC")
+    # sampling_algorithm = AdditiveStepRandomWalkSamplingAlgorithm(
+    #     n_samples=240_000,
+    #     sigma=hyperparams["RW"][sigma],
+    # )
+    # sampling_experiment.run(sampling_algorithm, noise, sigma, "AC")
 
     # --- HMC ---
     # sampling_algorithm = HMCSamplingAlgorithm(4_000, 1e-1, 1e-3, 200)

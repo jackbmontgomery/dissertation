@@ -29,15 +29,15 @@ def main():
     noise = 0.25
 
     # --- Metropolis-Hasting ---
-    # sampling_algorithm = AdditiveStepRandomWalkSamplingAlgorithm(
-    #     n_samples=80_000,
-    #     sigma=hyperparams["RW"][sigma],
-    # )
-    # sampling_experiment.run(sampling_algorithm, noise, sigma)
+    sampling_algorithm = AdditiveStepRandomWalkSamplingAlgorithm(
+        n_samples=80_000,
+        sigma=hyperparams["RW"][sigma],
+    )
+    sampling_experiment.run(sampling_algorithm, noise, sigma, "DC")
 
     # --- HMC ---
-    sampling_algorithm = HMCSamplingAlgorithm(8_000, 1e-2, 1e-3, 100)
-    sampling_experiment.run(sampling_algorithm, noise, sigma)
+    sampling_algorithm = HMCSamplingAlgorithm(16_000, 1e-2, 1e-3, 100)
+    sampling_experiment.run(sampling_algorithm, noise, sigma, "DC")
 
 
 if __name__ == "__main__":

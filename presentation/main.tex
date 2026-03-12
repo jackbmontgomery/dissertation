@@ -3,10 +3,11 @@
 
 \usepackage{caption}
 \usepackage{subcaption}
+\usepackage{tikz}
+\usepackage{xcolor}
 
 \title[Differentiable Electrochemical Simulation]
-{Differentiable Electrochemical Simulation for Gradient-Based
-Parameter Inference}
+{Differentiable Electrochemical Simulation for Efficient Bayesian Inference}
 \author{Jack Montgomery}
 \institute{Mathematical Institute\\University of Oxford}
 \date[March 2025]
@@ -19,17 +20,37 @@ Parameter Inference}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Electrochemistry and Cyclic Voltammetry}
+  \frametitle{Outline}
+  \begin{itemize}
+    \item Electrochemical Reactions and Voltammetry
+    \item Mathematical Description
+    \item Forward and Inverse Problem
+    \item Applications of gradient computations
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Redox reaction and the electrochemical cell}
+  $$
+  \boxed{\mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B}}
+  $$
+  \pause
+  \centering
+  \includegraphics[width=0.4\textwidth]{figures/circuit-flow.png}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Voltammetry}
   \begin{figure}[h!]
     \centering
-    \begin{subfigure}[b]{0.45\textwidth}
+    \begin{subfigure}[b]{0.5\textwidth}
       \centering
-      \includegraphics[width=\textwidth]{figures/circuit-flow.png}
+      \includegraphics[width=\textwidth]{figures/cyclic-voltammetry.png}
     \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.45\textwidth}
+    \pause
+    \begin{subfigure}[b]{0.4\textwidth}
       \centering
-      \includegraphics[scale=0.4]{figures/cyclic-voltammetry.png}
+      \includegraphics[width=\textwidth]{figures/ElectronReaction.png}
     \end{subfigure}
   \end{figure}
 \end{frame}
@@ -41,10 +62,9 @@ Parameter Inference}
       \begin{itemize}
         \item $\frac{\partial c_A}{\partial t} = D_A
           \frac{\partial^2 c_A}{\partial x^2}$
-        \item $\frac{\partial c_B}{\partial t} = D_A
+        \item $\frac{\partial c_B}{\partial t} = D_B
           \frac{\partial^2 c_B}{\partial x^2}$
       \end{itemize}
-
     \item \textbf{Initial Condition}: $c_A(0, x) = c_A^*, \ c_B(0, x) = c_B^*$
     \item \textbf{Infinite Boundary Conditions}:
       \begin{itemize}
@@ -84,6 +104,19 @@ Parameter Inference}
 \end{frame}
 
 \begin{frame}
+  \frametitle{Parameters}
+  \textbf{Electrode Boundary Condition} (Butler-Volmer):
+  $$
+  \frac{\partial C_A}{\partial X}\bigg|_{X=0} =
+  \colorbox{yellow}{$K_0$} \left[ C_A(T,0)\,
+    e^{-\colorbox{yellow}{$\alpha$} (\theta(T) -
+    \colorbox{yellow}{$\theta^0_f$})}
+    - (1 - C_A(T,0))\, e^{(1-\colorbox{yellow}{$\alpha$}) (\theta(T)
+  - \colorbox{yellow}{$\theta^0_f$})} \right]
+  $$
+\end{frame}
+
+\begin{frame}
   \frametitle{Parameter Effects}
   \begin{center}
     \includegraphics[scale=0.45]{figures/forward-problem.png}
@@ -92,19 +125,15 @@ Parameter Inference}
 
 \begin{frame}
   \frametitle{Forward and Inverse Problem}
-
   \begin{itemize}
     \item Let $\phi = (\alpha, K_0, \theta_f) \in \Phi \subseteq \mathbb{R}^3$
       be the parameter vector
-    \item The finite difference solver defines a map:
+    \item \textbf{Forward Problem}:
       $$\mathcal{P} : \Phi \to \mathcal{F}, \qquad \mathcal{P}(\phi) = J(T)$$
       where $\mathcal{F}$ is the space of dimensionless flux trajectories
-    \item \textbf{Forward Problem:} Given $\phi$, compute
-      $\mathcal{P}(\phi) = J(T)$
+      \pause
     \item \textbf{Inverse Problem:} Given noisy observations
-      $y \approx J(T)$, recover
-      $$\phi^* = \underset{\phi \in \Phi}{\arg\min} \;
-      \|\mathcal{P}(\phi) - y\|$$
+      $y \approx J(T)$, recover $\phi$
     \item The inverse problem is generally \textbf{ill-posed}
   \end{itemize}
 \end{frame}
@@ -124,26 +153,27 @@ Parameter Inference}
       \exp\left(-\frac{(y_i - \mathcal{P}(\phi)_i)^2}{2\sigma^2}\right)$$
     \item \textbf{Log-likelihood:}
       \begin{align*}
-        \ell(\phi \mid y) &= -\frac{N}{2}\log(2\pi\sigma^2)
+        l(\phi \mid y) &= -\frac{N}{2}\log(2\pi\sigma^2)
         - \frac{1}{2\sigma^2}\sum_{i=1}^{N}(y_i - \mathcal{P}(\phi)_i)^2 \\
-        &\propto -\frac{1}{2\sigma^2}\sum_{i=1}^{N}(y_i - \mathcal{P}(\phi)_i)^2
+        \ell(\phi \mid y) &= -\frac{1}{2\sigma^2}\sum_{i=1}^{N}(y_i -
+        \mathcal{P}(\phi)_i)^2
       \end{align*}
   \end{itemize}
 \end{frame}
 
 \begin{frame}
-  \frametitle{MCMC}
+  \frametitle{Markov Chain Monte Carlo}
   \begin{itemize}
     \item \textbf{Goal:} Approximate the posterior $P(\phi \mid y)$
       using samples $\{\phi^{(t)}\}_{t=1}^{T}$ from a Markov chain
 
-    \item \textbf{Convergence:} Under mild regularity conditions,
-      the empirical distribution of the chain converges to $P(\phi \mid y)$
-      as $T \to \infty$
+      \pause
 
     \item \textbf{Proposal:} At each step, candidate parameters
       $\phi_{\text{cand}}$ are drawn from a proposal distribution
       $q(\phi_{\text{cand}} \mid \phi^{(t)})$
+
+      \pause
 
     \item \textbf{Metropolis-Hastings acceptance:} Accept
       $\phi_{\text{cand}}$ with probability
@@ -162,6 +192,7 @@ Parameter Inference}
       \mathcal{N}(\phi^{(t)}, \Sigma)$$
   \end{itemize}
   \begin{center}
+    \pause
     \includegraphics[scale=0.5]{figures/no-burn-in.png}
   \end{center}
 \end{frame}
@@ -176,30 +207,21 @@ Parameter Inference}
 \begin{frame}
   \frametitle{Differentiable Simulator}
   \begin{itemize}
-    \item \textbf{Why $\mathcal{P}$ is differentiable:} The finite
-      difference discretisation reduces the PDE to a sequence of linear
-      solves and pointwise nonlinear operations (Butler-Volmer), all of
-      which are differentiable
-
-    \item \textbf{Gradient of the log-likelihood:} We require
-      $\nabla_\phi \ell(\phi \mid y)$
-
-    \item \textbf{Reverse mode AD:} Since $\ell$ is scalar, reverse
-      mode AD computes $\nabla_\phi \ell$ in a single backward pass
-      through $\mathcal{P}$, at comparable cost to a forward evaluation
-
-    \item \textbf{Applications:}
-      \begin{itemize}
-        \item \textbf{Burn-in removal:} Gradient descent on $-\ell(\phi
-          \mid y)$ to initialise the chain near the posterior mode
-        \item \textbf{Hamiltonian Monte Carlo:} Gradient informed MCMC
-          yielding faster mixing and better exploration of $P(\phi \mid y)$
-      \end{itemize}
+    \item \textbf{$\mathcal{P} : \Phi \to \mathcal{F}$ is differentiable}
+      \pause
+    \item \textbf{We seek
+      $\nabla_\phi \ell(\phi \mid y)$}
+      $$
+      \ell(\phi \mid y) = -\frac{1}{2\sigma^2}\sum_{i=1}^{N}(y_i -
+      \mathcal{P}(\phi)_i)^2
+      $$
+      \pause
+    \item \textbf{Reverse mode AD} or Vector-Jacobain product
   \end{itemize}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Burn-in removal}
+  \frametitle{Ascent into high density}
   \begin{center}
     \includegraphics[scale=0.35]{figures/burn-in-comparison.png}
   \end{center}
@@ -207,12 +229,12 @@ Parameter Inference}
 
 \begin{frame}
   \frametitle{Hamiltonian Monte Carlo}
+  $$H(\rho, \phi) = \underbrace{- log \ P(\rho)}_{\text{Kinetic
+  Energy}} \underbrace{- log \ P(\phi \mid y)}_{\text{Potential Energy}}$$
+  Where $\rho \sim \mathcal{N}(0, \Sigma)$
+  \pause
   \begin{itemize}
-    \item Augments parameter space with auxiliary momentum variables,
-      using $\nabla_\phi \ell$ to make informed moves through the posterior
-    \item \textbf{Effective Sample Size:} Autocorrelated samples carry
-      less information than independent draws — ESS quantifies the
-      equivalent number of independent samples:
+    \item \textbf{Effective Sample Size:}
       $$\text{ESS} = \frac{T}{1 + 2\sum_{k=1}^{\infty} \rho_k}$$
       where $\rho_k$ is the autocorrelation at lag $k$
   \end{itemize}
@@ -228,11 +250,8 @@ Parameter Inference}
 \begin{frame}
   \frametitle{Further Results}
   \begin{itemize}
-    \item \textbf{Higher dimensional inference:} Sampling and numerical
-      results for experiments with a greater number of parameters to infer
-    \item \textbf{Non-linear PDEs:} Sampling and numerical results for
-      electrochemical models requiring Newton's method or linearisation
-      at each time step of the finite difference solver
+    \item \textbf{Higher dimensional inference}
+    \item \textbf{Non-linear Boundary Terms}
   \end{itemize}
 \end{frame}
 

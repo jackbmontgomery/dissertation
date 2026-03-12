@@ -16,7 +16,7 @@ def create_init_params(key: PRNGKey, num_chains: int):
     k1, k2, k3 = jr.split(key, 3)
 
     alpha_vals = jnp.linspace(0.5, 0.7, num_chains)
-    K0_vals = jnp.linspace(1.0, 20.0, num_chains)
+    K0_vals = jnp.linspace(5.0, 20.0, num_chains)
     Ef_vals = jnp.linspace(0.0, 1.0, num_chains)
 
     alpha = jr.permutation(k1, alpha_vals)
