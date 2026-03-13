@@ -157,3 +157,120 @@
   version = {0.3.13},
   year = {2018},
 }
+
+@book{neal2011mcmc,
+  title = {{MCMC} using {Hamiltonian} dynamics},
+  url = {http://arxiv.org/abs/1206.1901},
+  doi = {10.1201/b10905},
+  abstract = {Hamiltonian dynamics can be used to produce distant
+    proposals for the Metropolis algorithm, thereby avoiding the slow
+    exploration of the state space that results from the diffusive
+    behaviour of simple random-walk proposals. Though originating in
+    physics, Hamiltonian dynamics can be applied to most problems with
+    continuous state spaces by simply introducing fictitious "momentum"
+    variables. A key to its usefulness is that Hamiltonian dynamics
+    preserves volume, and its trajectories can thus be used to define
+    complex mappings without the need to account for a hard-to-compute
+    Jacobian factor - a property that can be exactly maintained even
+    when the dynamics is approximated by discretizing time. In this
+    review, I discuss theoretical and practical aspects of Hamiltonian
+    Monte Carlo, and present some of its variations, including using
+    windows of states for deciding on acceptance or rejection,
+    computing trajectories using fast approximations, tempering during
+    the course of a trajectory to handle isolated modes, and short-cut
+  methods that prevent useless trajectories from taking much computation time.},
+  urldate = {2026-01-26},
+  author = {Neal, Radford M.},
+  month = may,
+  year = {2011},
+  note = {arXiv:1206.1901 [stat]},
+  keywords = {Physics - Computational Physics, Statistics - Computation},
+  file = {Full Text
+    PDF:/Users/jackmontgomery/Zotero/storage/VEIK44XX/Neal - 2011 -
+    MCMC using Hamiltonian
+  dynamics.pdf:application/pdf;Snapshot:/Users/jackmontgomery/Zotero/storage/3ZMYQDRK/1206.html:text/html},
+}
+
+@misc{betancourt2018hamiltonian,
+  title = {A {Conceptual} {Introduction} to {Hamiltonian} {Monte} {Carlo}},
+  url = {http://arxiv.org/abs/1701.02434},
+  doi = {10.48550/arXiv.1701.02434},
+  abstract = {Hamiltonian Monte Carlo has proven a remarkable
+    empirical success, but only recently have we begun to develop a
+    rigorous understanding of why it performs so well on difficult
+    problems and how it is best applied in practice. Unfortunately,
+    that understanding is confined within the mathematics of
+    differential geometry which has limited its dissemination,
+    especially to the applied communities for which it is particularly
+    important. In this review I provide a comprehensive conceptual
+    account of these theoretical foundations, focusing on developing a
+    principled intuition behind the method and its optimal
+    implementations rather of any exhaustive rigor. Whether a
+    practitioner or a statistician, the dedicated reader will acquire a
+    solid grasp of how Hamiltonian Monte Carlo works, when it succeeds,
+  and, perhaps most importantly, when it fails.},
+  urldate = {2026-01-26},
+  publisher = {arXiv},
+  author = {Betancourt, Michael},
+  month = jul,
+  year = {2018},
+  note = {arXiv:1701.02434 [stat]},
+  keywords = {Statistics - Methodology},
+  annote = {Comment: 60 pages, 42 figures},
+  file = {Full Text
+    PDF:/Users/jackmontgomery/Zotero/storage/M9J7BBHT/Betancourt - 2018
+    - A Conceptual Introduction to Hamiltonian Monte
+  Carlo.pdf:application/pdf;Snapshot:/Users/jackmontgomery/Zotero/storage/2RU3AFUW/1701.html:text/html},
+}
+
+@inproceedings{hoffman2021adaptive,
+  title = {An {Adaptive}-{MCMC} {Scheme} for {Setting} {Trajectory}
+  {Lengths} in {Hamiltonian} {Monte} {Carlo}},
+  issn = {2640-3498},
+  url = {https://proceedings.mlr.press/v130/hoffman21a.html},
+  abstract = {Hamiltonian Monte Carlo (HMC) is a powerful MCMC
+    algorithm based on simulating Hamiltonian dynamics. Its performance
+    depends strongly on choosing appropriate values for two parameters:
+    the step size used in the simulation, and how long the simulation
+    runs for. The step-size parameter can be tuned using standard
+    adaptive-MCMC strategies, but it is less obvious how to tune the
+    simulation-length parameter. The no-U-turn sampler (NUTS)
+    eliminates this problematic simulation-length parameter, but NUTS’s
+    relatively complex control flow makes it difficult to efficiently
+    run many parallel chains on accelerators such as GPUs. NUTS also
+    spends some extra gradient evaluations relative to HMC in order to
+    decide how long to run each iteration without violating detailed
+    balance. We propose ChEES-HMC, a simple adaptive-MCMC scheme for
+    automatically tuning HMC’s simulation-length parameter, which
+    minimizes a proxy for the autocorrelation of the state’s second
+    moments. We evaluate ChEES-HMC and NUTS on many tasks, and find
+    that ChEES-HMC typically yields larger effective sample sizes per
+    gradient evaluation than NUTS does. When running many chains on a
+    GPU, ChEES-HMC can also run significantly more gradient evaluations
+    per second than NUTS, allowing it to quickly provide accurate
+  estimates of posterior expectations.},
+  language = {en},
+  urldate = {2026-02-19},
+  booktitle = {Proceedings of {The} 24th {International} {Conference}
+  on {Artificial} {Intelligence} and {Statistics}},
+  publisher = {PMLR},
+  author = {Hoffman, Matthew and Radul, Alexey and Sountsov, Pavel},
+  month = mar,
+  year = {2021},
+  pages = {3907--3915},
+  file = {Full Text
+    PDF:/Users/jackmontgomery/Zotero/storage/JAZ82Z6U/Hoffman et al. -
+    2021 - An Adaptive-MCMC Scheme for Setting Trajectory Lengths in
+  Hamiltonian Monte Carlo.pdf:application/pdf},
+}
+
+@article{hoffman2014no,
+  title={The No-U-Turn sampler: adaptively setting path lengths in
+  Hamiltonian Monte Carlo.},
+  author={Hoffman, Matthew D and Gelman, Andrew and others},
+  journal={J. Mach. Learn. Res.},
+  volume={15},
+  number={1},
+  pages={1593--1623},
+  year={2014}
+}

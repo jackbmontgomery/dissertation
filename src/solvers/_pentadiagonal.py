@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from chex import dataclass
-from jax import custom_vjp, tree_util
+from jax import custom_vjp, jit, tree_util
 from jax.lax import scan
 from jaxtyping import Scalar
 
@@ -61,6 +61,7 @@ class PentaRow:
     d: Scalar
 
 
+@jit
 def pentadiagonal_solve_impl(
     e: Scalar,
     a: Scalar,
@@ -86,19 +87,12 @@ def pentadiagonal_solve_impl(
     mod_2 = PentaMod(c=c_mod_2, f=f_mod_2, d=d_mod_2)
 
     def fwd(carry: PentaFwdCarry, row: PentaRow):
-        mod_denom = (
-            row.b
-            - row.e * carry.mod_m2.f
-            - (row.a - row.e * carry.mod_m2.c) * carry.mod_m1.c
-        )
+        x = row.a - row.e * carry.mod_m2.c
+        inv_mod_denom = 1.0 / (row.b - row.e * carry.mod_m2.f - x * carry.mod_m1.c)
 
-        c_mod = (row.c - (row.a - row.e * carry.mod_m2.c) * carry.mod_m1.f) / mod_denom
-        f_mod = row.f / mod_denom
-        d_mod = (
-            row.d
-            - row.e * carry.mod_m2.d
-            - (row.a - row.e * carry.mod_m2.c) * carry.mod_m1.d
-        ) / mod_denom
+        c_mod = (row.c - x * carry.mod_m1.f) * inv_mod_denom
+        f_mod = row.f * inv_mod_denom
+        d_mod = (row.d - row.e * carry.mod_m2.d - x * carry.mod_m1.d) * inv_mod_denom
 
         mod = PentaMod(c=c_mod, f=f_mod, d=d_mod)
         new_carry = PentaFwdCarry(mod_m1=mod, mod_m2=carry.mod_m1)

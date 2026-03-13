@@ -24,9 +24,9 @@ class ElectronReactionFDSolver(AbstractFDSolver):
     X: Array
     Nx: int
     h0: Scalar
-    alpha_inner: Scalar
-    gamma_inner: Scalar
-    beta_inner: Scalar
+    dl: Scalar
+    du: Scalar
+    d_nonleft: Scalar
 
     def __init__(
         self,
@@ -44,14 +44,24 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         self.dt = dt
         self.applied_potentials = vmap(voltammetry.applied_potential)(T)
         self.h0 = jnp.array(h0)
-        self.alpha_inner = alpha_inner
-        self.gamma_inner = gamma_inner
-        self.beta_inner = 1 - (self.alpha_inner + self.gamma_inner)
+        self.dl = jnp.concat(
+            [
+                alpha_inner,
+                jnp.array([0.0]),
+            ]
+        )
+        self.du = jnp.concatenate(
+            [
+                jnp.array([-1.0]),
+                gamma_inner,
+            ]
+        )
+        self.d_nonleft = jnp.concat([1 - (alpha_inner + gamma_inner), jnp.ones(1)])
 
     def compute_current(self, c: Array) -> Scalar:
-        c0_A = c[0]
-        c1_A = c[1]
-        c2_A = c[2]
+        c0_A = c[:, 0]
+        c1_A = c[:, 1]
+        c2_A = c[:, 2]
 
         h1 = self.X[1] - self.X[0]
         h2 = self.X[2] - self.X[0]
@@ -68,27 +78,7 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         Tuple[Scalar, Scalar],
     ]:
         def stepper(c_prev: Scalar, x: ScanInputSequence) -> Tuple[Scalar, Scalar]:
-            dl = jnp.concat(
-                [
-                    self.alpha_inner,
-                    jnp.array([0.0]),
-                ]
-            )
-
-            d = jnp.concat(
-                [
-                    jnp.array([x.beta0]),
-                    self.beta_inner,
-                    jnp.array([1.0]),
-                ]
-            )
-
-            du = jnp.concatenate(
-                [
-                    jnp.array([-1.0]),
-                    self.gamma_inner,
-                ]
-            )
+            d = jnp.concat([jnp.array([x.beta0]), self.d_nonleft])
 
             rhs = jnp.concat(
                 [
@@ -98,7 +88,7 @@ class ElectronReactionFDSolver(AbstractFDSolver):
                 ]
             )
 
-            c = tridiagonal_solve(dl, d, du, rhs)
+            c = tridiagonal_solve(self.dl, d, self.du, rhs)
 
             return c, c
 
@@ -127,6 +117,6 @@ class ElectronReactionFDSolver(AbstractFDSolver):
 
         _, solution = scan(stepper, c_init, xs)
 
-        current = vmap(self.compute_current)(solution)
+        current = self.compute_current(solution)
 
         return solution, current

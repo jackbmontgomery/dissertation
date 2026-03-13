@@ -5,7 +5,6 @@ import jax.numpy as jnp
 import optax
 import pytest
 from equinox import apply_updates, filter, filter_value_and_grad, is_array
-from jax.lax import scan
 
 from src.fdm import ElectronReactionFDSolver
 from src.params import ElectronReactionParams
@@ -80,48 +79,7 @@ def test_performance(e_reaction):
         f"Average time: {statistics.mean(times):.4f}",
     )
 
-    budget_s = 0.055
+    budget_s = 0.04
     assert best_time < budget_s, (
         f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
     )
-
-
-def test_gradient_descent(e_reaction):
-    fdm_solver = e_reaction["fdm_solver"]
-    true_params = e_reaction["params"]
-    _, true_current = fdm_solver.solve(true_params)
-
-    init_params = ElectronReactionParams(
-        alpha=jnp.array(0.6),
-        K0=jnp.array(5.0),
-        Ef=jnp.array(0.0),
-    )
-
-    def loss_fn(params: ElectronReactionParams):
-        _, pred_current = fdm_solver.solve(params)
-        return jnp.square(jnp.mean(pred_current - true_current))
-
-    loss_and_grad = filter_value_and_grad(loss_fn)
-    optim = optax.sgd(1e-2)
-    opt_state = optim.init(filter(init_params, is_array))
-    params = init_params
-
-    def make_step(params, opt_state):
-        loss, grads = loss_and_grad(params)
-        updates, new_opt_state = optim.update(
-            grads, opt_state, filter(params, is_array)
-        )
-        new_params = apply_updates(params, updates)
-        return new_params, new_opt_state, loss
-
-    tol = 1e-8
-    max_steps = 100
-    start_timer = perf_counter()
-    scan()
-    for step in range(max_steps):
-        params, opt_state, loss = make_step(params, opt_state)
-        if loss < tol:
-            break
-
-    end_timer = perf_counter()
-    print("Time Taken:")

@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from jax import custom_vjp
+from jax import custom_vjp, jit
 from jax.lax import linalg
 from jaxtyping import Scalar
 
@@ -27,6 +27,7 @@ def tridiagonal_solve_bwd(res, g):
 tridiagonal_solve.defvjp(tridiagonal_solve_fwd, tridiagonal_solve_bwd)
 
 
+@jit
 def tridiagonal_solve_impl(a: Scalar, b: Scalar, c: Scalar, d: Scalar) -> Scalar:
     return linalg.tridiagonal_solve(
         jnp.concat([jnp.zeros(1), a]), b, jnp.concat([c, jnp.zeros(1)]), d[:, None]
