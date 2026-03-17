@@ -1,10 +1,10 @@
-from src.fdm.base import AbstractFDSolver
+from src.fdm._base import AbstractFDSolver
 
-from .adsorption_backward_implicit import AdsorptionReactionBackwardImplicitFDSolver
-from .adsorption_explicit import AdsorptionReactionExplicitFDSolver
-from .adsorption_newton import AdsorptionReactionNewtonFDSolver
-from .electron import ElectronReactionFDSolver
-from .heterogeneous import HeterogeneousReactionFDSolver
+from ._adsorption_backward_implicit import AdsorptionReactionBackwardImplicitFDSolver
+from ._adsorption_explicit import AdsorptionReactionExplicitFDSolver
+from ._adsorption_newton import AdsorptionReactionNewtonFDSolver
+from ._electron import ElectronReactionFDSolver
+from ._heterogeneous import HeterogeneousReactionFDSolver
 
 __all__ = [
     "AbstractFDSolver",

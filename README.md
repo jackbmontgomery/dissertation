@@ -1,6 +1,7 @@
 # Dissertation
 
 - I need to make sure that my inverse function make sense for scaling the space of plausible parameters for all models
+- I will do the performance squeezing for the adsorption when I get to that chapter, I need to be in the frame of reference to understand all that code
 
 ## Burn-in
 When running an MCMC sampler there are convergence guarantees and so the concept of needing to burn in does not really make sense. But in an application when we cannot generate samples very easily -- after all the likelihood evaluation needs a forward pass of an fdm solver. In this case it is clear that just letting the MC fall into the stationary distribution is not really satisfactory. We went to ensure that we are obtaining good, high-density samples from the start. In this case, the concept of burn-in makes far more sense.
