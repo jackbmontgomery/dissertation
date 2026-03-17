@@ -143,3 +143,23 @@ a crucial step in enabling the use of higher-order spatial
 discretisations within the differentiable forward map.
 
 \section{Initialisation Results}
+
+The goal of the initialising stage of our sampling is for the Markov
+chain to start collecting samples in areas that contain likely
+parameter sets. Naturally, we want our method of initialising
+to be robust to the initial conditions, across different levels of
+noise in the experiment and stable in when they have reached areas of
+high likelihood.
+
+We test the gradient descent initialisation with ADAM optimiser
+\cite{kingma2014adam} key properties, we will compare this to a
+gradient-free method CMA-ES \cite{hansen2001completely}.
+
+%TODO: Caption here to highlight the different noise level
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[width=0.95\textwidth]{figures/5-optim.png}
+  \end{center}
+  \caption{}\label{fig:electron-optim}
+\end{figure}

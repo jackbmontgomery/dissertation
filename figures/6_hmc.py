@@ -15,7 +15,7 @@ sns.set_theme()
 sns.set_context("paper", font_scale=1.5)
 
 
-# %%
+# %% Load sampling data
 dir = "./data/sampling"
 file = "reaction=ElectronReaction,noise=0.25,seed=0.pkl.gz"
 
@@ -25,7 +25,7 @@ with gzip.open(f"{dir}/{file}", "rb") as f:
 hmc: ElectronReactionParams = data["hmc"]
 rwmh: ElectronReactionParams = data["rwmh"]
 
-# %%
+# %% Compute the ESS
 num_points = 20
 
 hmc_chain_len = hmc.alpha.shape[1]
@@ -53,7 +53,7 @@ for i, (h_ei, r_ei) in enumerate(zip(hmc_end_idx, rwmh_end_idx)):
     rwmh_ess[1, i] = ess_single(rwmh.K0[:, :r_ei])
     rwmh_ess[2, i] = ess_single(rwmh.Ef[:, :r_ei])
 
-# %%
+# %% Plot the ESS
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 3))
 
@@ -74,6 +74,7 @@ ax3.plot(idx, rwmh_ess[2, :])
 handles, labels = ax1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2)
 plt.tight_layout(rect=(0, 0.1, 1, 1))
+plt.savefig("./write_up/figures/6-ess.png", dpi=1000)
 plt.show()
 
 # %%

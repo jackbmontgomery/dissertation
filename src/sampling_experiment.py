@@ -19,7 +19,7 @@ from jax.flatten_util import ravel_pytree
 from src.fdm import AbstractFDSolver, ElectronReactionFDSolver
 from src.params import Params
 from src.reaction import AbstractReaction, ElectronReaction
-from src.samplers import HMCSampler, RWMHSampler
+from src.sampling import HMCSampler, RWMHSampler
 from src.utils import generate_noisy_samples
 from src.voltammetry import CyclicDC
 

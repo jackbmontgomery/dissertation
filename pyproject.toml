@@ -9,19 +9,13 @@ dependencies = [
     "chex>=0.1.91",
     "equinox>=0.13.2",
     "evosax>=0.2.0",
-    "ipykernel>=7.1.0",
     "ipython>=9.9.0",
     "jax>=0.8.2",
-    "jupyter>=1.1.1",
     "matplotlib>=3.10.8",
-    "nbstripout>=0.9.0",
     "optax>=0.2.6",
     "pandas>=3.0.1",
     "pytest>=9.0.2",
-    "scienceplots>=2.2.0",
     "seaborn>=0.13.2",
-    "tqdm>=4.67.1",
-    "tyro>=1.0.5",
 ]
 
 

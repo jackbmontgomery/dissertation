@@ -47,20 +47,20 @@ def optimisation_experiment(
     adam_optimise = make_adam_optimise(num_iterations, logdensity_fn, **adam_params)
 
     start_time = perf_counter()
-    print("====== Running CMA-ES =======")
+    print("------------ Running CMA-ES ------------")
     cmaes_keys = jr.split(key, num_params)
     _, cmaes_ld, cmaes_pp = vmap(cmaes_optimise)(init_params, cmaes_keys)
     cmaes_ld.block_until_ready()
     cmaes_done_time = perf_counter()
-    print("====== Done =======")
+    print("------------------------")
     print(f"Time Taken: {cmaes_done_time - start_time:.4f}")
 
-    print("====== Running ADAM =======")
+    print("------------ Running  ADAM ------------")
     _, adam_ld, adam_pp = vmap(adam_optimise)(init_params)
     adam_ld.block_until_ready()
     adam_done_time = perf_counter()
     print(f"Time Taken: {adam_done_time - cmaes_done_time:.4f}")
-    print("====== Done =======")
+    print("------------------------")
 
     mode_logdensity = logdensity_fn(reaction.true_parameters)
     file_name = f"reaction={reaction},noise={experimental_noise},seed={seed}"
@@ -74,4 +74,4 @@ def optimisation_experiment(
         mode_logdensity=mode_logdensity,
     )
 
-    print("------------------------------------------------")
+    print("================================================")
