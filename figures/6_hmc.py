@@ -74,7 +74,7 @@ ax3.plot(idx, rwmh_ess[2, :])
 handles, labels = ax1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2)
 plt.tight_layout(rect=(0, 0.1, 1, 1))
-plt.savefig("./write_up/figures/6-ess.png", dpi=1000)
+plt.savefig("./manuscript/figures/6-ess.png", dpi=1000)
 plt.show()
 
 # %%

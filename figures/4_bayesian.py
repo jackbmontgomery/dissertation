@@ -40,7 +40,7 @@ plt.xlabel(r"$\theta$")
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.tight_layout()
-plt.savefig("./write_up/figures/4-noisy-data.png", dpi=1000)
+plt.savefig("./manuscript/figures/4-noisy-data.png", dpi=1000)
 plt.show()
 
 # %% Random-Walk Metropolis Hasting with no burn-in
@@ -92,7 +92,7 @@ ax3.axvline(x=true_params.Ef, linestyle="--", color="black")
 handles, labels = ax1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2)
 plt.tight_layout(rect=(0, 0.1, 1, 1))
-plt.savefig("./write_up/figures/4-rwmh-hist.png", dpi=1000)
+plt.savefig("./manuscript/figures/4-rwmh-hist.png", dpi=1000)
 plt.show()
 
 # %% Scatter plot for no burn-in
@@ -110,5 +110,5 @@ plt.scatter(
 plt.xlabel(r"$\alpha$")
 plt.ylabel(r"$K_0$")
 plt.tight_layout()
-plt.savefig("./write_up/figures/4-rwmh-scatter.png", dpi=1000)
+plt.savefig("./manuscript/figures/4-rwmh-scatter.png", dpi=1000)
 plt.show()

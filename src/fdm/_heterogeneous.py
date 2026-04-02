@@ -6,8 +6,8 @@ from jax import vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
-from src.params import HeterogenousReactionParams
 from src.linear_solvers import pentadiagonal_solve
+from src.params import HeterogenousReactionParams
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
 
@@ -184,9 +184,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
         c_init = jnp.concat(
             [
                 interleave_concat_2d(jnp.ones_like(self.X), jnp.zeros_like(self.X)),
-                interleave_concat_2d(
-                    jnp.full_like(self.X, 0.0), jnp.zeros_like(self.X)
-                ),
+                interleave_concat_2d(jnp.zeros_like(self.X), jnp.zeros_like(self.X)),
             ]
         )
 

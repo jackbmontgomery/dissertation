@@ -9,11 +9,41 @@ import numpy as np
 import seaborn as sns
 from matplotlib.patches import Patch
 
-from src.params import HeterogenousReactionParams
+from src.fdm import ElectronReactionFDSolver, HeterogeneousReactionFDSolver
+from src.params import ElectronReactionParams, HeterogenousReactionParams
 from src.reaction import HeterogeneousReaction
+from src.voltammetry import CyclicDC
 
 sns.set_theme()
 sns.set_context("paper", font_scale=1.5)
+
+# %% Current Comparison
+
+voltammetry = CyclicDC()
+elec_fd = ElectronReactionFDSolver(voltammetry)
+elec_params = ElectronReactionParams(
+    alpha=jnp.array(0.6), K0=jnp.array(10.0), Ef=jnp.array(0.0)
+)
+heter_fd = HeterogeneousReactionFDSolver(voltammetry)
+heter_params = HeterogenousReactionParams(
+    alpha_1=jnp.array(0.6),
+    K0_1=jnp.array(10.0),
+    Ef_1=jnp.array(0.0),
+    alpha_2=jnp.array(0.6),
+    K0_2=jnp.array(10.0),
+    Ef_2=jnp.array(0.0),
+    K_het=jnp.array(5.0),
+)
+
+_, elec_current = elec_fd.solve(elec_params)
+_, hetero_current = heter_fd.solve(heter_params)
+
+plt.plot(elec_fd.applied_potentials, elec_current, label="Electron")
+plt.plot(heter_fd.applied_potentials, hetero_current, label="Heterogeneous")
+plt.gca().invert_xaxis()
+plt.gca().invert_yaxis()
+plt.legend()
+plt.show()
 
 # %% Optimisation
 

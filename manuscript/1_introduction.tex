@@ -1,0 +1,139 @@
+\chapter{Introduction}\label{ch:introduction}
+
+Electrochemistry is concerned with the interplay between electrical
+potential and chemical change at the interface of an electrode and an
+electrolyte solution. A central task in electrochemical research is to
+characterise the kinetics and thermodynamics of redox reactions occurring
+at the electrode surface. Voltammetry---a family of techniques in which
+the current through an electrochemical cell is recorded as the applied
+potential is varied over time---is among the most widely used methods for
+this purpose \cite{compton2014understanding}.
+
+The current response in a voltammetric experiment is governed by two
+coupled processes: the rate of electron transfer at the electrode surface
+and the transport of electroactive species through the solution. Under
+the Butler--Volmer model of electrode kinetics, the electron transfer
+rate depends on the applied potential through a formal
+potential~$E_f^0$, a rate constant~$k_0$, and a transfer
+coefficient~$\alpha$; the transport is described by Fick's laws of
+diffusion. Together, these yield a diffusion partial differential
+equation whose solution predicts the measured current for a given set of
+parameters---the \emph{forward problem}
+\cite{compton2014understanding}. We are concerned with the \emph{inverse
+problem}: given a measured, noisy voltammogram, recover the physical
+parameters that produced it. This is considerably harder. The mapping
+from parameters to current is nonlinear, distinct parameter
+configurations can produce similar voltammograms, and in certain kinetic
+regimes some parameters cease to influence the current response
+altogether.
+
+A natural approach to the inverse problem is to seek the parameter
+values that best fit the observed data, for instance by minimising a
+least-squares objective. Such point estimates, however, provide no
+principled account of the uncertainty in the inferred parameters: they
+cannot distinguish a well-constrained parameter from one to which the
+data are largely insensitive, nor can they reveal correlations between
+parameters that may compensate for one another. Bayesian inference
+addresses these limitations by treating the parameters as random
+variables and seeking their posterior distribution conditioned on the
+observed data \cite{gavaghan2018bayesian}. The posterior encodes
+everything the data can and cannot tell us about the parameters, and its
+structure---marginal widths, correlations, multimodality---directly
+informs experimental design and scientific interpretation.
+
+Markov chain Monte Carlo methods are the standard computational tool for
+sampling from posterior distributions that lack closed-form expressions.
+In the electrochemical setting, each evaluation of the likelihood
+requires a numerical solution of the forward problem, so every proposed
+sample---whether accepted or rejected---incurs the cost of a PDE solve.
+Gradient-free samplers such as random-walk Metropolis--Hastings explore
+the parameter space by local, undirected proposals and consequently
+reject a large fraction of candidates, particularly as the number of
+parameters grows. In this problem setting, where each wasted proposal is
+expensive, the inefficiency of gradient-free sampling becomes a serious
+computational bottleneck.
+
+This motivates the use of gradient information. If the gradient of the
+log-likelihood with respect to the parameters is available, it can be
+exploited in two ways: first, to initialise the sampler near a mode of
+the posterior via gradient-based optimisation, reducing the number of
+samples discarded during burn-in; and second, to inform the sampling
+itself through Hamiltonian Monte Carlo, which uses the gradient to
+construct long-range, low-rejection proposals that explore the posterior
+far more efficiently than undirected random walks.
+
+The key computational challenge is obtaining these gradients cheaply.
+Finite difference approximations require at least one additional forward
+solve per parameter and suffer from truncation and cancellation errors.
+Automatic differentiation avoids both issues by computing exact
+derivatives at a cost that, in reverse mode, is bounded by a small
+multiple of the forward solve regardless of the number of parameters
+\cite{griewank2008evaluating}. Na\"ively applying reverse-mode
+automatic differentiation to an entire PDE solver, however, requires
+recording every intermediate operation---including every step of the
+linear system solve at each timestep---resulting in substantial memory
+overhead. A more efficient approach is to derive a custom adjoint rule
+for the linear solve and supply it to the automatic differentiation
+framework, so that the gradient computation exploits the same banded
+structure as the forward solve. This is the strategy we adopt.
+
+The idea of embedding differentiable simulation within scientific
+inference is part of a broader shift in computational science. Kitchin
+et~al.\ \cite{kitchin2025beyond} argue that differentiable programming
+constitutes a fifth paradigm in chemical engineering, unifying
+physics-based models with gradient-based learning and inference. The
+present work is a concrete realisation of this vision in
+electrochemistry: we make a PDE-based voltammetric simulator fully
+differentiable and use the resulting gradients for rigorous Bayesian
+inference.
+
+Concurrently, Chen et~al.\ \cite{chen2026differentiable} have developed
+end-to-end differentiable electrochemical simulators and demonstrated
+gradient-based optimisation for parameter recovery across several
+electrochemical systems. Our work is complementary in two respects.
+First, we adopt a Bayesian framework rather than optimisation alone,
+obtaining full posterior distributions with uncertainty quantification
+rather than point estimates. Second, we compute gradients via a custom
+adjoint of the banded linear solve rather than recording all operations
+within the solver, yielding lower memory cost and better scaling to fine
+discretisations. The Bayesian approach built on MCMC for voltammetric
+inference was established by Gavaghan et~al.\
+\cite{gavaghan2018bayesian}; we extend their framework by replacing the
+gradient-free sampler with gradient-informed alternatives enabled by the
+differentiable solver.
+
+This dissertation makes three contributions of roughly equal weight.
+First, we develop a differentiable forward solver for electrochemical
+PDEs, in which a custom adjoint rule for the banded linear system
+provides exact gradients at low cost. Second, we integrate this solver
+with Hamiltonian Monte Carlo to perform full Bayesian inference,
+obtaining posterior distributions that quantify parameter uncertainty and
+reveal correlations. Third, we demonstrate that the framework extends
+beyond the simple electron-transfer reaction to a heterogeneous reaction
+with seven parameters and an adsorption reaction with nine, showing that
+the advantage of gradient-based sampling grows with the dimension of the
+parameter space.
+
+The methodology is developed in the concrete setting of cyclic
+voltammetry for a single-electron redox reaction, which serves as the
+running example through which each tool is introduced and tested.
+Chapter~\ref{ch:electrochem} formulates the forward problem as a
+diffusion PDE with Butler--Volmer boundary conditions and
+non-dimensionalises the system. Chapter~\ref{ch:numerical-methods}
+discretises this PDE using an implicit finite difference scheme and
+examines how the voltammogram depends on each parameter, exposing the
+correlations and non-identifiability that motivate a probabilistic
+treatment. Chapter~\ref{ch:bayesian} frames the inverse problem as
+Bayesian inference and applies random-walk Metropolis--Hastings sampling,
+demonstrating correct posterior recovery but highlighting the
+computational cost of gradient-free proposals.
+Chapter~\ref{ch:adjoint} develops the differentiable solver, introducing
+reverse-mode automatic differentiation and deriving the custom adjoint
+rule for the tridiagonal system. Chapter~\ref{ch:hmc} exploits these
+gradients for Hamiltonian Monte Carlo sampling, showing improved
+sampling efficiency over the gradient-free baseline. With the full
+methodology established, Chapters~\ref{ch:heterogeneous}
+and~\ref{ch:adsorption} extend the framework to a heterogeneous reaction
+and an adsorption reaction respectively, demonstrating that the approach
+scales to higher-dimensional parameter spaces and chemically richer
+systems.

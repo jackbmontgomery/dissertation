@@ -142,24 +142,61 @@ same $O(n)$ cost per timestep. The custom VJP rule generalises directly
 a crucial step in enabling the use of higher-order spatial
 discretisations within the differentiable forward map.
 
-\section{Initialisation Results}
+\section{Initialisation Results}\label{sec:init-results}
 
-The goal of the initialising stage of our sampling is for the Markov
-chain to start collecting samples in areas that contain likely
-parameter sets. Naturally, we want our method of initialising
-to be robust to the initial conditions, across different levels of
-noise in the experiment and stable in when they have reached areas of
-high likelihood.
+As discussed in \cref{sec:sampling-results}, initialising a Markov chain
+far from the posterior mode wastes computational resources on burn-in
+samples that must be discarded. A gradient-based optimisation stage can
+locate the high-density region before sampling begins, so that the chain
+starts collecting useful draws immediately. A good initialisation
+strategy should satisfy three criteria: it should be robust to the choice
+of starting point, it should perform reliably across different noise
+levels in the data, and it should remain stable once it has reached a
+region of high likelihood rather than oscillating away from it.
 
-We test the gradient descent initialisation with ADAM optimiser
-\cite{kingma2014adam} key properties, we will compare this to a
-gradient-free method CMA-ES \cite{hansen2001completely}.
+We compare the ADAM optimiser~\cite{kingma2014adam}, which exploits the
+gradient of the log-likelihood computed via the adjoint method, against
+CMA-ES~\cite{hansen2001completely}, a gradient-free evolutionary strategy.
+CMA-ES maintains a population of candidate solutions; we set the
+population size to~$4$. Since the backward (adjoint) pass costs
+approximately $1$--$3\times$ the forward pass, a single ADAM step
+(one forward and one backward pass) is roughly comparable in cost to
+evaluating the forward map for all four members of the CMA-ES population.
+We therefore equalise the computational budget by giving both algorithms
+the same number of iterations, each iteration comprising one ADAM update
+or one CMA-ES generation of four candidates.
 
-%TODO: Caption here to highlight the different noise level
+\Cref{fig:electron-optim} shows the log-posterior density over the course
+of the optimisation at two noise levels ($\varsigma = 0.25$ and
+$\varsigma = 0.5$). Each algorithm is run from $32$~initial conditions
+drawn uniformly from a physically reasonable region of the parameter
+space; solid lines show the mean and shaded regions indicate one standard
+deviation across these runs. Both methods converge toward the posterior
+mode, but ADAM does so more rapidly and with markedly lower variance
+across initialisations, indicating greater robustness to starting
+conditions. At $\varsigma = 0.5$ the increased noise flattens the
+likelihood surface, making the optimisation harder for both methods;
+CMA-ES exhibits wider spread and slower convergence in this regime,
+whereas ADAM remains comparatively stable. Importantly, once ADAM reaches
+the high-density region it remains there with little fluctuation,
+confirming the stability required for a reliable initialisation of the
+subsequent MCMC sampling.
 
-\begin{figure}
+\begin{figure}[ht]
   \begin{center}
     \includegraphics[width=0.95\textwidth]{figures/5-optim.png}
   \end{center}
-  \caption{}\label{fig:electron-optim}
+  \caption{Log-posterior density during optimisation for ADAM (blue) and
+    CMA-ES (orange) at noise levels $\varsigma = 0.25$ (left) and
+    $\varsigma = 0.5$ (right). Each algorithm is run from
+    $32$~randomly drawn initial conditions; solid lines show the mean
+    and shaded regions indicate $\pm 1$ standard deviation across runs.
+    The dashed red line marks the log-density evaluated at five times the true
+    parameters -- denoting a high density area. Both algorithms are
+    given equal computational budgets
+    (CMA-ES population size~$4$, matching the cost of one ADAM gradient
+    step). ADAM converges faster, with lower variance across
+    initialisations, and remains stable once it reaches the high-density
+  region.}
+  \label{fig:electron-optim}
 \end{figure}
