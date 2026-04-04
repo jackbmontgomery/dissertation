@@ -189,19 +189,19 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
         )
 
         K1_red = params.K0_1 * jnp.exp(
-            -params.alpha_1 * (self.applied_potentials - params.Ef_1)
+            -params.alpha_1 * (self.applied_potentials - params.thetaf_1)
         )
 
         K1_ox = params.K0_1 * jnp.exp(
-            (1.0 - params.alpha_1) * (self.applied_potentials - params.Ef_1)
+            (1.0 - params.alpha_1) * (self.applied_potentials - params.thetaf_1)
         )
 
         K2_red = params.K0_2 * jnp.exp(
-            -params.alpha_2 * (self.applied_potentials - params.Ef_2)
+            -params.alpha_2 * (self.applied_potentials - params.thetaf_2)
         )
 
         K2_ox = params.K0_2 * jnp.exp(
-            (1.0 - params.alpha_2) * (self.applied_potentials - params.Ef_2)
+            (1.0 - params.alpha_2) * (self.applied_potentials - params.thetaf_2)
         )
 
         B0_A_coef = -self.h0 * K1_red

@@ -6,8 +6,8 @@ from jax import vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
-from src.params import ElectronReactionParams
 from src.linear_solvers import tridiagonal_solve
+from src.params import ElectronReactionParams
 from src.voltammetry import AbstractVoltammetryTechnique
 
 from ._base import AbstractFDSolver, setup_fd_discritisation
@@ -92,11 +92,11 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         c_init = jnp.ones_like(self.X)
 
         K_red = params.K0 * jnp.exp(
-            -params.alpha * (self.applied_potentials - params.Ef)
+            -params.alpha * (self.applied_potentials - params.thetaf)
         )
 
         K_ox = params.K0 * jnp.exp(
-            (1 - params.alpha) * (self.applied_potentials - params.Ef)
+            (1 - params.alpha) * (self.applied_potentials - params.thetaf)
         )
 
         beta0 = 1 + self.h0 * (K_red + K_ox)

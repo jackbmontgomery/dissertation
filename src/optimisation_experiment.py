@@ -10,7 +10,7 @@ from src.fdm import AbstractFDSolver
 from src.optimisers import make_adam_optimise, make_cmaes_optimise
 from src.params import Params
 from src.reaction._base import AbstractReaction
-from src.utils import generate_noisy_samples
+from src.utils import generate_noisy_samples, pretty_header
 
 
 def optimisation_experiment(
@@ -19,13 +19,16 @@ def optimisation_experiment(
     num_iterations: int,
     num_params: int,
     num_experimental_samples: int = 10,
-    experimental_noise: float = 0.25,
+    noise_percentage: float = 0.02,
     *,
     cmaes_params: Dict = {},
     adam_params: Dict = {},
     seed: int,
+    save: bool,
 ):
-    print(f"============ {reaction} ============")
+    print(pretty_header(reaction))
+    print(f"Noise Percentage: {noise_percentage:.2f}")
+
     key = jr.key(seed)
     key_samples, key_init = jr.split(key, 2)
     _, base_current = fd_solver.solve(reaction.true_parameters)
@@ -33,7 +36,7 @@ def optimisation_experiment(
     experimental_samples = generate_noisy_samples(
         num_experimental_samples,
         base_current,
-        experimental_noise,
+        noise_percentage,
         key=key_samples,
     )
 
@@ -47,31 +50,28 @@ def optimisation_experiment(
     adam_optimise = make_adam_optimise(num_iterations, logdensity_fn, **adam_params)
 
     start_time = perf_counter()
-    print("------------ Running CMA-ES ------------")
+
+    print(pretty_header("CMA-ES", char="-"))
     cmaes_keys = jr.split(key, num_params)
     _, cmaes_ld, cmaes_pp = vmap(cmaes_optimise)(init_params, cmaes_keys)
     cmaes_ld.block_until_ready()
     cmaes_done_time = perf_counter()
-    print("------------------------")
     print(f"Time Taken: {cmaes_done_time - start_time:.4f}")
 
-    print("------------ Running  ADAM ------------")
+    print(pretty_header("ADAM", char="-"))
     _, adam_ld, adam_pp = vmap(adam_optimise)(init_params)
     adam_ld.block_until_ready()
     adam_done_time = perf_counter()
     print(f"Time Taken: {adam_done_time - cmaes_done_time:.4f}")
-    print("------------------------")
 
-    mode_logdensity = logdensity_fn(reaction.true_parameters)
-    file_name = f"reaction={reaction},noise={experimental_noise},seed={seed}"
-
-    np.savez_compressed(
-        f"./data/optimisation/{file_name}.npz",
-        adam_ld=adam_ld,
-        adam_pp=adam_pp,
-        cmaes_ld=cmaes_ld,
-        cmaes_pp=cmaes_pp,
-        mode_logdensity=mode_logdensity,
-    )
-
-    print("================================================")
+    if save:
+        mode_logdensity = logdensity_fn(reaction.true_parameters)
+        file_name = f"reaction={reaction},noise={noise_percentage},seed={seed}"
+        np.savez_compressed(
+            f"./data/optimisation/{file_name}.npz",
+            adam_ld=adam_ld,
+            adam_pp=adam_pp,
+            cmaes_ld=cmaes_ld,
+            cmaes_pp=cmaes_pp,
+            mode_logdensity=mode_logdensity,
+        )

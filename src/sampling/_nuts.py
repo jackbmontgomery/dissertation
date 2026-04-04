@@ -4,7 +4,7 @@ import blackjax
 import jax.numpy as jnp
 import jax.random as jr
 import optax
-from blackjax.mcmc.dynamic_hmc import DynamicHMCState
+from blackjax.mcmc.hmc import HMCState
 from jax import jit
 from jaxtyping import PRNGKeyArray, Scalar
 
@@ -13,7 +13,7 @@ from src.params import Params
 from ._base import AbstractSampler, LogDensity, inference_loop_multiple_chains
 
 
-class HMCSampler(AbstractSampler):
+class NUTSSampler(AbstractSampler):
     def __init__(self, log_density: LogDensity, num_chains: int):
         self.log_density = log_density
         self.num_chains = num_chains
@@ -26,34 +26,32 @@ class HMCSampler(AbstractSampler):
         *,
         key: PRNGKeyArray,
         initial_step_size: float,
-    ) -> Tuple[DynamicHMCState, Dict]:
-        warmup = blackjax.chees_adaptation(
-            self.log_density, self.num_chains, max_leapfrog_steps=200
+    ) -> Tuple[HMCState, Dict]:
+        warmup = blackjax.window_adaptation(
+            blackjax.nuts,
+            self.log_density,
+            initial_step_size=initial_step_size,
         )
 
-        optim = optax.adam(learning_rate)
-
-        (initial_states, hmc_params), _ = warmup.run(
+        (last_state, nuts_params), warmup_info = warmup.run(
             key,
             params,
-            step_size=initial_step_size,
-            optim=optim,
             num_steps=steps,
         )
 
-        return initial_states, hmc_params
+        return last_state, nuts_params
 
     def run(
         self,
-        init_states: DynamicHMCState,
+        init_states: HMCState,
         n_samples: int,
         *,
         key: PRNGKeyArray,
-        hmc_params: Dict,
+        nuts_params: Dict,
     ) -> Tuple[Params, Dict[str, Scalar]]:
-        hmc = blackjax.dynamic_hmc(self.log_density, **hmc_params)
+        nuts = blackjax.nuts(self.log_density, **nuts_params)
 
-        jit_step = jit(hmc.step)
+        jit_step = jit(nuts.step)
 
         keys = jr.split(key, self.num_chains)
 

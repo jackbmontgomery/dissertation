@@ -2,18 +2,17 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from matplotlib.patches import Patch
 
 sns.set_theme()
-sns.set_context("paper", font_scale=1.5)
+sns.set_context("paper", font_scale=2)
 
 # %% Algorithm noise comparison
 
 fig, axs = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
-noise_levels = [0.25, 0.5]
+noise_levels = [0.01, 0.02]
 
 for n, ax in zip(noise_levels, axs):
-    ax.set_title(rf"$\varsigma={n}$")
+    ax.set_title(rf"$\eta={n}$")
     electron_optim = np.load(
         f"./data/optimisation/reaction=ElectronReaction,noise={n},seed=0.npz"
     )
@@ -35,7 +34,7 @@ for n, ax in zip(noise_levels, axs):
     ax.plot(iterations, c_ld_mean, label="CMA-ES")
     ax.fill_between(iterations, c_ld_mean - c_ld_std, c_ld_mean + c_ld_std, alpha=0.5)
 
-    ax.set_ylim(mode_ld * 5, 0)
+    ax.set_ylim(mode_ld * 10, -mode_ld)
 
     ax.axhline(y=mode_ld * 2, linestyle="--", c="C3")
 

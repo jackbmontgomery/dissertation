@@ -6,8 +6,8 @@ from jax import vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
-from src.params import AdsorptionReactionParams
 from src.linear_solvers import pentadiagonal_solve
+from src.params import AdsorptionReactionParams
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
 
@@ -230,19 +230,19 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
         init_sol = jnp.concat([phi_init, c_init])
 
         K_red_ads = params.K0_ads * jnp.exp(
-            -params.alpha_ads * (self.applied_potentials - params.Ef_ads)
+            -params.alpha_ads * (self.applied_potentials - params.thetaf_ads)
         )
 
         K_ox_ads = params.K0_ads * jnp.exp(
-            (1 - params.alpha_ads) * (self.applied_potentials - params.Ef_ads)
+            (1 - params.alpha_ads) * (self.applied_potentials - params.thetaf_ads)
         )
 
         K_red_sol = params.K0_sol * jnp.exp(
-            -params.alpha_sol * (self.applied_potentials - params.Ef_sol)
+            -params.alpha_sol * (self.applied_potentials - params.thetaf_sol)
         )
 
         K_ox_sol = params.K0_sol * jnp.exp(
-            (1 - params.alpha_sol) * (self.applied_potentials - params.Ef_sol)
+            (1 - params.alpha_sol) * (self.applied_potentials - params.thetaf_sol)
         )
 
         xs = ScanInputSequence(

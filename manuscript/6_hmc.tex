@@ -234,18 +234,18 @@ The most widely used adaptive scheme is the No-U-Turn Sampler
 (NUTS)~\cite{hoffman2014no}, which eliminates the need to specify~$L$ by
 dynamically extending the trajectory until a U-turn criterion is met.
 While effective in general, NUTS can require many leapfrog steps per
-sample --- each of which, in our setting, demands a full forward and
+sample -- each of which, in our setting, demands a full forward and
 adjoint solve of the electrochemical model.
 
 In this work we instead use the \emph{ChEES-HMC} criterion of
 Hoffman et al.~\cite{hoffman2021adaptive}, which adapts $\varepsilon$,
 $L$, and~$M$ jointly during a warm-up phase by maximising the
 \emph{Change in the Estimator of the Expected Square} (ChEES) of the
-trajectory length. We found that ChEES-HMC consistently selected shorter
+trajectory length. We found empirically that ChEES-HMC selected shorter
 trajectory lengths than NUTS for this problem whilst maintaining
 comparable effective sample sizes. Since each leapfrog step requires a
-gradient evaluation --- and each gradient evaluation requires a full
-forward and adjoint solve --- reducing the number of integration steps
+gradient evaluation -- and each gradient evaluation requires a full
+forward and adjoint solve -- reducing the number of integration steps
 per sample directly reduces the computational cost. This makes ChEES-HMC
 particularly well suited to scientific applications in which the gradient
 of the forward model is expensive to evaluate.

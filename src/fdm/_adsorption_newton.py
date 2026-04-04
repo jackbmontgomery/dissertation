@@ -6,8 +6,8 @@ from jax import vmap
 from jax.lax import scan, while_loop
 from jaxtyping import Array, Scalar
 
-from src.params import AdsorptionReactionParams
 from src.linear_solvers import pentadiagonal_solve
+from src.params import AdsorptionReactionParams
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
 
@@ -42,9 +42,9 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h0: float = 1e-5,
+        h0: float = 1e-4,
         omega: float = 1.1,
-        dtheta: float = 5e-2,
+        dtheta: float = 5e-1,
         atol: float = 1e-8,
         rtol: float = 1e-6,
     ):
@@ -188,7 +188,6 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
                 ]
             )
 
-            print(d2l.shape, dl.shape, d.shape, du.shape, d2u.shape)
             return d2l, dl, d, du, d2u
 
         return build_J_diags
@@ -322,19 +321,19 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
         init_sol = jnp.concat([phi_init, c_init])
 
         K_red_ads = params.K0_ads * jnp.exp(
-            -params.alpha_ads * (self.applied_potentials - params.Ef_ads)
+            -params.alpha_ads * (self.applied_potentials - params.thetaf_ads)
         )
 
         K_ox_ads = params.K0_ads * jnp.exp(
-            (1 - params.alpha_ads) * (self.applied_potentials - params.Ef_ads)
+            (1 - params.alpha_ads) * (self.applied_potentials - params.thetaf_ads)
         )
 
         K_red_sol = params.K0_sol * jnp.exp(
-            -params.alpha_sol * (self.applied_potentials - params.Ef_sol)
+            -params.alpha_sol * (self.applied_potentials - params.thetaf_sol)
         )
 
         K_ox_sol = params.K0_sol * jnp.exp(
-            (1 - params.alpha_sol) * (self.applied_potentials - params.Ef_sol)
+            (1 - params.alpha_sol) * (self.applied_potentials - params.thetaf_sol)
         )
 
         xs = ScanInputSequence(

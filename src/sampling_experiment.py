@@ -1,8 +1,6 @@
 import multiprocessing
 import os
 
-from jax import flatten_util
-
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
     multiprocessing.cpu_count()
 )
@@ -16,12 +14,11 @@ import jax.numpy as jnp
 import jax.random as jr
 from jax.flatten_util import ravel_pytree
 
-from src.fdm import AbstractFDSolver, ElectronReactionFDSolver
+from src.fdm import AbstractFDSolver
 from src.params import Params
-from src.reaction import AbstractReaction, ElectronReaction
+from src.reaction import AbstractReaction
 from src.sampling import HMCSampler, RWMHSampler
-from src.utils import generate_noisy_samples
-from src.voltammetry import CyclicDC
+from src.utils import generate_noisy_samples, pretty_header
 
 
 def print_infos(info: Dict):
@@ -31,10 +28,10 @@ def print_infos(info: Dict):
 
 def sampling_experiment(
     reaction: AbstractReaction,
-    fd_solver: AbstractFDSolver,
+    sampling_fd_solver: AbstractFDSolver,
     num_chains: int,
     num_experimental_samples: int = 10,
-    experimental_noise: float = 0.25,
+    percentage_noise: float = 0.02,
     *,
     num_rwmh_samples: int,
     rwmh_kwargs: Dict,
@@ -43,26 +40,32 @@ def sampling_experiment(
     seed: int,
     warmup_learning_rate: float = 1e-2,
     warmup_steps: int = 250,
+    data_fd_solver: AbstractFDSolver | None = None,
+    save: bool,
 ):
-    print(f"============ {reaction} ============")
+    if data_fd_solver is None:
+        data_fd_solver = sampling_fd_solver
+
+    print(pretty_header(reaction))
     key = jr.key(seed)
     key_samples, key_init = jr.split(key, 2)
-    _, base_current = fd_solver.solve(reaction.true_parameters)
+
+    _, base_current = data_fd_solver.solve(reaction.true_parameters)
 
     experimental_samples = generate_noisy_samples(
         num_experimental_samples,
         base_current,
-        experimental_noise,
+        percentage_noise,
         key=key_samples,
     )
 
     def logdensity_fn(params: Params):
-        _, current = fd_solver.solve(params)
+        _, current = sampling_fd_solver.solve(params)
         return -jnp.sum((experimental_samples - current) ** 2)
 
     init_params = reaction.create_init_params(key_init, num_chains)
 
-    print("------------ Running RWMH ------------")
+    print(pretty_header("RWMH", char="-"))
     start_time = perf_counter()
 
     key, key_rwmh = jr.split(key)
@@ -73,20 +76,20 @@ def sampling_experiment(
         init_params, learning_rate=warmup_learning_rate, steps=warmup_steps
     )
 
-    flat_init_states, _ = flatten_util.ravel_pytree(init_states)
+    flat_init_states, _ = ravel_pytree(init_states)
     flat_init_states.block_until_ready()
 
     warm_up_time = perf_counter()
-    print(f"Warm Up Time: {warm_up_time - start_time:.4f}")
+
+    print(f"Warm Up Time: {warm_up_time - start_time:.2f}s")
     rwmh_samples, infos = rwmh.run(
         init_states, num_rwmh_samples, key=key_rwmh, **rwmh_kwargs
     )
 
-    print(f"Sampling Time: {perf_counter() - warm_up_time:.4f}")
+    print(f"Sampling Time: {perf_counter() - warm_up_time:.2f}s")
     print_infos(infos)
-    print("------------------------")
 
-    print("------------ Running  HMC ------------")
+    print(pretty_header("HMC", char="-"))
     start_time = perf_counter()
 
     key, key_hmc = jr.split(key)
@@ -101,26 +104,24 @@ def sampling_experiment(
         **hmc_kwargs,
     )
 
-    flat_init_states, _ = flatten_util.ravel_pytree(init_states)
+    flat_init_states, _ = ravel_pytree(init_states)
     flat_init_states.block_until_ready()
 
     warm_up_time = perf_counter()
-    print(f"Warm Up Time: {warm_up_time - start_time:.4f}")
+    print(f"Warm Up Time: {warm_up_time - start_time:.2f}s")
 
     hmc_samples, infos = hmc.run(
         init_states, num_hmc_samples, key=key_hmc, hmc_params=hmc_params
     )
 
-    print(f"Sampling Time: {perf_counter() - warm_up_time:.4f}")
+    print(f"Sampling Time: {perf_counter() - warm_up_time:.2f}s")
     print_infos(infos)
-    print("------------------------")
 
-    file_name = f"reaction={reaction},noise={experimental_noise},seed={seed}"
+    if save:
+        file_name = f"reaction={reaction},noise={percentage_noise},seed={seed}"
 
-    flat_hmc_samples, unravel_hmc = ravel_pytree(hmc_samples)
-    flat_rwmh_samples, unravel_rwmh = ravel_pytree(rwmh_samples)
+        flat_hmc_samples, unravel_hmc = ravel_pytree(hmc_samples)
+        flat_rwmh_samples, unravel_rwmh = ravel_pytree(rwmh_samples)
 
-    with gzip.open(f"./data/sampling/{file_name}.pkl.gz", "wb") as f:
-        pickle.dump({"hmc": hmc_samples, "rwmh": rwmh_samples}, f)
-
-    print("================================================")
+        with gzip.open(f"./data/sampling/{file_name}.pkl.gz", "wb") as f:
+            pickle.dump({"hmc": hmc_samples, "rwmh": rwmh_samples}, f)

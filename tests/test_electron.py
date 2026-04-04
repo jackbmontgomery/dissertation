@@ -19,7 +19,7 @@ def e_reaction():
     params = ElectronReactionParams(
         alpha=jnp.array(0.7),
         K0=jnp.array(1.0),
-        Ef=jnp.array(0.0),
+        thetaf=jnp.array(0.0),
     )
 
     _, out = fdm_solver.solve(params)

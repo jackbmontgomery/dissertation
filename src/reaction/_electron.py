@@ -1,10 +1,9 @@
 import jax.numpy as jnp
-import jax.random as jr
 from chex import PRNGKey
 
 from src.params import ElectronReactionParams
 
-from ._base import AbstractReaction
+from ._base import AbstractReaction, latin_hypercube
 
 
 class ElectronReaction(AbstractReaction):
@@ -13,25 +12,21 @@ class ElectronReaction(AbstractReaction):
         return ElectronReactionParams(
             alpha=jnp.array(0.6),
             K0=jnp.array(10.0),
-            Ef=jnp.array(0.5),
+            thetaf=jnp.array(0.5),
         )
 
     def __str__(self) -> str:
         return "ElectronReaction"
 
-    def create_init_params(self, key: PRNGKey, num: int):
-        k1, k2, k3 = jr.split(key, 3)
+    def create_init_params(self, key: PRNGKey, num: int, scale: float = 2.0):
+        true_p = self.true_parameters
+        centre = jnp.array([true_p._alpha_inv, true_p._K0_inv, true_p._thetaf_inv])
 
-        alpha_vals = jnp.linspace(0.5, 0.7, num)
-        K0_vals = jnp.linspace(5.0, 20.0, num)
-        Ef_vals = jnp.linspace(0.0, 1.0, num)
+        unit = latin_hypercube(key, num, num_dims=3)
+        samples = centre + scale * (2 * unit - 1)
 
-        alpha = jr.permutation(k1, alpha_vals)
-        K0 = jr.permutation(k2, K0_vals)
-        Ef = jr.permutation(k3, Ef_vals)
-
-        return ElectronReactionParams(
-            alpha=alpha,
-            K0=K0,
-            Ef=Ef,
+        return ElectronReactionParams.from_transformed(
+            alpha_inv=samples[:, 0],
+            K0_inv=samples[:, 1],
+            thetaf_inv=samples[:, 2],
         )

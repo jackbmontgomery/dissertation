@@ -17,10 +17,10 @@ def heterogeneous_reaction():
     params = HeterogenousReactionParams(
         alpha_1=jnp.array(0.7),
         K0_1=jnp.array(1.0),
-        Ef_1=jnp.array(0.0),
+        thetaf_1=jnp.array(0.0),
         alpha_2=jnp.array(0.0),
         K0_2=jnp.array(0.0),
-        Ef_2=jnp.array(0.0),
+        thetaf_2=jnp.array(0.0),
         K_het=jnp.array(0.0),
     )
 

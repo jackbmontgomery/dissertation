@@ -22,10 +22,13 @@ class AdamMinimiseCarry:
 def generate_noisy_samples(
     num_samples: int,
     current: Scalar,
-    sigma: float,
+    percentage_noise: float,
     *,
     key: PRNGKeyArray,
 ):
+    max_current = jnp.min(current)
+    sigma = percentage_noise * max_current
+
     def add_noise(r_key: PRNGKeyArray, current=current):
         noisy_current = current + jr.normal(r_key, shape=current.shape) * sigma
         return noisy_current
@@ -68,14 +71,5 @@ def adam_minimise(
     return final_carry.params, log_likelihood, params_path
 
 
-def batch_ess(chain, end_indices):
-    max_len = chain.shape[1]
-
-    def ess_at_index(end_idx):
-        mask = jnp.arange(max_len)[None, :] < end_idx
-        counts = mask.sum(axis=1, keepdims=True)
-        mu = (chain * mask).sum(axis=1, keepdims=True) / counts
-        masked_chain = jnp.where(mask, chain, mu)
-        return blackjax.diagnostics.effective_sample_size(masked_chain)
-
-    return vmap(ess_at_index)(end_indices)
+def pretty_header(text, width=60, char="="):
+    return f"{f' {text} ':{char}^{width}}"

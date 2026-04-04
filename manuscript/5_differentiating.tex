@@ -167,28 +167,22 @@ the same number of iterations, each iteration comprising one ADAM update
 or one CMA-ES generation of four candidates.
 
 \Cref{fig:electron-optim} shows the log-posterior density over the course
-of the optimisation at two noise levels ($\varsigma = 0.25$ and
-$\varsigma = 0.5$). Each algorithm is run from $32$~initial conditions
+of the optimisation at two noise levels ($\eta = 0.01$ and
+$\eta = 0.02$). Each algorithm is run from $32$~initial conditions
 drawn uniformly from a physically reasonable region of the parameter
 space; solid lines show the mean and shaded regions indicate one standard
 deviation across these runs. Both methods converge toward the posterior
 mode, but ADAM does so more rapidly and with markedly lower variance
 across initialisations, indicating greater robustness to starting
-conditions. At $\varsigma = 0.5$ the increased noise flattens the
-likelihood surface, making the optimisation harder for both methods;
-CMA-ES exhibits wider spread and slower convergence in this regime,
-whereas ADAM remains comparatively stable. Importantly, once ADAM reaches
-the high-density region it remains there with little fluctuation,
-confirming the stability required for a reliable initialisation of the
-subsequent MCMC sampling.
+conditions.
 
 \begin{figure}[ht]
   \begin{center}
     \includegraphics[width=0.95\textwidth]{figures/5-optim.png}
   \end{center}
   \caption{Log-posterior density during optimisation for ADAM (blue) and
-    CMA-ES (orange) at noise levels $\varsigma = 0.25$ (left) and
-    $\varsigma = 0.5$ (right). Each algorithm is run from
+    CMA-ES at noise levels $\eta = 0.02$  and $\eta = 0.01$.
+    Each algorithm is run from
     $32$~randomly drawn initial conditions; solid lines show the mean
     and shaded regions indicate $\pm 1$ standard deviation across runs.
     The dashed red line marks the log-density evaluated at five times the true

@@ -1,5 +1,6 @@
 import gzip
 import pickle
+from typing import Callable
 
 import blackjax
 import jax.numpy as jnp
@@ -7,7 +8,7 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from matplotlib.patches import Patch
+from jax import jit
 
 from src.fdm import ElectronReactionFDSolver, HeterogeneousReactionFDSolver
 from src.params import ElectronReactionParams, HeterogenousReactionParams
@@ -15,23 +16,23 @@ from src.reaction import HeterogeneousReaction
 from src.voltammetry import CyclicDC
 
 sns.set_theme()
-sns.set_context("paper", font_scale=1.5)
+sns.set_context("paper", font_scale=2)
 
 # %% Current Comparison
 
 voltammetry = CyclicDC()
 elec_fd = ElectronReactionFDSolver(voltammetry)
 elec_params = ElectronReactionParams(
-    alpha=jnp.array(0.6), K0=jnp.array(10.0), Ef=jnp.array(0.0)
+    alpha=jnp.array(0.6), K0=jnp.array(10.0), thetaf=jnp.array(0.0)
 )
 heter_fd = HeterogeneousReactionFDSolver(voltammetry)
 heter_params = HeterogenousReactionParams(
     alpha_1=jnp.array(0.6),
     K0_1=jnp.array(10.0),
-    Ef_1=jnp.array(0.0),
+    thetaf_1=jnp.array(0.0),
     alpha_2=jnp.array(0.6),
     K0_2=jnp.array(10.0),
-    Ef_2=jnp.array(0.0),
+    thetaf_2=jnp.array(0.0),
     K_het=jnp.array(5.0),
 )
 
@@ -45,40 +46,44 @@ plt.gca().invert_yaxis()
 plt.legend()
 plt.show()
 
-# %% Optimisation
+# %% Optimisation Comparison
 
-hetero_optim = np.load(
-    "./data/optimisation/reaction=HeterogeneousReaction,noise=0.25,seed=0.npz"
+electron_optim = np.load(
+    "./data/optimisation/reaction=HeterogeneousReaction,noise=0.02,seed=0.npz"
 )
 
-adam_ld = hetero_optim["adam_ld"]
-cmaes_ld = hetero_optim["cmaes_ld"]
-mode_ld = hetero_optim["mode_logdensity"]
+adam_ld = electron_optim["adam_ld"]
+cmaes_ld = electron_optim["cmaes_ld"]
+mode_ld = electron_optim["mode_logdensity"]
+iterations = jnp.arange(1, adam_ld.shape[1] + 1)
 
-for a_ld, c_ld in zip(adam_ld, cmaes_ld):
-    plt.plot(a_ld, c="C0", label="ADAM")
-    plt.plot(c_ld, c="C1", label="CMA-ES")
+a_ld_mean = jnp.mean(adam_ld, axis=0)
+a_ld_std = jnp.std(adam_ld, axis=0)
 
-legend_elements = [
-    Patch(facecolor="C0", label="ADAM"),
-    Patch(facecolor="C1", label="CMA-ES"),
-]
+c_ld_mean = jnp.mean(cmaes_ld, axis=0)
+c_ld_std = jnp.std(cmaes_ld, axis=0)
 
-plt.legend(
-    handles=legend_elements,
-    loc="lower center",
-    ncol=2,
-    frameon=False,
-)
+plt.plot(iterations, a_ld_mean, label="ADAM")
+plt.fill_between(iterations, a_ld_mean - a_ld_std, a_ld_mean + a_ld_std, alpha=0.5)
 
-plt.tight_layout(rect=(0, 0.05, 1, 1))
-plt.ylim(mode_ld * 10, 0)
+plt.plot(iterations, c_ld_mean, label="CMA-ES")
+plt.fill_between(iterations, c_ld_mean - c_ld_std, c_ld_mean + c_ld_std, alpha=0.5)
+
+plt.ylim(mode_ld * 5, 300)
+
+plt.axhline(y=mode_ld * 2, linestyle="--", c="C3")
+plt.legend()
+
+plt.ylabel("Log Density")
+plt.xlabel("Iteration")
+plt.tight_layout()
+plt.savefig("./manuscript/figures/7-optim.png", dpi=1000)
 plt.show()
 
 # %% Sampling
 
 dir = "./data/sampling"
-file = "reaction=HeterogeneousReaction,noise=0.25,seed=0.pkl.gz"
+file = "reaction=HeterogeneousReaction,noise=0.02,seed=0.pkl.gz"
 
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
@@ -94,10 +99,10 @@ gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
 
 ax_a1 = fig.add_subplot(gs[0, 0])
 ax_K1 = fig.add_subplot(gs[0, 1])
-ax_Ef1 = fig.add_subplot(gs[0, 2])
+ax_thetaf1 = fig.add_subplot(gs[0, 2])
 ax_a2 = fig.add_subplot(gs[1, 0])
 ax_K2 = fig.add_subplot(gs[1, 1])
-ax_Ef2 = fig.add_subplot(gs[1, 2])
+ax_thetaf2 = fig.add_subplot(gs[1, 2])
 
 gs_right = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[:, 3], hspace=0)
 ax_Khet = fig.add_subplot(gs_right[1, 0])
@@ -124,15 +129,15 @@ ax_K2.hist(hmc.K0_2.flatten(), **options)
 ax_K2.hist(rwmh.K0_2.flatten(), **options)
 ax_K2.axvline(x=true_params.K0_2, linestyle="--", color="black")
 
-ax_Ef1.set_title(r"$E_f^{(1)}$")
-ax_Ef1.hist(hmc.Ef_1.flatten(), **options)
-ax_Ef1.hist(rwmh.Ef_1.flatten(), **options)
-ax_Ef1.axvline(x=true_params.Ef_1, linestyle="--", color="black")
+ax_thetaf1.set_title(r"$E_f^{(1)}$")
+ax_thetaf1.hist(hmc.thetaf_1.flatten(), **options)
+ax_thetaf1.hist(rwmh.thetaf_1.flatten(), **options)
+ax_thetaf1.axvline(x=true_params.thetaf_1, linestyle="--", color="black")
 
-ax_Ef2.set_title(r"$E_f^{(2)}$")
-ax_Ef2.hist(hmc.Ef_2.flatten(), **options)
-ax_Ef2.hist(rwmh.Ef_2.flatten(), **options)
-ax_Ef2.axvline(x=true_params.Ef_2, linestyle="--", color="black")
+ax_thetaf2.set_title(r"$E_f^{(2)}$")
+ax_thetaf2.hist(hmc.thetaf_2.flatten(), **options)
+ax_thetaf2.hist(rwmh.thetaf_2.flatten(), **options)
+ax_thetaf2.axvline(x=true_params.thetaf_2, linestyle="--", color="black")
 
 ax_Khet.set_title(r"$K_{\text{het}}$")
 ax_Khet.hist(hmc.K_het.flatten(), **options)
@@ -147,7 +152,7 @@ plt.show()
 # %% ESS
 
 dir = "./data/sampling"
-file = "reaction=HeterogeneousReaction,noise=0.25,seed=0.pkl.gz"
+file = "reaction=HeterogeneousReaction,noise=0.02,seed=0.pkl.gz"
 
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
@@ -172,22 +177,24 @@ rwmh_end_idx = jnp.linspace(
 hmc_ess = np.zeros(shape=(7, num_points))
 rwmh_ess = np.zeros(shape=(7, num_points))
 
-for i, (h_ei, r_ei) in enumerate(zip(hmc_end_idx, rwmh_end_idx)):
-    hmc_ess[0, i] = blackjax.diagnostics.effective_sample_size(hmc.alpha_1[:, :h_ei])
-    hmc_ess[1, i] = blackjax.diagnostics.effective_sample_size(hmc.K0_1[:, :h_ei])
-    hmc_ess[2, i] = blackjax.diagnostics.effective_sample_size(hmc.Ef_1[:, :h_ei])
-    hmc_ess[3, i] = blackjax.diagnostics.effective_sample_size(hmc.alpha_2[:, :h_ei])
-    hmc_ess[4, i] = blackjax.diagnostics.effective_sample_size(hmc.K0_2[:, :h_ei])
-    hmc_ess[5, i] = blackjax.diagnostics.effective_sample_size(hmc.Ef_2[:, :h_ei])
-    hmc_ess[6, i] = blackjax.diagnostics.effective_sample_size(hmc.K_het[:, :h_ei])
+ess_single: Callable = jit(blackjax.diagnostics.effective_sample_size)
 
-    rwmh_ess[0, i] = blackjax.diagnostics.effective_sample_size(rwmh.alpha_1[:, :r_ei])
-    rwmh_ess[1, i] = blackjax.diagnostics.effective_sample_size(rwmh.K0_1[:, :r_ei])
-    rwmh_ess[2, i] = blackjax.diagnostics.effective_sample_size(rwmh.Ef_1[:, :r_ei])
-    rwmh_ess[3, i] = blackjax.diagnostics.effective_sample_size(rwmh.alpha_2[:, :r_ei])
-    rwmh_ess[4, i] = blackjax.diagnostics.effective_sample_size(rwmh.K0_2[:, :r_ei])
-    rwmh_ess[5, i] = blackjax.diagnostics.effective_sample_size(rwmh.Ef_2[:, :r_ei])
-    rwmh_ess[6, i] = blackjax.diagnostics.effective_sample_size(rwmh.K_het[:, :r_ei])
+for i, (h_ei, r_ei) in enumerate(zip(hmc_end_idx, rwmh_end_idx)):
+    hmc_ess[0, i] = ess_single(hmc.alpha_1[:, :h_ei])
+    hmc_ess[1, i] = ess_single(hmc.K0_1[:, :h_ei])
+    hmc_ess[2, i] = ess_single(hmc.thetaf_1[:, :h_ei])
+    hmc_ess[3, i] = ess_single(hmc.alpha_2[:, :h_ei])
+    hmc_ess[4, i] = ess_single(hmc.K0_2[:, :h_ei])
+    hmc_ess[5, i] = ess_single(hmc.thetaf_2[:, :h_ei])
+    hmc_ess[6, i] = ess_single(hmc.K_het[:, :h_ei])
+
+    rwmh_ess[0, i] = ess_single(rwmh.alpha_1[:, :r_ei])
+    rwmh_ess[1, i] = ess_single(rwmh.K0_1[:, :r_ei])
+    rwmh_ess[2, i] = ess_single(rwmh.thetaf_1[:, :r_ei])
+    rwmh_ess[3, i] = ess_single(rwmh.alpha_2[:, :r_ei])
+    rwmh_ess[4, i] = ess_single(rwmh.K0_2[:, :r_ei])
+    rwmh_ess[5, i] = ess_single(rwmh.thetaf_2[:, :r_ei])
+    rwmh_ess[6, i] = ess_single(rwmh.K_het[:, :r_ei])
 
 # %%  Plot ESS
 
@@ -202,8 +209,8 @@ ax_a1.set_ylabel("ESS")
 ax_K1 = fig.add_subplot(gs[0, 1])
 ax_K1.set_title(r"$K_0^{(1)}$")
 
-ax_Ef1 = fig.add_subplot(gs[0, 2])
-ax_Ef1.set_title(r"$E_f^{(1)}$")
+ax_thetaf1 = fig.add_subplot(gs[0, 2])
+ax_thetaf1.set_title(r"$E_f^{(1)}$")
 
 ax_a2 = fig.add_subplot(gs[1, 0])
 ax_a2.set_title(r"$\alpha^{(2)}$")
@@ -214,16 +221,16 @@ ax_K2 = fig.add_subplot(gs[1, 1])
 ax_K2.set_title(r"$K_0^{(2)}$")
 ax_K2.set_xlabel("Sample Proportion")
 
-ax_Ef2 = fig.add_subplot(gs[1, 2])
-ax_Ef2.set_title(r"$E_f^{(2)}$")
-ax_Ef2.set_xlabel("Sample Proportion")
+ax_thetaf2 = fig.add_subplot(gs[1, 2])
+ax_thetaf2.set_title(r"$E_f^{(2)}$")
+ax_thetaf2.set_xlabel("Sample Proportion")
 
 gs_right = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[:, 3], hspace=0)
 ax_Khet = fig.add_subplot(gs_right[1, 0])
 ax_Khet.set_title(r"$K_{\text{het}}$")
 ax_Khet.set_xlabel("Sample Proportion")
 
-axs = [ax_a1, ax_K1, ax_Ef1, ax_a2, ax_K2, ax_Ef2, ax_Khet]
+axs = [ax_a1, ax_K1, ax_thetaf1, ax_a2, ax_K2, ax_thetaf2, ax_Khet]
 
 idx = jnp.linspace(1 / num_points, 1, num_points)
 
@@ -232,5 +239,19 @@ for i, ax in enumerate(axs):
     ax.plot(idx, rwmh_ess[i, :], label="RWMH")
 
 handles, labels = ax_a1.get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower right", ncol=1)
+fig.legend(handles, labels, loc="lower right", ncol=2)
 plt.show()
+
+
+# %%
+
+params = ["alpha_1", "K0_1", "thetaf_1", "alpha_2", "K0_2", "thetaf_2", "K_het"]
+
+for param in params:
+    hmc_rhat = float(
+        blackjax.diagnostics.potential_scale_reduction(getattr(hmc, param))
+    )
+    rwmh_rhat = float(
+        blackjax.diagnostics.potential_scale_reduction(getattr(rwmh, param))
+    )
+    print(f"{hmc_rhat:.4f} & {rwmh_rhat:.4f}")

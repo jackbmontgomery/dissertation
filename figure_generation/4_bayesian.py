@@ -17,26 +17,36 @@ sns.set_context("paper", font_scale=1.5)
 key = jr.key(0)
 
 # %% Noisy Samples
+fig, axs = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
+
 samples_key, sampling_key, key = jr.split(key, 3)
 cyclic_dc = CyclicDC()
 fd_solver = ElectronReactionFDSolver(cyclic_dc)
 true_params = ElectronReactionParams(
     alpha=jnp.array(0.6),
     K0=jnp.array(10.0),
-    Ef=jnp.array(0.0),
+    thetaf=jnp.array(0.0),
 )
 init_params = ElectronReactionParams(
-    alpha=jnp.array(0.5), K0=jnp.array(15.0), Ef=jnp.array(0.5)
+    alpha=jnp.array(0.5), K0=jnp.array(15.0), thetaf=jnp.array(0.5)
 )
 
-_, base_current = fd_solver.solve(true_params)
-experimental_samples = generate_noisy_samples(5, base_current, 0.25, key=samples_key)
+all_noise = [0.01, 0.02]
 
-for i, sample in enumerate(experimental_samples):
-    plt.plot(fd_solver.applied_potentials, sample, label=i)
+for noise, ax in zip(all_noise, axs):
+    ax.set_title(rf"$\eta = {noise}$")
+    _, base_current = fd_solver.solve(true_params)
+    experimental_samples = generate_noisy_samples(
+        5, base_current, noise, key=samples_key
+    )
 
-plt.ylabel(r"$J$")
-plt.xlabel(r"$\theta$")
+    for i, sample in enumerate(experimental_samples):
+        ax.plot(fd_solver.applied_potentials, sample)
+
+axs[0].set_ylabel(r"$J$")
+axs[0].set_xlabel(r"$\theta$")
+axs[1].set_xlabel(r"$\theta$")
+
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.tight_layout()
@@ -51,14 +61,14 @@ fd_solver = ElectronReactionFDSolver(cyclic_dc)
 true_params = ElectronReactionParams(
     alpha=jnp.array(0.6),
     K0=jnp.array(10.0),
-    Ef=jnp.array(0.0),
+    thetaf=jnp.array(0.0),
 )
 init_params = ElectronReactionParams(
-    alpha=jnp.array(0.5), K0=jnp.array(15.0), Ef=jnp.array(0.5)
+    alpha=jnp.array(0.5), K0=jnp.array(15.0), thetaf=jnp.array(0.5)
 )
 
 _, base_current = fd_solver.solve(true_params)
-experimental_samples = generate_noisy_samples(10, base_current, 0.25, key=samples_key)
+experimental_samples = generate_noisy_samples(10, base_current, 0.02, key=samples_key)
 
 
 def log_density(params: ElectronReactionParams, samples=experimental_samples):
@@ -87,7 +97,7 @@ ax2.hist(samples.K0, **options)
 ax2.axvline(x=true_params.K0, linestyle="--", color="black")
 ax3.set_title(r"$\theta_f^0$")
 ax3.hist(samples.Ef, **options)
-ax3.axvline(x=true_params.Ef, linestyle="--", color="black")
+ax3.axvline(x=true_params.thetaf, linestyle="--", color="black")
 
 handles, labels = ax1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2)

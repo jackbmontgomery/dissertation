@@ -16,7 +16,7 @@ key = jr.key(0)
 # %% Applied Potential and Voltammagram
 
 true_params = ElectronReactionParams(
-    alpha=jnp.array(0.6), K0=jnp.array(1e6), Ef=jnp.array(0.0)
+    alpha=jnp.array(0.6), K0=jnp.array(1e6), thetaf=jnp.array(0.0)
 )
 
 voltammetry = CyclicDC()
@@ -48,7 +48,7 @@ plt.show()
 # %% Effect of parameters using a baseline quasi-reversible reaction
 
 rev_params = ElectronReactionParams(
-    alpha=jnp.array(0.6), K0=jnp.array(10.0), Ef=jnp.array(0.5)
+    alpha=jnp.array(0.6), K0=jnp.array(10.0), thetaf=jnp.array(0.5)
 )
 
 voltammetry = CyclicDC()
@@ -61,7 +61,7 @@ alpha_range = jnp.array([0.3, 0.5, 0.7])
 alpha_params = ElectronReactionParams(
     alpha=alpha_range,
     K0=jnp.full_like(alpha_range, rev_params.K0),
-    Ef=jnp.full_like(alpha_range, rev_params.Ef),
+    thetaf=jnp.full_like(alpha_range, rev_params.thetaf),
 )
 
 _, alpha_currents = vmap(fd_solver.solve)(alpha_params)
@@ -73,7 +73,7 @@ K0_range = jnp.array([1.0, 10.0, 50.0])
 K0_params = ElectronReactionParams(
     alpha=jnp.full_like(K0_range, rev_params.alpha),
     K0=K0_range,
-    Ef=jnp.full_like(K0_range, rev_params.Ef),
+    thetaf=jnp.full_like(K0_range, rev_params.thetaf),
 )
 
 _, K0_currents = vmap(fd_solver.solve)(K0_params)
@@ -85,7 +85,7 @@ Ef_range = jnp.array([-1.0, 0.0, 1.0])
 Ef_params = ElectronReactionParams(
     alpha=jnp.full_like(Ef_range, rev_params.alpha),
     K0=jnp.full_like(Ef_range, rev_params.K0),
-    Ef=Ef_range,
+    thetaf=Ef_range,
 )
 
 _, Ef_currents = vmap(fd_solver.solve)(Ef_params)
@@ -114,7 +114,7 @@ plt.show()
 # %% Effect of parameters using a baseline reversible reaction
 
 rev_params = ElectronReactionParams(
-    alpha=jnp.array(0.6), K0=jnp.array(200.0), Ef=jnp.array(0.5)
+    alpha=jnp.array(0.6), K0=jnp.array(200.0), thetaf=jnp.array(0.5)
 )
 
 voltammetry = CyclicDC()
@@ -125,7 +125,7 @@ alpha_range = jnp.array([0.3, 0.5, 0.7])
 alpha_params = ElectronReactionParams(
     alpha=alpha_range,
     K0=jnp.full_like(alpha_range, rev_params.K0),
-    Ef=jnp.full_like(alpha_range, rev_params.Ef),
+    thetaf=jnp.full_like(alpha_range, rev_params.thetaf),
 )
 
 _, alpha_currents = vmap(fd_solver.solve)(alpha_params)

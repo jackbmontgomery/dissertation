@@ -1,13 +1,14 @@
+from functools import partial
 from typing import Callable, Tuple
 
 import jax.numpy as jnp
 from chex import dataclass
-from jax import vmap
+from jax import jit, vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
-from src.params import AdsorptionReactionParams
 from src.linear_solvers import pentadiagonal_solve
+from src.params import AdsorptionReactionParams
 from src.utils import interleave_concat_2d
 from src.voltammetry import AbstractVoltammetryTechnique
 
@@ -33,9 +34,9 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h0: float = 1e-5,
+        h0: float = 1e-4,
         omega: float = 1.1,
-        dtheta: float = 5e-2,
+        dtheta: float = 5e-1,
     ):
         T, dt, X, alpha_inner, gamma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega
@@ -49,7 +50,6 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
         self.alpha_inner = alpha_inner
         self.gamma_inner = gamma_inner
 
-        # Dimensionless Saturation Parameter
         self.beta = 1.0
 
         self.d_right = jnp.concat(
@@ -73,113 +73,65 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
         dcA_dx = (h2**2 * (c0_A - c1_A) + h1**2 * (c2_A - c0_A)) / (h1 * h2 * (h1 - h2))
         dgA_dt = jnp.gradient(sol[:, 0], self.dt)
 
-        return -(dcA_dx - dgA_dt / self.beta)  # ty: ignore[unsupported-operator]
+        return -(dcA_dx - dgA_dt / self.beta)
 
     def create_stepper(self, params: AdsorptionReactionParams) -> Callable:
         d2l_inner = interleave_concat_2d(self.alpha_inner, self.alpha_inner)
-
         d2u_inner = interleave_concat_2d(self.gamma_inner, self.gamma_inner)
 
+        N = 2 * self.Nx + 2
+
+        d2l = jnp.zeros(N - 2)
+        d2l = d2l.at[0].set(self.h0 * params.K_A_des)
+        d2l = d2l.at[1].set(self.h0 * params.K_B_des)
+        d2l = d2l.at[2 : 2 + len(d2l_inner)].set(d2l_inner)
+
+        d2u = jnp.zeros(N - 2)
+        d2u = d2u.at[0].set(-self.dt * params.K_A_ads * self.beta)
+        d2u = d2u.at[1].set(-self.dt * params.K_B_ads * self.beta)
+        d2u = d2u.at[2].set(1.0)
+        d2u = d2u.at[3].set(1.0)
+        d2u = d2u.at[4 : 4 + len(d2u_inner)].set(d2u_inner)
+
+        dl_template = jnp.zeros(N - 1)
+
+        d_template = jnp.zeros(N)
+        d_template = d_template.at[4:].set(self.d_right)
+
+        du_template = jnp.zeros(N - 1)
+
+        rhs_bc = jnp.zeros(N)
+        rhs_bc = rhs_bc.at[-2].set(1.0)
+        rhs_bc = rhs_bc.at[-1].set(0.0)
+
+        dt_K_A_ads_beta = self.dt * params.K_A_ads * self.beta
+        dt_K_B_ads_beta = self.dt * params.K_B_ads * self.beta
+        h0_K_A_ads = self.h0 * params.K_A_ads
+        h0_K_B_ads = self.h0 * params.K_B_ads
+        dt_K_A_des_beta = self.dt * params.K_A_des * self.beta
+        dt_K_B_des_beta = self.dt * params.K_B_des * self.beta
+
         def stepper(sol_prev: Scalar, x: ScanInputSequence):
-            d2l = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            0.0,
-                            0.0,
-                            self.h0 * params.K_A_des,
-                            self.h0 * params.K_B_des,
-                        ]
-                    ),
-                    d2l_inner,
-                    jnp.array([0.0, 0.0]),
-                ]
-            )
+            dl = dl_template.at[0].set(-self.dt * x.K_red_ads)
+            dl = dl.at[2].set(self.h0 * x.K_red_sol)
 
-            dl = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            0.0,
-                            -self.dt * x.K_red_ads,
-                            0.0,
-                            self.h0 * x.K_red_sol,
-                        ]
-                    ),
-                    jnp.zeros(2 * self.Nx - 2),
-                ]
-            )
+            d = d_template.at[0].set(1.0 + self.dt * x.K_red_ads + dt_K_A_des_beta)
+            d = d.at[1].set(1.0 + self.dt * x.K_ox_ads + dt_K_B_des_beta)
+            d = d.at[2].set(-1.0 - self.h0 * x.K_red_sol - h0_K_A_ads)
+            d = d.at[3].set(-1.0 - self.h0 * x.K_ox_sol - h0_K_B_ads)
 
-            d = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            1.0
-                            + self.dt * x.K_red_ads
-                            + self.dt * params.K_A_des * self.beta,
-                            1.0
-                            + self.dt * x.K_ox_ads
-                            + self.dt * params.K_B_des * self.beta,
-                            -1.0 - self.h0 * x.K_red_sol - self.h0 * params.K_A_ads,
-                            -1.0 - self.h0 * x.K_ox_sol - self.h0 * params.K_B_ads,
-                        ]
-                    ),
-                    self.d_right,
-                ]
-            )
+            du = du_template.at[0].set(-self.dt * x.K_ox_ads)
+            du = du.at[2].set(self.h0 * x.K_ox_sol)
 
-            du = jnp.concat(
-                [
-                    jnp.array([-self.dt * x.K_ox_ads, 0.0, self.h0 * x.K_ox_sol, 0.0]),
-                    jnp.zeros(2 * self.Nx - 2),
-                ]
-            )
+            phi_sum = sol_prev[0] + sol_prev[1]
 
-            d2u = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            -self.dt * params.K_A_ads * self.beta,
-                            -self.dt * params.K_B_ads * self.beta,
-                            1.0,
-                            1.0,
-                        ]
-                    ),
-                    d2u_inner,
-                    jnp.array([0.0, 0.0]),
-                ]
+            rhs = rhs_bc.at[0].set(
+                sol_prev[0] - dt_K_A_ads_beta * sol_prev[2] * phi_sum
             )
-
-            rhs = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            sol_prev[0]
-                            - self.dt
-                            * params.K_A_ads
-                            * self.beta
-                            * sol_prev[2]
-                            * (sol_prev[0] + sol_prev[1]),
-                            sol_prev[1]
-                            - self.dt
-                            * params.K_B_ads
-                            * self.beta
-                            * sol_prev[3]
-                            * (sol_prev[0] + sol_prev[1]),
-                            -self.h0
-                            * params.K_A_ads
-                            * sol_prev[2]
-                            * (sol_prev[0] + sol_prev[1]),
-                            -self.h0
-                            * params.K_B_ads
-                            * sol_prev[3]
-                            * (sol_prev[0] + sol_prev[1]),
-                        ]
-                    ),
-                    sol_prev[4:-2],
-                    jnp.array([1.0, 0.0]),
-                ]
-            )
+            rhs = rhs.at[1].set(sol_prev[1] - dt_K_B_ads_beta * sol_prev[3] * phi_sum)
+            rhs = rhs.at[2].set(-h0_K_A_ads * sol_prev[2] * phi_sum)
+            rhs = rhs.at[3].set(-h0_K_B_ads * sol_prev[3] * phi_sum)
+            rhs = rhs.at[4:-2].set(sol_prev[4:-2])
 
             sol = pentadiagonal_solve(d2l, dl, d, du, d2u, rhs)
 
@@ -187,6 +139,7 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
 
         return stepper
 
+    @partial(jit, static_argnums=(0,))
     def solve(self, params: AdsorptionReactionParams) -> Tuple[Array, Scalar]:
         stepper = self.create_stepper(params)
 
@@ -202,19 +155,19 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
         init_sol = jnp.concat([phi_init, c_init])
 
         K_red_ads = params.K0_ads * jnp.exp(
-            -params.alpha_ads * (self.applied_potentials - params.Ef_ads)
+            -params.alpha_ads * (self.applied_potentials - params.thetaf_ads)
         )
 
         K_ox_ads = params.K0_ads * jnp.exp(
-            (1 - params.alpha_ads) * (self.applied_potentials - params.Ef_ads)
+            (1 - params.alpha_ads) * (self.applied_potentials - params.thetaf_ads)
         )
 
         K_red_sol = params.K0_sol * jnp.exp(
-            -params.alpha_sol * (self.applied_potentials - params.Ef_sol)
+            -params.alpha_sol * (self.applied_potentials - params.thetaf_sol)
         )
 
         K_ox_sol = params.K0_sol * jnp.exp(
-            (1 - params.alpha_sol) * (self.applied_potentials - params.Ef_sol)
+            (1 - params.alpha_sol) * (self.applied_potentials - params.thetaf_sol)
         )
 
         xs = ScanInputSequence(

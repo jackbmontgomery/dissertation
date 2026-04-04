@@ -9,9 +9,8 @@ from jaxtyping import PRNGKeyArray, Scalar
 
 from src.optimisers import make_adam_optimise
 from src.params import Params
-from src.samplers._base import AbstractSampler
 
-from ._base import LogDensity, inference_loop_multiple_chains
+from ._base import AbstractSampler, LogDensity, inference_loop_multiple_chains
 
 
 class RWMHSampler(AbstractSampler):
