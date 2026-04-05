@@ -15,6 +15,10 @@ class ElectronReaction(AbstractReaction):
             thetaf=jnp.array(0.5),
         )
 
+    @property
+    def parameter_dim(self) -> int:
+        return 3
+
     def __str__(self) -> str:
         return "ElectronReaction"
 

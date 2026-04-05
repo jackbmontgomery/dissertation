@@ -1,23 +1,21 @@
-import multiprocessing
-import os
-
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
-    multiprocessing.cpu_count()
-)
-
 import gzip
+import multiprocessing
 import pickle
 from time import perf_counter
 from typing import Dict
 
+import blackjax
 import jax.numpy as jnp
 import jax.random as jr
+import jax.tree_util as jtu
+from jax import vmap
 from jax.flatten_util import ravel_pytree
 
 from src.fdm import AbstractFDSolver
+from src.optimisers import make_adam_optimise
 from src.params import Params
 from src.reaction import AbstractReaction
-from src.sampling import HMCSampler, RWMHSampler
+from src.sampling import NUTSSampler, RWMHSampler
 from src.utils import generate_noisy_samples, pretty_header
 
 
@@ -29,33 +27,34 @@ def print_infos(info: Dict):
 def sampling_experiment(
     reaction: AbstractReaction,
     sampling_fd_solver: AbstractFDSolver,
-    num_chains: int,
-    num_experimental_samples: int = 10,
-    percentage_noise: float = 0.02,
     *,
-    num_rwmh_samples: int,
-    rwmh_kwargs: Dict,
-    num_hmc_samples: int,
-    hmc_kwargs: Dict,
-    seed: int,
-    warmup_learning_rate: float = 1e-2,
-    warmup_steps: int = 250,
     data_fd_solver: AbstractFDSolver | None = None,
+    num_experimental_samples: int = 10,
+    experimental_noise: float = 0.02,
+    num_chains: int = multiprocessing.cpu_count(),
+    optim_learning_rate: float = 1e-1,
+    optim_steps: int = 250,
+    warmup_step_size: float = 1e-2,
+    rwmh_scale_factor: float = 50.0,
+    num_rwmh_samples: int,
+    num_nuts_samples: int,
+    seed: int,
     save: bool,
 ):
     if data_fd_solver is None:
         data_fd_solver = sampling_fd_solver
 
     print(pretty_header(reaction))
+
     key = jr.key(seed)
-    key_samples, key_init = jr.split(key, 2)
+    key_samples, key_warmup, key_init = jr.split(key, 3)
 
     _, base_current = data_fd_solver.solve(reaction.true_parameters)
 
     experimental_samples = generate_noisy_samples(
         num_experimental_samples,
         base_current,
-        percentage_noise,
+        experimental_noise,
         key=key_samples,
     )
 
@@ -65,63 +64,89 @@ def sampling_experiment(
 
     init_params = reaction.create_init_params(key_init, num_chains)
 
+    print(pretty_header("ADAM Optimisation", char="~"))
+    adam_start_time = perf_counter()
+
+    adam_minimise = make_adam_optimise(
+        num_steps=optim_steps,
+        log_density=logdensity_fn,
+        learning_rate=optim_learning_rate,
+    )
+
+    optimised_parameters, log_densities, _ = vmap(adam_minimise)(init_params)
+    log_densities.block_until_ready()
+
+    print(f"Optimisation Time: {perf_counter() - adam_start_time:.2f}s")
+    print("Final Log Densities:")
+    print(log_densities[:, -1])
+
+    best_idx = jnp.argmax(log_densities[:, -1])
+    best_params = jtu.tree_map(lambda x: x[best_idx], optimised_parameters)
+
+    print(pretty_header("Window Adaption", char="~"))
+
+    adaption_start_time = perf_counter()
+
+    warmup = blackjax.window_adaptation(
+        blackjax.nuts,
+        logdensity_fn,
+        is_mass_matrix_diagonal=False,
+        initial_step_size=warmup_step_size,
+    )
+
+    (last_states, window_adaption_params), _ = warmup.run(key_warmup, best_params)
+
+    flat_last_states, _ = ravel_pytree(last_states)
+    flat_last_states.block_until_ready()
+
+    print(f"Adaption Time: {perf_counter() - adaption_start_time:.2f}s")
+    print("Adapted Params:")
+    print(f"Step size: {window_adaption_params['step_size']:.2f}")
+    print(f"Inverse Mass Matrix:\n {window_adaption_params['inverse_mass_matrix']}")
+
     print(pretty_header("RWMH", char="-"))
-    start_time = perf_counter()
+    rwmh_start_time = perf_counter()
+
+    # Roberts, Gelman & Gilks (1997): optimal RWMH proposal covariance
+    # is (2.38^2 / D) * Sigma_target, targeting ~23.4% acceptance rate
+    scale = (2.38**2) / reaction.parameter_dim
+    sigma_rwmh = (
+        rwmh_scale_factor * scale * window_adaption_params["inverse_mass_matrix"]
+    )
 
     key, key_rwmh = jr.split(key)
 
-    rwmh = RWMHSampler(logdensity_fn, num_chains)
+    rwmh = RWMHSampler(logdensity_fn, num_rwmh_samples, num_chains)
 
-    init_states, _ = rwmh.warmup(
-        init_params, learning_rate=warmup_learning_rate, steps=warmup_steps
-    )
+    rwmh_params = {"random_step": blackjax.mcmc.random_walk.normal(sigma_rwmh)}
 
-    flat_init_states, _ = ravel_pytree(init_states)
-    flat_init_states.block_until_ready()
+    rwmh_samples, infos = rwmh.run(optimised_parameters, rwmh_params, key=key_rwmh)
 
-    warm_up_time = perf_counter()
+    flat_rwmh_samples, _ = ravel_pytree(rwmh_samples)
+    flat_rwmh_samples.block_until_ready()
 
-    print(f"Warm Up Time: {warm_up_time - start_time:.2f}s")
-    rwmh_samples, infos = rwmh.run(
-        init_states, num_rwmh_samples, key=key_rwmh, **rwmh_kwargs
-    )
-
-    print(f"Sampling Time: {perf_counter() - warm_up_time:.2f}s")
+    print(f"Sampling Time: {perf_counter() - rwmh_start_time:.2f}s")
     print_infos(infos)
 
-    print(pretty_header("HMC", char="-"))
-    start_time = perf_counter()
+    print(pretty_header("NUTS", char="-"))
 
     key, key_hmc = jr.split(key)
-    hmc = HMCSampler(logdensity_fn, num_chains)
+    nuts = NUTSSampler(logdensity_fn, num_nuts_samples, num_chains)
 
-    key_warmup, key_hmc = jr.split(key, 2)
-    init_states, hmc_params = hmc.warmup(
-        init_params,
-        learning_rate=warmup_learning_rate,
-        steps=warmup_steps,
-        key=key_warmup,
-        **hmc_kwargs,
+    nuts_start_time = perf_counter()
+
+    nuts_samples, infos = nuts.run(
+        optimised_parameters, window_adaption_params, key=key_hmc
     )
 
-    flat_init_states, _ = ravel_pytree(init_states)
-    flat_init_states.block_until_ready()
+    flat_nuts_samples, _ = ravel_pytree(rwmh_samples)
+    flat_nuts_samples.block_until_ready()
 
-    warm_up_time = perf_counter()
-    print(f"Warm Up Time: {warm_up_time - start_time:.2f}s")
-
-    hmc_samples, infos = hmc.run(
-        init_states, num_hmc_samples, key=key_hmc, hmc_params=hmc_params
-    )
-
-    print(f"Sampling Time: {perf_counter() - warm_up_time:.2f}s")
+    print(f"Sampling Time: {perf_counter() - nuts_start_time:.2f}s")
     print_infos(infos)
 
     if save:
-        file_name = f"reaction={reaction},noise={percentage_noise},seed={seed}"
-
-        flat_hmc_samples, unravel_hmc = ravel_pytree(hmc_samples)
-        flat_rwmh_samples, unravel_rwmh = ravel_pytree(rwmh_samples)
+        file_name = f"reaction={reaction},noise={experimental_noise},seed={seed}"
 
         with gzip.open(f"./data/sampling/{file_name}.pkl.gz", "wb") as f:
-            pickle.dump({"hmc": hmc_samples, "rwmh": rwmh_samples}, f)
+            pickle.dump({"nuts": nuts_samples, "rwmh": rwmh_samples}, f)

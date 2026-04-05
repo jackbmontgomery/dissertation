@@ -14,34 +14,9 @@ from ._base import AbstractSampler, LogDensity, inference_loop_multiple_chains
 
 
 class HMCSampler(AbstractSampler):
-    def __init__(self, log_density: LogDensity, num_chains: int):
+    def __init__(self, log_density: LogDensity, n_samples: int, num_chains: int):
         self.log_density = log_density
-        self.num_chains = num_chains
-
-    def warmup(
-        self,
-        params: Params,
-        learning_rate: float,
-        steps: int,
-        *,
-        key: PRNGKeyArray,
-        initial_step_size: float,
-    ) -> Tuple[DynamicHMCState, Dict]:
-        warmup = blackjax.chees_adaptation(
-            self.log_density, self.num_chains, max_leapfrog_steps=200
-        )
-
-        optim = optax.adam(learning_rate)
-
-        (initial_states, hmc_params), _ = warmup.run(
-            key,
-            params,
-            step_size=initial_step_size,
-            optim=optim,
-            num_steps=steps,
-        )
-
-        return initial_states, hmc_params
+        self.samples_per_chain = n_samples // num_chains
 
     def run(
         self,

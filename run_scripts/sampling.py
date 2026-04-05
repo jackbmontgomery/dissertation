@@ -28,18 +28,13 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
         voltammetry = CyclicDC()
         fd_solver = ElectronReactionFDSolver(voltammetry)
 
-        rwmh_kwargs = {"sigma": jnp.repeat(0.025, 3)}
-        hmc_kwargs = {"initial_step_size": 1e-3}
-
         sampling_experiment(
             reaction,
             fd_solver,
-            num_chains,
+            experimental_noise=0.03,
+            rwmh_scale_factor=50.0,
             num_rwmh_samples=160_000,
-            rwmh_kwargs=rwmh_kwargs,
-            num_hmc_samples=32_000,
-            hmc_kwargs=hmc_kwargs,
-            warmup_steps=100,
+            num_nuts_samples=16_000,
             seed=seed,
             save=save,
         )
@@ -49,20 +44,15 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
         voltammetry = CyclicDC()
         fd_solver = HeterogeneousReactionFDSolver(voltammetry)
 
-        rwmh_kwargs = {"sigma": jnp.repeat(0.02, 7)}
-        hmc_kwargs = {"initial_step_size": 1e-3}
-
         sampling_experiment(
             reaction,
             fd_solver,
-            num_chains,
-            num_rwmh_samples=320_000,
-            rwmh_kwargs=rwmh_kwargs,
-            num_hmc_samples=72_000,
-            hmc_kwargs=hmc_kwargs,
-            warmup_learning_rate=1e-1,
-            warmup_steps=1000,
-            seed=seed,
+            optim_learning_rate=2e-1,
+            optim_steps=250,
+            rwmh_scale_factor=15.0,
+            num_rwmh_samples=160_000,
+            num_nuts_samples=12_000,
+            seed=seed + 1,
             save=save,
         )
 
@@ -81,7 +71,7 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             num_chains,
             num_rwmh_samples=160_000,
             rwmh_kwargs=rwmh_kwargs,
-            num_hmc_samples=64_000,
+            num_nuts_samples=64_000,
             hmc_kwargs=hmc_kwargs,
             warmup_steps=500,
             data_fd_solver=data_fd_solver,

@@ -10,19 +10,23 @@ class HeterogeneousReaction(AbstractReaction):
     @property
     def true_parameters(self) -> HeterogenousReactionParams:
         return HeterogenousReactionParams(
-            alpha_1=jnp.array(0.6),
-            K0_1=jnp.array(10.0),
-            thetaf_1=jnp.array(0.5),
-            alpha_2=jnp.array(0.4),
-            K0_2=jnp.array(5.0),
-            thetaf_2=jnp.array(0.2),
-            K_het=jnp.array(20.0),
+            alpha_1=jnp.array(0.5),
+            K0_1=jnp.array(15.0),
+            thetaf_1=jnp.array(0.2),
+            alpha_2=jnp.array(0.5),
+            K0_2=jnp.array(6.0),
+            thetaf_2=jnp.array(0.4),
+            K_het=jnp.array(25.0),
         )
+
+    @property
+    def parameter_dim(self) -> int:
+        return 7
 
     def __str__(self) -> str:
         return "HeterogeneousReaction"
 
-    def create_init_params(self, key: PRNGKey, num: int, scale: float = 1.5):
+    def create_init_params(self, key: PRNGKey, num: int, scale: float = 2.0):
         true_p = self.true_parameters
         centre = jnp.array(
             [

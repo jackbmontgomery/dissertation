@@ -13,6 +13,11 @@ class AbstractReaction(ABC):
     def true_parameters(self) -> Params:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def parameter_dim(self) -> int:
+        raise NotImplementedError
+
     @abstractmethod
     def __str__(self) -> str:
         raise NotImplementedError

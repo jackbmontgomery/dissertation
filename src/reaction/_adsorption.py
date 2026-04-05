@@ -22,6 +22,10 @@ class AdsorptionReaction(AbstractReaction):
             K_B_des=jnp.array(1.0),
         )
 
+    @property
+    def parameter_dim(self) -> int:
+        return 9
+
     def __str__(self) -> str:
         return "AdsorptionReaction"
 

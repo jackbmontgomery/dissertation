@@ -83,7 +83,7 @@ plt.show()
 # %% Sampling
 
 dir = "./data/sampling"
-file = "reaction=HeterogeneousReaction,noise=0.02,seed=0.pkl.gz"
+file = "reaction=HeterogeneousReaction,noise=0.02,seed=1.pkl.gz"
 
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
@@ -150,16 +150,6 @@ fig.legend(handles, labels, loc="lower right", ncol=1)
 plt.show()
 
 # %% ESS
-
-dir = "./data/sampling"
-file = "reaction=HeterogeneousReaction,noise=0.02,seed=0.pkl.gz"
-
-with gzip.open(f"{dir}/{file}", "rb") as f:
-    data = pickle.load(f)
-
-hmc: HeterogenousReactionParams = data["hmc"]
-rwmh: HeterogenousReactionParams = data["rwmh"]
-
 
 num_points = 20
 
