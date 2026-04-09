@@ -11,7 +11,7 @@ class AdsorptionReaction(AbstractReaction):
     @property
     def true_parameters(self) -> AdsorptionReactionParams:
         return AdsorptionReactionParams(
-            alpha_sol=jnp.array(0.4),
+            alpha_sol=jnp.array(0.5),
             K0_sol=jnp.array(1e-3),
             thetaf_sol=jnp.array(0.0),
             alpha_ads=jnp.array(0.45),

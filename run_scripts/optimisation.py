@@ -10,21 +10,23 @@ from src.reaction import AdsorptionReaction, ElectronReaction, HeterogeneousReac
 from src.voltammetry import CyclicDC
 
 
-def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
+def main(
+    name: Literal["e", "h", "a"], noise: float = 0.02, seed: int = 0, save: bool = True
+):
     if name == "e":
         voltammetry = CyclicDC()
         fd_solver = ElectronReactionFDSolver(voltammetry)
         reaction = ElectronReaction()
 
-        adam_params = {"learning_rate": 2e-1}
-        cmaes_param = {"population_size": 2}
+        adam_params = {"learning_rate": 1e-1}
+        cmaes_param = {"population_size": 4}
 
         optimisation_experiment(
             reaction,
             fd_solver,
-            num_iterations=100,
+            num_iterations=50,
             num_params=32,
-            noise_percentage=0.01,
+            noise_percentage=noise,
             cmaes_params=cmaes_param,
             adam_params=adam_params,
             seed=seed,
@@ -44,7 +46,7 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             fd_solver,
             num_iterations=250,
             num_params=32,
-            noise_percentage=0.02,
+            noise_percentage=noise,
             cmaes_params=cmaes_param,
             adam_params=adam_params,
             seed=seed,
@@ -64,7 +66,7 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             fd_solver,
             num_iterations=500,
             num_params=32,
-            noise_percentage=0.02,
+            noise_percentage=noise,
             cmaes_params=cmaes_param,
             adam_params=adam_params,
             seed=seed,

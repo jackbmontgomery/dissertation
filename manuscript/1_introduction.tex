@@ -4,23 +4,24 @@ Electrochemistry is concerned with the interplay between electrical
 potential and chemical change at the interface of an electrode and an
 electrolyte solution. A central task in electrochemical research is to
 characterise the kinetics and thermodynamics of redox reactions occurring
-at the electrode surface. Voltammetry---a family of techniques in which
+at the electrode surface. Voltammetry -- a family of techniques in which
 the current through an electrochemical cell is recorded as the applied
-potential is varied over time---is among the most widely used methods for
+potential is varied over time -- is among the most widely used methods for
 this purpose \cite{compton2014understanding}.
 
 The current response in a voltammetric experiment is governed by two
 coupled processes: the rate of electron transfer at the electrode surface
 and the transport of electroactive species through the solution. Under
-the Butler--Volmer model of electrode kinetics, the electron transfer
+the Butler--Volmer model \cite{dickinson2020butler} of electrode
+kinetics, the electron transfer
 rate depends on the applied potential through a formal
 potential~$E_f^0$, a rate constant~$k_0$, and a transfer
 coefficient~$\alpha$; the transport is described by Fick's laws of
 diffusion. Together, these yield a diffusion partial differential
 equation whose solution predicts the measured current for a given set of
-parameters---the \emph{forward problem}
-\cite{compton2014understanding}. We are concerned with the \emph{inverse
-problem}: given a measured, noisy voltammogram, recover the physical
+parameters -- the \emph{forward problem}. We are concerned with the
+\emph{inverse
+problem}: given a measured, noisy current measurement, recover the physical
 parameters that produced it. This is considerably harder. The mapping
 from parameters to current is nonlinear, distinct parameter
 configurations can produce similar voltammograms, and in certain kinetic
@@ -38,14 +39,14 @@ addresses these limitations by treating the parameters as random
 variables and seeking their posterior distribution conditioned on the
 observed data \cite{gavaghan2018bayesian}. The posterior encodes
 everything the data can and cannot tell us about the parameters, and its
-structure---marginal widths, correlations, multimodality---directly
+structure -- marginal widths, correlations, multimodality -- directly
 informs experimental design and scientific interpretation.
 
 Markov chain Monte Carlo methods are the standard computational tool for
 sampling from posterior distributions that lack closed-form expressions.
 In the electrochemical setting, each evaluation of the likelihood
 requires a numerical solution of the forward problem, so every proposed
-sample---whether accepted or rejected---incurs the cost of a PDE solve.
+sample -- whether accepted or rejected -- incurs the cost of a PDE solve.
 Gradient-free samplers such as random-walk Metropolis--Hastings explore
 the parameter space by local, undirected proposals and consequently
 reject a large fraction of candidates, particularly as the number of
@@ -70,8 +71,8 @@ derivatives at a cost that, in reverse mode, is bounded by a small
 multiple of the forward solve regardless of the number of parameters
 \cite{griewank2008evaluating}. Na\"ively applying reverse-mode
 automatic differentiation to an entire PDE solver, however, requires
-recording every intermediate operation---including every step of the
-linear system solve at each timestep---resulting in substantial memory
+recording every intermediate operation -- including every step of the
+linear system solve at each timestep -- resulting in substantial memory
 overhead. A more efficient approach is to derive a custom adjoint rule
 for the linear solve and supply it to the automatic differentiation
 framework, so that the gradient computation exploits the same banded

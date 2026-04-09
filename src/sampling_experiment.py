@@ -8,12 +8,13 @@ import blackjax
 import jax.numpy as jnp
 import jax.random as jr
 import jax.tree_util as jtu
-from jax import vmap
+from jax import tree_util, vmap
 from jax.flatten_util import ravel_pytree
+from tabulate import tabulate
 
 from src.fdm import AbstractFDSolver
 from src.optimisers import make_adam_optimise
-from src.params import Params
+from src.params import Params, param_property_names
 from src.reaction import AbstractReaction
 from src.sampling import NUTSSampler, RWMHSampler
 from src.utils import generate_noisy_samples, pretty_header
@@ -22,6 +23,29 @@ from src.utils import generate_noisy_samples, pretty_header
 def print_infos(info: Dict):
     for key, item in info.items():
         print(key, item)
+
+
+def print_optim(params, log_densities, num_chains):
+    property_names = param_property_names(params)
+    display_names = [name for name in property_names if name != "theta_sol"]
+
+    rows = []
+    for i in range(num_chains):
+        chain_params = tree_util.tree_map(lambda x: x[i], params)
+        row_data = [f"{getattr(chain_params, name):.4f}" for name in display_names]
+        row_data.append(f"{log_densities[i, -1]:.2f}")
+        rows.append(row_data)
+
+    headers = display_names + ["Log Density"]
+
+    print(
+        tabulate(
+            rows,
+            headers=headers,
+            tablefmt="fancy_grid",
+            showindex=[f"Chain {i}" for i in range(num_chains)],
+        )
+    )
 
 
 def sampling_experiment(
@@ -34,7 +58,7 @@ def sampling_experiment(
     num_chains: int = multiprocessing.cpu_count(),
     optim_learning_rate: float = 1e-1,
     optim_steps: int = 250,
-    warmup_step_size: float = 1e-2,
+    warmup_step_size: float = 5e-1,
     rwmh_scale_factor: float = 50.0,
     num_rwmh_samples: int,
     num_nuts_samples: int,
@@ -77,8 +101,7 @@ def sampling_experiment(
     log_densities.block_until_ready()
 
     print(f"Optimisation Time: {perf_counter() - adam_start_time:.2f}s")
-    print("Final Log Densities:")
-    print(log_densities[:, -1])
+    print_optim(optimised_parameters, log_densities, num_chains)
 
     best_idx = jnp.argmax(log_densities[:, -1])
     best_params = jtu.tree_map(lambda x: x[best_idx], optimised_parameters)
@@ -102,7 +125,6 @@ def sampling_experiment(
     print(f"Adaption Time: {perf_counter() - adaption_start_time:.2f}s")
     print("Adapted Params:")
     print(f"Step size: {window_adaption_params['step_size']:.2f}")
-    print(f"Inverse Mass Matrix:\n {window_adaption_params['inverse_mass_matrix']}")
 
     print(pretty_header("RWMH", char="-"))
     rwmh_start_time = perf_counter()
@@ -130,13 +152,13 @@ def sampling_experiment(
 
     print(pretty_header("NUTS", char="-"))
 
-    key, key_hmc = jr.split(key)
+    key, key_nuts = jr.split(key)
     nuts = NUTSSampler(logdensity_fn, num_nuts_samples, num_chains)
 
     nuts_start_time = perf_counter()
 
     nuts_samples, infos = nuts.run(
-        optimised_parameters, window_adaption_params, key=key_hmc
+        optimised_parameters, window_adaption_params, key=key_nuts
     )
 
     flat_nuts_samples, _ = ravel_pytree(rwmh_samples)

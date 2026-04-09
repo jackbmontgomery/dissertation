@@ -1,4 +1,4 @@
-\chapter{Electrochemical Systems}
+\chapter{Electrochemical Systems}\label{ch:electrochem}
 
 A typical electrochemical experiment uses an electrochemical cell to drive
 reduction and oxidation (redox) reactions at the surface of a working
@@ -16,7 +16,8 @@ that current.
 \begin{figure}
   \centering
   \input{figures/electrochemical-cell.tex}
-  \caption{Schematic of a three-electrode electrochemical cell. The
+  \caption[Schematic diagram of a three-electrode electrochemical
+  cell]{Schematic diagram of a three-electrode electrochemical cell. The
     potentiostat controls the potential difference between the working
     and reference electrodes whilst driving current (red) through the
     circuit formed by the working and counter electrodes via the
@@ -35,7 +36,7 @@ where species $\mathrm{A}$ is reduced --- that is, it gains one electron ---
 to form species $\mathrm{B}$. The reverse process, in which $\mathrm{B}$
 loses an electron to regenerate $\mathrm{A}$, is the corresponding
 oxidation. Throughout this chapter we restrict attention to this
-single-electron ($n = 1$) process and adopt the convention that a
+single-electron process and adopt the convention that a
 \emph{positive} current corresponds to net reduction (cathodic current).
 
 \section{Voltammetry}
@@ -44,8 +45,8 @@ Voltammetry is the class of electroanalytical techniques in which the
 potential applied to the working electrode is varied in a prescribed
 manner and the resulting current is recorded. Because the current is
 directly related to the rate of the electrochemical reaction at the
-electrode surface, the current--potential curve --- called a
-\emph{voltammogram} --- encodes information about the kinetics of the
+electrode surface, the current--potential curve -- called a
+\emph{voltammogram} -- encodes information about the kinetics of the
 redox process as well as the transport of chemical species in solution.
 
 In a cyclic voltammetry (CV) experiment the applied potential is swept
@@ -56,12 +57,12 @@ reached. The vertex potential is chosen sufficiently beyond the formal
 potential of the redox couple that the reaction is driven to completion at
 the electrode surface; it serves only as the turning point of the sweep.
 The potential is then swept back to~$E_i$, reversing the direction of
-electron transfer and reforming~$\mathrm{A}$. This triangular waveform is
-illustrated in the left panel of \cref{fig:potential-voltammagram}.
+electron transfer and reforming~$\mathrm{A}$.
+Throughout this process the current $I$ is recorded. The triangle
+waveform and the resulting voltammagram are shown in the left and
+right panels of \cref{fig:potential-voltammagram}, respectively.
 
-Throughout this process the current $I$ is recorded. Plotting the current
-against the applied potential gives the voltammogram shown in the right
-panel of \cref{fig:potential-voltammagram}. The forward sweep produces
+The forward sweep produces
 a reduction (cathodic) peak as the potential moves through the range at
 which $\mathrm{A}$ is converted to $\mathrm{B}$; the return sweep produces
 an oxidation (anodic) peak as $\mathrm{B}$ is reconverted to $\mathrm{A}$.
@@ -84,7 +85,7 @@ transported to the electrode by diffusion is now the limiting factor.
 
 \begin{figure}
   \begin{center}
-    \includegraphics[width=0.8\textwidth]{figures/applied-potential-and-voltammagram.png}
+    \includegraphics[width=0.8\textwidth]{figures/2-voltammagram.png}
   \end{center}
   \caption[Applied potential and voltammogram example]{Left: the triangular
     potential waveform applied in a cyclic voltammetry experiment. Right:
@@ -104,7 +105,7 @@ kinetics, as discussed in \cref{sec:electrode-kinetics}.
 The \emph{scan rate} $\nu$ $(\mathrm{V\,s^{-1}})$ is the constant rate at
 which the potential is swept, defined as
 \begin{equation}
-  \nu = \frac{dE}{dt}.
+  \nu = \frac{dE}{dt}
   \label{eq:scan_rate}
 \end{equation}
 The scan rate is an important experimental parameter: faster scans probe
@@ -143,9 +144,9 @@ electrode we have the system
 \begin{equation}
   \begin{aligned}
     \frac{\partial c_A}{\partial t}
-    &= D_A \frac{\partial^2 c_A}{\partial x^2}, \\
+    &= D_A \frac{\partial^2 c_A}{\partial x^2} \\
     \frac{\partial c_B}{\partial t}
-    &= D_B \frac{\partial^2 c_B}{\partial x^2},
+    &= D_B \frac{\partial^2 c_B}{\partial x^2}
   \end{aligned}
   \label{eq:diffusion}
 \end{equation}
@@ -161,7 +162,7 @@ Fick's first law~\cite{crank1979mathematics} states that the diffusive
 flux through a plane normal to the $x$-axis at a point $x^*$ is
 proportional to the concentration gradient at that point:
 \begin{equation}
-  j_{x^*} = -D\left(\frac{\partial c}{\partial x}\right)\bigg|_{x = x^*},
+  j_{x^*} = -D\left(\frac{\partial c}{\partial x}\right)\bigg|_{x = x^*}
   \label{eq:ficks-first}
 \end{equation}
 where the negative sign indicates that the flux is directed down the
@@ -177,7 +178,7 @@ the electrode surface:
     e^{-\alpha \frac{F}{\mathcal{R}\mathcal{T}} (E(t) - E^0_f)}
     - c_B(t,0)\,
     e^{(1-\alpha) \frac{F}{\mathcal{R}\mathcal{T}} (E(t) - E^0_f)}
-  \right],
+  \right]
   \label{eq:butler-volmer}
 \end{equation}
 where $k_0$ $(\mathrm{m\,s^{-1}})$ is the standard rate constant, $\alpha
@@ -205,7 +206,7 @@ equations:
     e^{-\alpha \frac{F}{\mathcal{R}\mathcal{T}} (E(t) - E^0_f)}
     - c_B(t,0)\,
     e^{(1-\alpha) \frac{F}{\mathcal{R}\mathcal{T}} (E(t) - E^0_f)}
-  \right].
+  \right]
   \label{eq:electrode-boundary-condition}
 \end{equation}
 Conservation of mass at the electrode surface requires that whatever is
@@ -214,7 +215,7 @@ we consider a single-electron process with no homogeneous reactions in
 solution, this is simply stoichiometric conservation:
 \begin{equation}
   D_B\left(\frac{\partial c_B}{\partial x}\right)\bigg|_{x = 0} =
-  -D_A\left(\frac{\partial c_A}{\partial x}\right)\bigg|_{x = 0}.
+  -D_A\left(\frac{\partial c_A}{\partial x}\right)\bigg|_{x = 0}
   \label{eq:mass-conservation}
 \end{equation}
 
@@ -225,8 +226,8 @@ bulk concentration $c_A^*$ and that $\mathrm{B}$ is at bulk concentration
 $c_B^*$:
 \begin{equation}
   \begin{aligned}
-    c_A(0, x) &= c_A^*, \\
-    c_B(0, x) &= c_B^*.
+    c_A(0, x) &= c_A^* \\
+    c_B(0, x) &= c_B^*
   \end{aligned}
   \label{eq:initial-conditions}
 \end{equation}
@@ -234,8 +235,8 @@ Far from the electrode surface, the redox reaction has no effect on the
 concentrations, so the bulk values are recovered:
 \begin{equation}
   \begin{aligned}
-    c_A(t, x) &\to c_A^* \quad \text{as } x \to \infty, \\
-    c_B(t, x) &\to c_B^* \quad \text{as } x \to \infty.
+    c_A(t, x) &\to c_A^* \quad \text{as } x \to \infty \\
+    c_B(t, x) &\to c_B^* \quad \text{as } x \to \infty
   \end{aligned}
   \label{eq:infinite-boundary-condition}
 \end{equation}
@@ -246,7 +247,7 @@ The primary experimental observable of a voltammetry experiment is the
 current measured by the potentiostat. At any instant the current for the
 single-electron reduction of species $\mathrm{A}$ is
 \begin{equation}
-  I = F A_{\mathrm{el}}\, j_{0, A},
+  I = F A_{\mathrm{el}}\, j_{0, A}
   \label{eq:current}
 \end{equation}
 where $A_{\mathrm{el}} = \pi\epsilon^2$ is the area of the disc electrode
@@ -302,12 +303,10 @@ coordinate, and time as
 \begin{equation}
   C_j = \frac{c_j}{c_A^*}, \quad d_j = \frac{D_j}{D_A}, \quad X =
   \frac{x}{\epsilon}, \quad T = \frac{D_A\, t}{\epsilon^2},
-  \label{eq:nd_CdXT}
 \end{equation}
 and the dimensionless rate constant as
 \begin{equation}
   K_0 = \frac{k_0\,\epsilon}{D_A}.
-  \label{eq:nd_K0}
 \end{equation}
 We now substitute these into the governing equations, initial conditions,
 and boundary conditions.

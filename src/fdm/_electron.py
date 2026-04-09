@@ -46,9 +46,12 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         self.h0 = jnp.array(h0)
 
         self.dl = jnp.concat([alpha_inner, jnp.array([0.0])])
-        self.du = jnp.concatenate([jnp.array([-1.0]), gamma_inner])
 
-        self.d_right = jnp.concat([1 - (alpha_inner + gamma_inner), jnp.ones(1)])
+        self.d = jnp.concat(
+            [jnp.zeros(1), 1 - (alpha_inner + gamma_inner), jnp.ones(1)]
+        )
+
+        self.du = jnp.concatenate([jnp.array([-1.0]), gamma_inner])
 
     def compute_current(self, c: Array) -> Scalar:
         c0_A = c[:, 0]
@@ -69,19 +72,10 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         [Scalar, ScanInputSequence],
         Tuple[Scalar, Scalar],
     ]:
-        def stepper(c_prev: Scalar, x: ScanInputSequence) -> Tuple[Scalar, Scalar]:
-            d = jnp.concat([jnp.array([x.beta0]), self.d_right])
-
-            rhs = jnp.concat(
-                [
-                    jnp.array([x.delta0]),
-                    c_prev[1:-1],
-                    jnp.array([1.0]),
-                ]
-            )
-
+        def stepper(c_prev: Scalar, x: ScanInputSequence):
+            d = self.d.at[0].set(x.beta0)
+            rhs = c_prev.at[0].set(x.delta0).at[-1].set(1.0)
             c = tridiagonal_solve(self.dl, d, self.du, rhs)
-
             return c, c
 
         return stepper

@@ -7,17 +7,18 @@ from jax import jit
 
 from src.fdm import ElectronReactionFDSolver
 from src.params import ElectronReactionParams
-from src.sampling import inference_loop
+from src.reaction import ElectronReaction
+from src.sampling import RWMHSampler, inference_loop
 from src.utils import generate_noisy_samples
 from src.voltammetry import CyclicDC
 
 sns.set_theme()
-sns.set_context("paper", font_scale=1.5)
+sns.set_context("paper", font_scale=2.0)
 
 key = jr.key(0)
 
 # %% Noisy Samples
-fig, axs = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
+fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharex=True, sharey=True)
 
 samples_key, sampling_key, key = jr.split(key, 3)
 cyclic_dc = CyclicDC()
@@ -31,11 +32,12 @@ init_params = ElectronReactionParams(
     alpha=jnp.array(0.5), K0=jnp.array(15.0), thetaf=jnp.array(0.5)
 )
 
+_, base_current = fd_solver.solve(true_params)
+
 all_noise = [0.01, 0.02]
 
 for noise, ax in zip(all_noise, axs):
     ax.set_title(rf"$\eta = {noise}$")
-    _, base_current = fd_solver.solve(true_params)
     experimental_samples = generate_noisy_samples(
         5, base_current, noise, key=samples_key
     )
@@ -55,48 +57,50 @@ plt.show()
 
 # %% Random-Walk Metropolis Hasting with no burn-in
 
-samples_key, sampling_key, key = jr.split(key, 3)
+key_samples, key_init, key_sampling = jr.split(key, 3)
 cyclic_dc = CyclicDC()
 fd_solver = ElectronReactionFDSolver(cyclic_dc)
-true_params = ElectronReactionParams(
-    alpha=jnp.array(0.6),
-    K0=jnp.array(10.0),
-    thetaf=jnp.array(0.0),
-)
-init_params = ElectronReactionParams(
-    alpha=jnp.array(0.5), K0=jnp.array(15.0), thetaf=jnp.array(0.5)
-)
+reaction = ElectronReaction()
 
+true_params = reaction.true_parameters
 _, base_current = fd_solver.solve(true_params)
-experimental_samples = generate_noisy_samples(10, base_current, 0.02, key=samples_key)
 
-
-def log_density(params: ElectronReactionParams, samples=experimental_samples):
-    _, current = fd_solver.solve(params)
-    return -jnp.sum((samples - current) ** 2)
-
-
-rw = blackjax.additive_step_random_walk(
-    log_density, blackjax.mcmc.random_walk.normal(jnp.repeat(0.01, 3))
+experimental_samples = generate_noisy_samples(
+    10,
+    base_current,
+    0.02,
+    key=key_samples,
 )
 
-rw_jit_step = jit(rw.step)
-init_states = rw.init(init_params)
-states, infos = inference_loop(sampling_key, rw_jit_step, init_states, 5_000)
-samples = states.position
+
+def logdensity_fn(params: ElectronReactionParams):
+    _, current = fd_solver.solve(params)
+    return -jnp.sum((experimental_samples - current) ** 2)
+
+
+init_params = reaction.create_init_params(key_init, 1)
+
+rwmh = RWMHSampler(logdensity_fn, 2000, 1)
+
+rwmh_params = {"random_step": blackjax.mcmc.random_walk.normal(jnp.repeat(0.01, 3))}
+
+samples, _ = rwmh.run(init_params, rwmh_params, key=key_sampling)
+samples: ElectronReactionParams = samples
+
+# %% Hist plot with no burn in
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 4))
-options = {"bins": 25, "density": True}
+options = {"bins": 50, "density": True}
 
 ax1.set_title(r"$\alpha$")
-ax1.hist(samples.alpha, **options)
+ax1.hist(samples.alpha.flatten(), **options, label="Samples")
 ax1.axvline(x=true_params.alpha, linestyle="--", color="black", label="True Value")
 ax1.set_ylabel("Density")
 ax2.set_title(r"$K_0$")
-ax2.hist(samples.K0, **options)
+ax2.hist(samples.K0.flatten(), **options)
 ax2.axvline(x=true_params.K0, linestyle="--", color="black")
-ax3.set_title(r"$\theta_f^0$")
-ax3.hist(samples.Ef, **options)
+ax3.set_title(r"$\theta_f$")
+ax3.hist(samples.thetaf.flatten(), **options)
 ax3.axvline(x=true_params.thetaf, linestyle="--", color="black")
 
 handles, labels = ax1.get_legend_handles_labels()
@@ -106,8 +110,9 @@ plt.savefig("./manuscript/figures/4-rwmh-hist.png", dpi=1000)
 plt.show()
 
 # %% Scatter plot for no burn-in
-idx = jnp.arange(len(samples.alpha))
-plt.scatter(samples.alpha, samples.K0, c=idx, cmap="viridis", s=0.5)
+
+idx = jnp.arange(len(samples.alpha.flatten()))
+plt.scatter(samples.alpha.flatten(), samples.K0.flatten(), c=idx, cmap="viridis", s=0.5)
 plt.colorbar(label="Sample Index")
 plt.scatter(
     [true_params.alpha],

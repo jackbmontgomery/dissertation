@@ -7,8 +7,6 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 
 from typing import Literal
 
-import jax.numpy as jnp
-
 from src.fdm import (
     AdsorptionReactionExplicitFDSolver,
     AdsorptionReactionNewtonFDSolver,
@@ -31,10 +29,11 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
         sampling_experiment(
             reaction,
             fd_solver,
-            experimental_noise=0.03,
+            optim_steps=50,
+            experimental_noise=0.02,
             rwmh_scale_factor=50.0,
-            num_rwmh_samples=160_000,
-            num_nuts_samples=16_000,
+            num_rwmh_samples=80_000,
+            num_nuts_samples=8_000,
             seed=seed,
             save=save,
         )
@@ -48,33 +47,28 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             reaction,
             fd_solver,
             optim_learning_rate=2e-1,
-            optim_steps=250,
-            rwmh_scale_factor=15.0,
+            rwmh_scale_factor=20.0,
             num_rwmh_samples=160_000,
             num_nuts_samples=12_000,
-            seed=seed + 1,
+            seed=seed,
             save=save,
         )
 
     elif name == "a":
         reaction = AdsorptionReaction()
-        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=40)
+        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=50)
         sampling_fd_solver = AdsorptionReactionExplicitFDSolver(voltammetry)
         data_fd_solver = AdsorptionReactionNewtonFDSolver(voltammetry)
-
-        rwmh_kwargs = {"sigma": jnp.repeat(0.025, 9)}
-        hmc_kwargs = {"initial_step_size": 1e-3}
 
         sampling_experiment(
             reaction,
             sampling_fd_solver,
-            num_chains,
-            num_rwmh_samples=160_000,
-            rwmh_kwargs=rwmh_kwargs,
-            num_nuts_samples=64_000,
-            hmc_kwargs=hmc_kwargs,
-            warmup_steps=500,
             data_fd_solver=data_fd_solver,
+            optim_learning_rate=2e-1,
+            optim_steps=1000,
+            rwmh_scale_factor=1.0,
+            num_rwmh_samples=160_000,
+            num_nuts_samples=8_000,
             seed=seed,
             save=save,
         )

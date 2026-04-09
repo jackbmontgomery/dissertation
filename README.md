@@ -1,24 +1,81 @@
-# Dissertation
+# Dissertation: Differentiable Simulation for Electrochemical Inverse Problems
 
-- I need to make sure that my inverse function make sense for scaling the space of plausible parameters for all models
-- I will do the performance squeezing for the adsorption when I get to that chapter, I need to be in the frame of reference to understand all that code
+The examiners will know:
 
-## Burn-in
-When running an MCMC sampler there are convergence guarantees and so the concept of needing to burn in does not really make sense. But in an application when we cannot generate samples very easily -- after all the likelihood evaluation needs a forward pass of an fdm solver. In this case it is clear that just letting the MC fall into the stationary distribution is not really satisfactory. We went to ensure that we are obtaining good, high-density samples from the start. In this case, the concept of burn-in makes far more sense.
+1. **A lot** about finite difference methods and applied mathematics
+2. **A bit** about Bayesian statistics
+3. **Almost nothing** about electrochemistry
 
-### What are we measuring?
-- How far away can we start the initial guesses and still get convergence to reasonable likelihoods?
-- How fast is this convergence if it happens?
+## Overview
 
-## Sampling Efficiency
-Once we have started sampling, how do we know how good our samples are? True we still want to be generating a distribution that will approximate the true posterior but this is actually more of a issue of how well posed the problem is. Experimental design is a large contributor to this well-posed-ness. If we have small scan rate or a small potential sweep we will never have the information to determine the parameters.
+The dissertation is organised around the cyclic voltammetry inverse problem for
+a single-electron redox reaction, which serves as the setting in which every
+methodological component is introduced and motivated. We begin by formulating
+the forward problem (diffusion PDE, Butler–Volmer kinetics,
+non-dimensionalisation, numerical discretisation), then frame the inverse
+problem as Bayesian inference with MCMC sampling, showing the computational cost
+of burn-in and the limitations of gradient-free proposals. This motivates the
+development of adjoint-based differentiation through the forward solver, which
+in turn enables gradient-based initialisation and Hamiltonian Monte Carlo
+sampling. Chapters 2 to 6 are introductory and substantive: they develop a key
+tool and immediately applies it to the electron-transfer problem, so results
+accumulate throughout rather than being deferred to a final chapter. With the
+full methodology established, the heterogeneous and adsorption reactions are
+treated more concisely, demonstrating that the framework extends to
+higher-dimensional, chemically richer systems without repeating the expository
+groundwork.
 
-No I do not believe that accuracy is a good meausre of the quality of the sampler, this is how much information about the posterior do we obtain during sampling. How correlated are the samples? What is the ESS? And what is the trade-off between increasing these and the computational wall-time?
+## Chapter 1: Introduction
 
-### What are we measuring? 
-- How close is the mean / maximum likelihood estimate to the true parameter?
-- What is the effective sample size? How fast are we removing the correlations in our markov chain
+STATUS: Draft and missing heterogenous and adsorption results
 
-## Implementation
-1. First stage of this needs to be some comparison of the burn-in. How fast do the gradient-based and gradient-free methods converge. This relates pretty closely to what we see in the Differential Electrochemistry paper.
-2. Compare the sampling efficiency of the difference methods, and the accuracy of the samples because ESS does not matter much if it is wrong. This is related to how well-poised the problem is not just the sampling algorithm.
+MESSAGE: We develop a differentiable PDE solver for voltammetric simulation and
+integrate it with gradient-based Bayesian inference to solve the electrochemical
+inverse problem. The approach yields three contributions: (1) a fast,
+adjoint-based differentiable forward solver for electrochemical PDEs, (2) a full
+Bayesian treatment via HMC that provides posterior distributions rather than
+point estimates, and (3) demonstration that the framework extends to chemically
+complex reactions (heterogeneous, adsorption) in higher parameter dimensions.
+
+## Chapter 2: Electrochemical Systems
+
+Figures:
+
+1. Electrochemical Cell
+2. Applied potenetial and voltammagram
+3. Schematic figure of the 1D reaction
+
+Still to add:
+
+1. Note about the different kinetic regimes
+
+LINK TO NEXT: No nice link to next chapter
+
+## Chapter 3: Numerical Methods
+
+- Analytical results comparison
+
+LINK TO NEXT: Effect of the parameters and the difficulty in the reversible
+reigime sets up a probabilisitc approach
+
+## Chapter 4: Bayesian Approach
+
+- Increase noise and look at the variance of the posterior
+
+LINK TO NEXT: Tail artifacts and the burn in period sets up the use of more
+efficient methods to find high density.
+
+## Chapter 5: Differentiating
+
+- Change the figure and caption to be about the comparison with RWMH with
+  optimisation techniques. How CMA-ES and ADAM perform well but as we will see.
+  When we move to higher dimensions and more complicated problems then ADAM far
+  out performs CMA-ES.
+
+LINK TO NEXT: No nice link
+
+## Chapter 6: Hamiltonian Monte Carlo
+
+Still to add:
+
+- Sampling results

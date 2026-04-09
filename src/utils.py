@@ -1,6 +1,5 @@
 from typing import Callable, Tuple
 
-import blackjax
 import jax.numpy as jnp
 import jax.random as jr
 import optax

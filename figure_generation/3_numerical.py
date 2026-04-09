@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-import jax.random as jr
 import matplotlib.pyplot as plt
 import seaborn as sns
 from jax import vmap
@@ -9,40 +8,36 @@ from src.params import ElectronReactionParams
 from src.voltammetry import CyclicDC
 
 sns.set_theme()
-sns.set_context("paper", font_scale=1.5)
+sns.set_context("paper", font_scale=2.0)
 
-key = jr.key(0)
-
-# %% Applied Potential and Voltammagram
-
-true_params = ElectronReactionParams(
-    alpha=jnp.array(0.6), K0=jnp.array(1e6), thetaf=jnp.array(0.0)
-)
+# %% Analytical results
 
 voltammetry = CyclicDC()
-
 fd_solver = ElectronReactionFDSolver(voltammetry)
 
-_, current = fd_solver.solve(true_params)
+params = ElectronReactionParams(
+    alpha=jnp.array(0.7),
+    K0=jnp.array(1.0),
+    thetaf=jnp.array(0.0),
+)
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3))
+_, current = fd_solver.solve(params)
 
-ax1.plot(fd_solver.applied_potentials)
-ax1.yaxis.set_inverted(True)
-ax1.set_xticks([])
-ax1.set_yticks([])
-ax1.set_ylabel("Applied Potential")
-ax1.set_xlabel("Time")
+max_current = -0.496 * jnp.sqrt(params.alpha) * jnp.sqrt(voltammetry.sigma)
+plt.axhline(y=max_current, c="C1", linestyle="--", label="Analytical")
+max_current_position = (
+    jnp.log(params.K0 / jnp.sqrt(params.alpha * voltammetry.sigma)) - 0.78
+) / params.alpha
+plt.axvline(x=max_current_position, c="C1", linestyle="--")
 
-ax2.plot(fd_solver.applied_potentials, current)
-ax2.set_xticks([])
-ax2.set_yticks([])
-ax2.xaxis.set_inverted(True)
-ax2.yaxis.set_inverted(True)
-ax2.set_ylabel("Current")
-ax2.set_xlabel("Applied Potential")
+plt.plot(fd_solver.applied_potentials, current, label="Numerical")
+plt.ylabel(r"$J$")
+plt.xlabel(r"$\theta$")
+plt.gca().invert_xaxis()
+plt.gca().invert_yaxis()
+plt.legend()
 plt.tight_layout()
-plt.savefig("./manuscript/figures/applied-potential-and-voltammagram.png", dpi=1000)
+plt.savefig("./manuscript/figures/3-analytical.png", dpi=1000)
 plt.show()
 
 # %% Effect of parameters using a baseline quasi-reversible reaction

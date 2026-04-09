@@ -201,10 +201,31 @@ differentiate at $X_0$ to obtain
   \label{eq:numerical_flux}
 \end{equation}
 
-This forward map is the central object in the inference problems discussed in
-the next chapter: given experimental data, we seek the
-parameters~$\phi$ for which $\mathcal{P}(\phi)$ best reproduces the
-observed current response.
+We can verify the solution produced from the mapping against
+analytical results for the position and value of the peak current in
+the reversible reigime \cite{compton2014understanding}. According to
+the non-dimensionalisation we described in \cref{ch:electrochem}.
+
+\begin{equation}
+  \begin{aligned}
+    J_{\text{p,irre}} &= -0.496 \sqrt{\alpha\sigma}\\
+    \theta_{\text{p,irre}} &= \frac{1}{\alpha}\left[\ln
+    \left(\frac{K_0}{\sqrt{\alpha \sigma}}\right)-0.78\right]
+  \end{aligned}
+  \label{eq:electron-analytical}
+\end{equation}
+
+As we can see in \cref{fig:electron-analytical}, we have excellent
+agreement between the analytical current and the numerical flux computed.
+
+%TODO: Caption
+
+\begin{figure}
+  \begin{center}
+    \includegraphics[width=0.6\textwidth]{figures/3-analytical.png}
+  \end{center}
+  \caption{}\label{fig:electron-analytical}
+\end{figure}
 
 \section{Effect of Butler--Volmer Parameters}\label{sec:bv-effects}
 

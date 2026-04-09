@@ -1,3 +1,5 @@
+import inspect
+
 import jax.numpy as jnp
 from equinox import Module
 from jax.nn import sigmoid
@@ -5,6 +7,15 @@ from jax.scipy.special import logit
 from jaxtyping import Scalar
 
 Params = Module
+
+
+def param_property_names(params: Params) -> list[str]:
+    return [
+        name
+        for name, val in inspect.getmembers(
+            type(params), lambda v: isinstance(v, property)
+        )
+    ]
 
 
 class ElectronReactionParams(Params):
@@ -19,7 +30,6 @@ class ElectronReactionParams(Params):
 
     @classmethod
     def from_transformed(cls, alpha_inv: Scalar, K0_inv: Scalar, thetaf_inv: Scalar):
-        """Construct directly from transformed (sampling) space values."""
         obj = object.__new__(cls)
         object.__setattr__(obj, "_alpha_inv", alpha_inv)
         object.__setattr__(obj, "_K0_inv", K0_inv)
@@ -79,7 +89,6 @@ class HeterogenousReactionParams(Params):
         thetaf_2_inv: Scalar,
         K_het_inv: Scalar,
     ):
-        """Construct directly from transformed (sampling) space values."""
         obj = object.__new__(cls)
 
         object.__setattr__(obj, "_alpha_1_inv", alpha_1_inv)
@@ -171,7 +180,6 @@ class AdsorptionReactionParams(Params):
         K_B_ads_inv: Scalar,
         K_B_des_inv: Scalar,
     ):
-        """Construct directly from transformed (sampling) space values."""
         obj = object.__new__(cls)
 
         object.__setattr__(obj, "_alpha_sol_inv", alpha_sol_inv)

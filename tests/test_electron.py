@@ -2,9 +2,7 @@ import statistics
 from time import perf_counter
 
 import jax.numpy as jnp
-import optax
 import pytest
-from equinox import apply_updates, filter, filter_value_and_grad, is_array
 
 from src.fdm import ElectronReactionFDSolver
 from src.params import ElectronReactionParams
@@ -79,7 +77,7 @@ def test_performance(e_reaction):
         f"Average time: {statistics.mean(times):.4f}",
     )
 
-    budget_s = 0.04
+    budget_s = 0.038
     assert best_time < budget_s, (
         f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
     )
