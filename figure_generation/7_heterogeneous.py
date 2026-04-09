@@ -8,17 +8,18 @@ import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from jax import jit
+from jax import jit, vmap
 
 from src.fdm import HeterogeneousReactionFDSolver
 from src.params import HeterogenousReactionParams
 from src.reaction import HeterogeneousReaction
-from src.voltammetry import CyclicDC
+from src.voltammetry import CyclicAC, CyclicDC
 
 sns.set_theme()
 sns.set_context("paper", font_scale=2)
 
 # %% Analytical Results
+
 voltammetry = CyclicDC()
 fd_solver = HeterogeneousReactionFDSolver(voltammetry)
 params_1 = HeterogenousReactionParams(
@@ -50,11 +51,45 @@ max_current_position = (
 ) / params_1.alpha_1
 plt.axvline(x=max_current_position, c="C2", linestyle="--")
 
-_, current_1 = fd_solver.solve(params_1)
-_, current_2 = fd_solver.solve(params_2)
+current_1 = fd_solver.solve(params_1)
+current_2 = fd_solver.solve(params_2)
 
 plt.plot(fd_solver.applied_potentials, current_1)
 plt.plot(fd_solver.applied_potentials, current_2)
+plt.gca().invert_xaxis()
+plt.gca().invert_yaxis()
+plt.show()
+
+# %%
+
+ac_voltammetry = CyclicAC()
+dc_voltammetry = CyclicDC()
+
+fd_solver = HeterogeneousReactionFDSolver(ac_voltammetry, dtheta=0.01)
+linear_applied_potentials = HeterogeneousReactionFDSolver(
+    dc_voltammetry, dtheta=0.01
+).applied_potentials
+
+K0_1_range = jnp.array([15.0, 25.0, 50.0])
+
+params = HeterogenousReactionParams(
+    alpha_1=jnp.full_like(K0_1_range, 0.5),
+    K0_1=K0_1_range,
+    thetaf_1=jnp.full_like(K0_1_range, 0.2),
+    alpha_2=jnp.full_like(K0_1_range, 0.5),
+    K0_2=jnp.full_like(K0_1_range, 6.0),
+    thetaf_2=jnp.full_like(K0_1_range, 0.4),
+    K_het=jnp.full_like(K0_1_range, 100.0),
+)
+
+
+currents = vmap(fd_solver.solve)(params)
+
+
+for c in currents:
+    plt.plot(linear_applied_potentials, c)
+plt.gca().invert_xaxis()
+plt.gca().invert_yaxis()
 plt.show()
 
 

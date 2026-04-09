@@ -26,7 +26,7 @@ class ElectronReactionFDSolver(AbstractFDSolver):
     h0: Scalar
     dl: Scalar
     du: Scalar
-    d_right: Scalar
+    d: Scalar
 
     def __init__(
         self,
@@ -53,16 +53,13 @@ class ElectronReactionFDSolver(AbstractFDSolver):
 
         self.du = jnp.concatenate([jnp.array([-1.0]), gamma_inner])
 
-    def compute_current(self, c: Array) -> Scalar:
-        c0_A = c[:, 0]
-        c1_A = c[:, 1]
-        c2_A = c[:, 2]
-
+    def compute_current(self, c_surface: Array) -> Scalar:
         h1 = self.X[1] - self.X[0]
         h2 = self.X[2] - self.X[0]
-
-        dcA_dx = (h2**2 * (c0_A - c1_A) + h1**2 * (c2_A - c0_A)) / (h1 * h2 * (h1 - h2))
-
+        dcA_dx = (
+            h2**2 * (c_surface[:, 0] - c_surface[:, 1])
+            + h1**2 * (c_surface[:, 2] - c_surface[:, 0])
+        ) / (h1 * h2 * (h1 - h2))
         return -dcA_dx
 
     def create_stepper(
@@ -76,11 +73,11 @@ class ElectronReactionFDSolver(AbstractFDSolver):
             d = self.d.at[0].set(x.beta0)
             rhs = c_prev.at[0].set(x.delta0).at[-1].set(1.0)
             c = tridiagonal_solve(self.dl, d, self.du, rhs)
-            return c, c
+            return c, c[:3]
 
         return stepper
 
-    def solve(self, params: ElectronReactionParams) -> Tuple[Scalar, Scalar]:
+    def solve(self, params: ElectronReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
         c_init = jnp.ones_like(self.X)
@@ -101,8 +98,7 @@ class ElectronReactionFDSolver(AbstractFDSolver):
             beta0=beta0,
         )
 
-        _, solution = scan(stepper, c_init, xs)
+        _, c_surface = scan(stepper, c_init, xs)
+        current = self.compute_current(c_surface)
 
-        current = self.compute_current(solution)
-
-        return solution, current
+        return current

@@ -73,7 +73,7 @@ def sampling_experiment(
     key = jr.key(seed)
     key_samples, key_warmup, key_init = jr.split(key, 3)
 
-    _, base_current = data_fd_solver.solve(reaction.true_parameters)
+    base_current = data_fd_solver.solve(reaction.true_parameters)
 
     experimental_samples = generate_noisy_samples(
         num_experimental_samples,
@@ -83,7 +83,7 @@ def sampling_experiment(
     )
 
     def logdensity_fn(params: Params):
-        _, current = sampling_fd_solver.solve(params)
+        current = sampling_fd_solver.solve(params)
         return -jnp.sum((experimental_samples - current) ** 2)
 
     init_params = reaction.create_init_params(key_init, num_chains)

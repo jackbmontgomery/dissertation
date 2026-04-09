@@ -13,7 +13,7 @@ class AbstractFDSolver:
         raise NotImplementedError
 
     @abstractmethod
-    def solve(self, params: PyTree) -> Tuple[Array, Scalar]:
+    def solve(self, params: PyTree) -> Scalar:
         raise NotImplementedError
 
 

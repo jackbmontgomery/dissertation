@@ -20,7 +20,7 @@ def e_reaction():
         thetaf=jnp.array(0.0),
     )
 
-    _, out = fdm_solver.solve(params)
+    out = fdm_solver.solve(params)
     out.block_until_ready()
 
     return dict(fdm_solver=fdm_solver, params=params, sigma=voltammetry.sigma)
@@ -31,7 +31,7 @@ def test_peak_current_value(e_reaction):
     params = e_reaction["params"]
     sigma = e_reaction["sigma"]
 
-    _, current = fdm_solver.solve(params)
+    current = fdm_solver.solve(params)
 
     max_current_estimate = jnp.min(current)
 
@@ -45,7 +45,7 @@ def test_peak_current_position(e_reaction):
     params = e_reaction["params"]
     sigma = e_reaction["sigma"]
 
-    _, current = fdm_solver.solve(params)
+    current = fdm_solver.solve(params)
 
     peak_idx = jnp.argmin(current)
 
@@ -66,7 +66,7 @@ def test_performance(e_reaction):
     times = []
     for _ in range(n_runs):
         t0 = perf_counter()
-        _, out = fdm_solver.solve(params)
+        out = fdm_solver.solve(params)
         out.block_until_ready()
         times.append(perf_counter() - t0)
 
@@ -77,7 +77,7 @@ def test_performance(e_reaction):
         f"Average time: {statistics.mean(times):.4f}",
     )
 
-    budget_s = 0.038
+    budget_s = 0.037
     assert best_time < budget_s, (
         f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
     )

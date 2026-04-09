@@ -31,7 +31,7 @@ def optimisation_experiment(
 
     key = jr.key(seed)
     key_samples, key_init = jr.split(key, 2)
-    _, base_current = fd_solver.solve(reaction.true_parameters)
+    base_current = fd_solver.solve(reaction.true_parameters)
 
     experimental_samples = generate_noisy_samples(
         num_experimental_samples,
@@ -41,7 +41,7 @@ def optimisation_experiment(
     )
 
     def logdensity_fn(params: Params):
-        _, current = fd_solver.solve(params)
+        current = fd_solver.solve(params)
         return -jnp.sum((experimental_samples - current) ** 2)
 
     init_params = reaction.create_init_params(key_init, num_params)

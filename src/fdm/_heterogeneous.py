@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import jax.numpy as jnp
 from chex import dataclass
 from jax import vmap
@@ -115,26 +113,40 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             ]
         )
 
-    def compute_current(self, c: Array, params: HeterogenousReactionParams) -> Scalar:
-        c0_A = c[:, 2 * self.Nx - 2]
-        c1_A = c[:, 2 * self.Nx - 4]
-        c2_A = c[:, 2 * self.Nx - 6]
-
-        c0_C = c[:, 2 * self.Nx]
-        c1_C = c[:, 2 * self.Nx + 2]
-        c2_C = c[:, 2 * self.Nx + 4]
-
+    def compute_current(
+        self, c_surf: Array, params: HeterogenousReactionParams
+    ) -> Scalar:
         h1 = self.X[1] - self.X[0]
         h2 = self.X[2] - self.X[0]
+        denom = h1 * h2 * (h1 - h2)
 
-        dcA_dx = (h2**2 * (c0_A - c1_A) + h1**2 * (c2_A - c0_A)) / (h1 * h2 * (h1 - h2))
-        dcC_dx = (h2**2 * (c0_C - c1_C) + h1**2 * (c2_C - c0_C)) / (h1 * h2 * (h1 - h2))
+        dcA_dx = (
+            h2**2 * (c_surf[:, 0] - c_surf[:, 1])
+            + h1**2 * (c_surf[:, 2] - c_surf[:, 0])
+        ) / denom
+        dcC_dx = (
+            h2**2 * (c_surf[:, 3] - c_surf[:, 4])
+            + h1**2 * (c_surf[:, 5] - c_surf[:, 3])
+        ) / denom
 
-        K_het_cB = params.K_het * c[:, 2 * self.Nx - 1]
+        K_het_cB = params.K_het * c_surf[:, 6]
 
         return -(dcA_dx + dcC_dx + K_het_cB)
 
     def create_stepper(self, params: HeterogenousReactionParams):
+        N = self.Nx
+        surface_indices = jnp.array(
+            [
+                2 * N - 2,  # A0
+                2 * N - 4,  # A1
+                2 * N - 6,  # A2
+                2 * N,  # C0
+                2 * N + 2,  # C1
+                2 * N + 4,  # C2
+                2 * N - 1,  # B0
+            ]
+        )
+
         def stepper(c_prev: Array, x: ScanInputSequence):
             dl = jnp.concat(
                 [
@@ -174,11 +186,11 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
             c = pentadiagonal_solve(self.d2l, dl, d, du, self.d2u, rhs)
 
-            return c, c
+            return c, c[surface_indices]
 
         return stepper
 
-    def solve(self, params: HeterogenousReactionParams) -> Tuple[Array, Scalar]:
+    def solve(self, params: HeterogenousReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
         c_init = jnp.concat(
@@ -234,4 +246,4 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
         current = self.compute_current(solution, params)
 
-        return solution, current
+        return current

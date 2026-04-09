@@ -24,7 +24,7 @@ def heterogeneous_reaction():
         K_het=jnp.array(0.0),
     )
 
-    _, out = fdm_solver.solve(params)
+    out = fdm_solver.solve(params)
     out.block_until_ready()
 
     return dict(fdm_solver=fdm_solver, params=params, sigma=voltammetry.sigma)
@@ -35,7 +35,7 @@ def test_peak_current_value(heterogeneous_reaction):
     params = heterogeneous_reaction["params"]
     sigma = heterogeneous_reaction["sigma"]
 
-    _, current = fdm_solver.solve(params)
+    current = fdm_solver.solve(params)
 
     max_current_estimate = jnp.min(current)
 
@@ -49,7 +49,7 @@ def test_peak_current_position(heterogeneous_reaction):
     params = heterogeneous_reaction["params"]
     sigma = heterogeneous_reaction["sigma"]
 
-    _, current = fdm_solver.solve(params)
+    current = fdm_solver.solve(params)
 
     peak_idx = jnp.argmin(current)
 
@@ -66,11 +66,11 @@ def test_performance(heterogeneous_reaction):
     fdm_solver = heterogeneous_reaction["fdm_solver"]
     params = heterogeneous_reaction["params"]
 
-    n_runs = 5
+    n_runs = 10
     times = []
     for _ in range(n_runs):
         t0 = perf_counter()
-        _, out = fdm_solver.solve(params)
+        out = fdm_solver.solve(params)
         out.block_until_ready()
         times.append(perf_counter() - t0)
 
@@ -81,7 +81,7 @@ def test_performance(heterogeneous_reaction):
         f"Average time: {statistics.mean(times):.4f}",
     )
 
-    budget_s = 0.08
+    budget_s = 0.07
     assert best_time < budget_s, (
         f"Runtime {best_time:.3f}s exceeds budget {budget_s:.3f}s"
     )
