@@ -114,7 +114,6 @@ def sampling_experiment(
         logdensity_fn,
         is_mass_matrix_diagonal=False,
         initial_step_size=warmup_step_size,
-        progress_bar=True,
     )
 
     (last_states, window_adaption_params), _ = warmup.run(key_warmup, best_params)

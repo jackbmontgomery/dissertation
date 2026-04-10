@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Callable, Tuple
 
 import jax.numpy as jnp
@@ -32,9 +31,9 @@ class ElectronReactionFDSolver(AbstractFDSolver):
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h0: float = 1e-3,
+        h0: float = 1e-5,
         omega: float = 1.1,
-        dtheta: float = 1e-1,
+        dtheta: float = 2e-2,
     ):
         T, dt, X, alpha_inner, gamma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega
@@ -77,7 +76,7 @@ class ElectronReactionFDSolver(AbstractFDSolver):
 
         return stepper
 
-    @partial(jit, static_argnums=(0,))
+    @jit(static_argnums=(0,))
     def solve(self, params: ElectronReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
@@ -99,7 +98,7 @@ class ElectronReactionFDSolver(AbstractFDSolver):
             beta0=beta0,
         )
 
-        _, c_surface = scan(stepper, c_init, xs)
-        current = self.compute_current(c_surface)
+        _, c_surface_sol = scan(stepper, c_init, xs)
+        current = self.compute_current(c_surface_sol)
 
         return current

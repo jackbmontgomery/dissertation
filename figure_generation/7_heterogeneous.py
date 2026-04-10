@@ -97,7 +97,7 @@ plt.show()
 # %% Optimisation Comparison
 
 electron_optim = np.load(
-    "./data/optimisation/reaction=HeterogeneousReaction,noise=0.02,seed=50.npz"
+    "./data/optimisation/reaction=HeterogeneousReaction,noise=0.02,seed=0.npz"
 )
 
 adam_ld = electron_optim["adam_ld"]
@@ -132,7 +132,7 @@ plt.show()
 # %% Sampling: Seed 0
 
 dir = "./data/sampling"
-file = "reaction=HeterogeneousReaction,noise=0.02,seed=50.pkl.gz"
+file = "reaction=HeterogeneousReaction,noise=0.02,seed=0.pkl.gz"
 
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
@@ -178,12 +178,12 @@ ax_K2.hist(nuts.K0_2.flatten(), **options)
 ax_K2.hist(rwmh.K0_2.flatten(), **options)
 ax_K2.axvline(x=true_params.K0_2, linestyle="--", color="black")
 
-ax_thetaf1.set_title(r"$E_f^{(1)}$")
+ax_thetaf1.set_title(r"$\theta_f^{(1)}$")
 ax_thetaf1.hist(nuts.thetaf_1.flatten(), **options)
 ax_thetaf1.hist(rwmh.thetaf_1.flatten(), **options)
 ax_thetaf1.axvline(x=true_params.thetaf_1, linestyle="--", color="black")
 
-ax_thetaf2.set_title(r"$E_f^{(2)}$")
+ax_thetaf2.set_title(r"$\theta_f^{(2)}$")
 ax_thetaf2.hist(nuts.thetaf_2.flatten(), **options)
 ax_thetaf2.hist(rwmh.thetaf_2.flatten(), **options)
 ax_thetaf2.axvline(x=true_params.thetaf_2, linestyle="--", color="black")
@@ -249,7 +249,7 @@ ax_K1 = fig.add_subplot(gs[0, 1])
 ax_K1.set_title(r"$K_0^{(1)}$")
 
 ax_thetaf1 = fig.add_subplot(gs[0, 2])
-ax_thetaf1.set_title(r"$E_f^{(1)}$")
+ax_thetaf1.set_title(r"$\theta_f^{(1)}$")
 
 ax_a2 = fig.add_subplot(gs[1, 0])
 ax_a2.set_title(r"$\alpha^{(2)}$")
@@ -261,7 +261,7 @@ ax_K2.set_title(r"$K_0^{(2)}$")
 ax_K2.set_xlabel("Sample Proportion")
 
 ax_thetaf2 = fig.add_subplot(gs[1, 2])
-ax_thetaf2.set_title(r"$E_f^{(2)}$")
+ax_thetaf2.set_title(r"$\theta_f^{(2)}$")
 ax_thetaf2.set_xlabel("Sample Proportion")
 
 gs_right = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[:, 3], hspace=0)
@@ -278,24 +278,28 @@ for i, ax in enumerate(axs):
     ax.plot(idx, rwmh_ess[i, :], label="RWMH")
 
 handles, labels = ax_a1.get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower right", ncol=2)
+fig.legend(handles, labels, loc="lower right", ncol=1)
 plt.show()
 
-
-# %% Sampling: Seed 42
+# %% Sampling: AC vs DC
 
 dir = "./data/sampling"
-file = "reaction=HeterogeneousReaction,noise=0.02,seed=42.pkl.gz"
+file = "reaction=HeterogeneousReaction,noise=0.02,seed=0.pkl.gz"
 
 with gzip.open(f"{dir}/{file}", "rb") as f:
-    data = pickle.load(f)
+    dc_data = pickle.load(f)
 
-nuts: HeterogenousReactionParams = data["nuts"]
-rwmh: HeterogenousReactionParams = data["rwmh"]
+file = "reaction=HeterogeneousReaction,noise=0.02,seed=1.pkl.gz"
+
+with gzip.open(f"{dir}/{file}", "rb") as f:
+    ac_data = pickle.load(f)
+
+dc_nuts: HeterogenousReactionParams = dc_data["nuts"]
+ac_nuts: HeterogenousReactionParams = ac_data["nuts"]
 
 true_params: HeterogenousReactionParams = HeterogeneousReaction().true_parameters
 
-fig = plt.figure(figsize=(14, 6))
+fig = plt.figure(figsize=(12, 5))
 
 gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
 
@@ -312,38 +316,38 @@ ax_Khet = fig.add_subplot(gs_right[1, 0])
 options = {"density": True, "bins": 50, "alpha": 0.8, "histtype": "step"}
 
 ax_a1.set_title(r"$\alpha^{(1)}$")
-ax_a1.hist(nuts.alpha_1.flatten(), label="NUTS", **options)
-ax_a1.hist(rwmh.alpha_1.flatten(), **options, label="RWMH")
+ax_a1.hist(dc_nuts.alpha_1.flatten(), label="dc_nuts", **options)
+ax_a1.hist(ac_nuts.alpha_1.flatten(), **options, label="ac_nuts")
 ax_a1.axvline(x=true_params.alpha_1, linestyle="--", color="black", label="True Value")
 
 ax_a2.set_title(r"$\alpha^{(2)}$")
-ax_a2.hist(nuts.alpha_2.flatten(), **options)
-ax_a2.hist(rwmh.alpha_2.flatten(), **options)
+ax_a2.hist(dc_nuts.alpha_2.flatten(), **options)
+ax_a2.hist(ac_nuts.alpha_2.flatten(), **options)
 ax_a2.axvline(x=true_params.alpha_2, linestyle="--", color="black")
 
 ax_K1.set_title(r"$K_0^{(1)}$")
-ax_K1.hist(nuts.K0_1.flatten(), **options)
-ax_K1.hist(rwmh.K0_1.flatten(), **options)
+ax_K1.hist(dc_nuts.K0_1.flatten(), **options)
+ax_K1.hist(ac_nuts.K0_1.flatten(), **options)
 ax_K1.axvline(x=true_params.K0_1, linestyle="--", color="black")
 
 ax_K2.set_title(r"$K_0^{(2)}$")
-ax_K2.hist(nuts.K0_2.flatten(), **options)
-ax_K2.hist(rwmh.K0_2.flatten(), **options)
+ax_K2.hist(dc_nuts.K0_2.flatten(), **options)
+ax_K2.hist(ac_nuts.K0_2.flatten(), **options)
 ax_K2.axvline(x=true_params.K0_2, linestyle="--", color="black")
 
-ax_thetaf1.set_title(r"$E_f^{(1)}$")
-ax_thetaf1.hist(nuts.thetaf_1.flatten(), **options)
-ax_thetaf1.hist(rwmh.thetaf_1.flatten(), **options)
+ax_thetaf1.set_title(r"$\theta_f^{(1)}$")
+ax_thetaf1.hist(dc_nuts.thetaf_1.flatten(), **options)
+ax_thetaf1.hist(ac_nuts.thetaf_1.flatten(), **options)
 ax_thetaf1.axvline(x=true_params.thetaf_1, linestyle="--", color="black")
 
-ax_thetaf2.set_title(r"$E_f^{(2)}$")
-ax_thetaf2.hist(nuts.thetaf_2.flatten(), **options)
-ax_thetaf2.hist(rwmh.thetaf_2.flatten(), **options)
+ax_thetaf2.set_title(r"$\theta_f^{(2)}$")
+ax_thetaf2.hist(dc_nuts.thetaf_2.flatten(), **options)
+ax_thetaf2.hist(ac_nuts.thetaf_2.flatten(), **options)
 ax_thetaf2.axvline(x=true_params.thetaf_2, linestyle="--", color="black")
 
 ax_Khet.set_title(r"$K_{\text{het}}$")
-ax_Khet.hist(nuts.K_het.flatten(), **options)
-ax_Khet.hist(rwmh.K_het.flatten(), **options)
+ax_Khet.hist(dc_nuts.K_het.flatten(), **options)
+ax_Khet.hist(ac_nuts.K_het.flatten(), **options)
 ax_Khet.axvline(x=true_params.K_het, linestyle="--", color="black")
 
 handles, labels = ax_a1.get_legend_handles_labels()
@@ -351,85 +355,69 @@ fig.legend(handles, labels, loc="lower right", ncol=1)
 
 plt.show()
 
-# %% ESS
+# %% Numerical Convergence Checks
 
-num_points = 20
+voltammetry = CyclicDC()
+params = HeterogeneousReaction().true_parameters
+base_dtheta = 1e-4
+base_h0 = 1e-10
+fd_solver = HeterogeneousReactionFDSolver(voltammetry, h0=base_h0, dtheta=base_dtheta)
+base_current = fd_solver.solve(params).block_until_ready()
+base_time = jnp.arange(len(base_current)) * base_dtheta
 
-nuts_chain_len = nuts.alpha_1.shape[1]
-rwmh_chain_len = rwmh.alpha_1.shape[1]
+h0_range = jnp.power(10.0, jnp.arange(-9, -2))
+dtheta_range = [2e-4, 5e-4, 8e-4, 1e-3, 2e-3, 5e-3, 1e-2]
 
-nuts_end_idx = jnp.linspace(
-    nuts_chain_len / num_points, nuts_chain_len, num_points, dtype=jnp.int32
-)
+for dtheta in dtheta_range:
+    dtheta_vals = []
+    coarse_time = jnp.arange(int(base_time[-1] / dtheta) + 1) * dtheta
+    base_interp = jnp.interp(coarse_time, base_time, base_current)
+    for h0 in h0_range:
+        fd_solver = HeterogeneousReactionFDSolver(voltammetry, h0=h0, dtheta=dtheta)
+        current = fd_solver.solve(params).block_until_ready()
+        n = min(len(current), len(base_interp))
+        rel_l2 = jnp.linalg.norm(current[:n] - base_interp[:n]) / jnp.linalg.norm(
+            base_interp[:n]
+        )
+        dtheta_vals.append(float(rel_l2))
 
-rwmh_end_idx = jnp.linspace(
-    rwmh_chain_len / num_points, rwmh_chain_len, num_points, dtype=jnp.int32
-)
+    plt.plot(h0_range, dtheta_vals, label=dtheta)
 
-nuts_ess = np.zeros(shape=(7, num_points))
-rwmh_ess = np.zeros(shape=(7, num_points))
 
-ess_single: Callable = jit(blackjax.diagnostics.effective_sample_size)
-
-for i, (h_ei, r_ei) in enumerate(zip(nuts_end_idx, rwmh_end_idx)):
-    nuts_ess[0, i] = ess_single(nuts.alpha_1[:, :h_ei])
-    nuts_ess[1, i] = ess_single(nuts.K0_1[:, :h_ei])
-    nuts_ess[2, i] = ess_single(nuts.thetaf_1[:, :h_ei])
-    nuts_ess[3, i] = ess_single(nuts.alpha_2[:, :h_ei])
-    nuts_ess[4, i] = ess_single(nuts.K0_2[:, :h_ei])
-    nuts_ess[5, i] = ess_single(nuts.thetaf_2[:, :h_ei])
-    nuts_ess[6, i] = ess_single(nuts.K_het[:, :h_ei])
-
-    rwmh_ess[0, i] = ess_single(rwmh.alpha_1[:, :r_ei])
-    rwmh_ess[1, i] = ess_single(rwmh.K0_1[:, :r_ei])
-    rwmh_ess[2, i] = ess_single(rwmh.thetaf_1[:, :r_ei])
-    rwmh_ess[3, i] = ess_single(rwmh.alpha_2[:, :r_ei])
-    rwmh_ess[4, i] = ess_single(rwmh.K0_2[:, :r_ei])
-    rwmh_ess[5, i] = ess_single(rwmh.thetaf_2[:, :r_ei])
-    rwmh_ess[6, i] = ess_single(rwmh.K_het[:, :r_ei])
-
-# %%  Plot ESS
-
-fig = plt.figure(figsize=(14, 6))
-
-gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
-
-ax_a1 = fig.add_subplot(gs[0, 0])
-ax_a1.set_title(r"$\alpha^{(1)}$")
-ax_a1.set_ylabel("ESS")
-
-ax_K1 = fig.add_subplot(gs[0, 1])
-ax_K1.set_title(r"$K_0^{(1)}$")
-
-ax_thetaf1 = fig.add_subplot(gs[0, 2])
-ax_thetaf1.set_title(r"$E_f^{(1)}$")
-
-ax_a2 = fig.add_subplot(gs[1, 0])
-ax_a2.set_title(r"$\alpha^{(2)}$")
-ax_a2.set_xlabel("Sample Proportion")
-ax_a2.set_ylabel("ESS")
-
-ax_K2 = fig.add_subplot(gs[1, 1])
-ax_K2.set_title(r"$K_0^{(2)}$")
-ax_K2.set_xlabel("Sample Proportion")
-
-ax_thetaf2 = fig.add_subplot(gs[1, 2])
-ax_thetaf2.set_title(r"$E_f^{(2)}$")
-ax_thetaf2.set_xlabel("Sample Proportion")
-
-gs_right = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[:, 3], hspace=0)
-ax_Khet = fig.add_subplot(gs_right[1, 0])
-ax_Khet.set_title(r"$K_{\text{het}}$")
-ax_Khet.set_xlabel("Sample Proportion")
-
-axs = [ax_a1, ax_K1, ax_thetaf1, ax_a2, ax_K2, ax_thetaf2, ax_Khet]
-
-idx = jnp.linspace(1 / num_points, 1, num_points)
-
-for i, ax in enumerate(axs):
-    ax.plot(idx, nuts_ess[i, :], label="NUTS")
-    ax.plot(idx, rwmh_ess[i, :], label="RWMH")
-
-handles, labels = ax_a1.get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower right", ncol=1)
+plt.yscale("log")
+plt.xscale("log")
+plt.xlabel("h0")
+plt.legend()
+plt.tight_layout()
 plt.show()
+
+# %%
+
+ref_dtheta = 1e-5
+ref_h0 = 1e-10
+ref_solver = HeterogeneousReactionFDSolver(voltammetry, h0=ref_h0, dtheta=ref_dtheta)
+ref_current = ref_solver.solve(params).block_until_ready()
+ref_time = jnp.arange(len(ref_current)) * ref_dtheta
+
+# Fix h0 in the flat region, sweep dtheta
+h0_fixed = 1e-8
+dtheta_range = [2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 1e-1]
+errors = []
+
+for dtheta in dtheta_range:
+    solver = HeterogeneousReactionFDSolver(voltammetry, h0=h0_fixed, dtheta=dtheta)
+    current = solver.solve(params).block_until_ready()
+    coarse_time = jnp.arange(len(current)) * dtheta
+    ref_interp = jnp.interp(coarse_time, ref_time, ref_current)
+    rel_l2 = float(jnp.linalg.norm(current - ref_interp) / jnp.linalg.norm(ref_interp))
+    errors.append(rel_l2)
+    print(f"dtheta = {dtheta:.4f}, rel L2 error = {rel_l2:.2e}")
+
+print("\nConvergence order:")
+for i in range(1, len(dtheta_range)):
+    ratio = errors[i] / errors[i - 1]
+    dt_ratio = dtheta_range[i] / dtheta_range[i - 1]
+    order = jnp.log(ratio) / jnp.log(dt_ratio)
+    print(
+        f"dtheta {dtheta_range[i - 1]:.4f} -> {dtheta_range[i]:.4f}: order = {float(order):.2f}"
+    )

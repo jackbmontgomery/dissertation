@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Callable
 
 import jax.numpy as jnp
@@ -63,16 +62,17 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
         )
 
     def compute_current(self, sol: Array) -> Scalar:
-        # sol has shape (Nt, 4): [gamma_A, c_A[0], c_A[1], c_A[2]]
+        c0_A = sol[:, 1]
+        c1_A = sol[:, 2]
+        c2_A = sol[:, 3]
+
         h1 = self.X[1] - self.X[0]
         h2 = self.X[2] - self.X[0]
 
-        dcA_dx = (h2**2 * (sol[:, 1] - sol[:, 2]) + h1**2 * (sol[:, 3] - sol[:, 1])) / (
-            h1 * h2 * (h1 - h2)
-        )
+        dcA_dx = (h2**2 * (c0_A - c1_A) + h1**2 * (c2_A - c0_A)) / (h1 * h2 * (h1 - h2))
         dgA_dt = jnp.gradient(sol[:, 0], self.dt)
 
-        return -(dcA_dx - dgA_dt / self.beta)
+        return -(dcA_dx - dgA_dt / self.beta)  # ty: ignore[unsupported-operator]
 
     def create_stepper(self, params: AdsorptionReactionParams) -> Callable:
         d2l_inner = interleave_concat_2d(self.alpha_inner, self.alpha_inner)
@@ -138,7 +138,7 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
 
         return stepper
 
-    @partial(jit, static_argnums=(0,))
+    @jit(static_argnums=(0,))
     def solve(self, params: AdsorptionReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
@@ -176,8 +176,8 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
             K_ox_sol=K_ox_sol,
         )
 
-        _, fd_solution = scan(stepper, init_sol, xs)
+        _, c_surface_sol = scan(stepper, init_sol, xs)
 
-        current = self.compute_current(fd_solution)
+        current = self.compute_current(c_surface_sol)
 
         return current

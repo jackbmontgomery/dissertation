@@ -1,8 +1,9 @@
-from typing import Callable, Tuple
+from functools import partial
+from typing import Callable
 
 import jax.numpy as jnp
 from chex import dataclass
-from jax import vmap
+from jax import jit, vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
@@ -25,10 +26,13 @@ class ScanInputSequence:
 class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
     applied_potentials: Scalar
     Nx: int
-    alpha_inner: Scalar
-    sigma_inner: Scalar
     dt: float
     h0: Scalar
+    _d2l_template: Scalar
+    _dl_template: Scalar
+    _d_template: Scalar
+    _du_template: Scalar
+    _d2u_template: Scalar
 
     def __init__(
         self,
@@ -46,176 +50,135 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
         self.dt = dt
         self.applied_potentials = vmap(voltammetry.applied_potential)(T)
         self.h0 = jnp.array(h0)
-        self.alpha_inner = alpha_inner
-        self.sigma_inner = sigma_inner
 
         # Dimensionless Saturation Parameter
         self.beta = 1.0
 
-    def compute_current(self, sol: Array, x: ScanInputSequence) -> Scalar:
-        gamma_A = sol[0]
-        gamma_B = sol[1]
-        cA_0 = sol[2]
-        cB_0 = sol[3]
+        N = 2 + 2 * self.Nx
+        n_inner = 2 * (self.Nx - 2)
 
-        return -(
-            x.K_red_sol * cA_0
-            - x.K_ox_sol * cB_0
-            + x.K_red_ads * gamma_A
-            - x.K_ox_ads * gamma_B
+        alpha_interleaved = interleave_concat_2d(alpha_inner, alpha_inner)
+        sigma_interleaved = interleave_concat_2d(sigma_inner, sigma_inner)
+        d_inner = interleave_concat_2d(
+            1 - (alpha_inner + sigma_inner),
+            1 - (alpha_inner + sigma_inner),
         )
 
+        self._d2l_template = jnp.zeros(N - 2)
+        self._d2l_template = self._d2l_template.at[2 : 2 + n_inner].set(
+            alpha_interleaved
+        )
+
+        self._dl_template = jnp.zeros(N - 1)
+
+        self._d_template = jnp.zeros(N)
+        self._d_template = self._d_template.at[4 : 4 + n_inner].set(d_inner)
+        self._d_template = self._d_template.at[-2].set(1.0)
+        self._d_template = self._d_template.at[-1].set(1.0)
+
+        self._du_template = jnp.zeros(N - 1)
+
+        self._d2u_template = jnp.zeros(N - 2)
+        self._d2u_template = self._d2u_template.at[2].set(1.0)
+        self._d2u_template = self._d2u_template.at[3].set(1.0)
+        self._d2u_template = self._d2u_template.at[4 : 4 + n_inner].set(
+            sigma_interleaved
+        )
+
+    def compute_current(self, sol: Array) -> Scalar:
+        c0_A = sol[:, 1]
+        c1_A = sol[:, 2]
+        c2_A = sol[:, 3]
+
+        h1 = self.X[1] - self.X[0]
+        h2 = self.X[2] - self.X[0]
+
+        dcA_dx = (h2**2 * (c0_A - c1_A) + h1**2 * (c2_A - c0_A)) / (h1 * h2 * (h1 - h2))
+        dgA_dt = jnp.gradient(sol[:, 0], self.dt)
+
+        return -(dcA_dx - dgA_dt / self.beta)  # ty: ignore[unsupported-operator]
+
     def create_stepper(self, params: AdsorptionReactionParams) -> Callable:
+        h0_K_A_des = self.h0 * params.K_A_des
+        h0_K_B_des = self.h0 * params.K_B_des
+        h0_K_A_ads = self.h0 * params.K_A_ads
+        h0_K_B_ads = self.h0 * params.K_B_ads
+        dt_K_A_des_beta = self.dt * params.K_A_des * self.beta
+        dt_K_B_des_beta = self.dt * params.K_B_des * self.beta
+        dt_K_A_ads_beta = self.dt * params.K_A_ads * self.beta
+        dt_K_B_ads_beta = self.dt * params.K_B_ads * self.beta
+
         def stepper(sol_prev: Scalar, x: ScanInputSequence):
-            CA_phiA_coef = (
-                self.h0 * params.K_A_des + self.h0 * params.K_A_ads * sol_prev[2]
-            )
-            CA_phiB_coef = self.h0 * params.K_A_ads * sol_prev[2]
-            CA_CA_coef = (
-                -1.0
-                - self.h0 * x.K_red_sol
-                - self.h0 * params.K_A_ads * (1.0 - sol_prev[0] - sol_prev[1])
-            )
+            phi_sum = sol_prev[0] + sol_prev[1]
+            coverage_rem = 1.0 - phi_sum
+
+            CA_phiA_coef = h0_K_A_des + h0_K_A_ads * sol_prev[2]
+            CA_phiB_coef = h0_K_A_ads * sol_prev[2]
+            CA_CA_coef = -1.0 - self.h0 * x.K_red_sol - h0_K_A_ads * coverage_rem
             CA_CB_coef = self.h0 * x.K_ox_sol
             CA_CA1_coef = 1.0
 
-            CB_phiA_coef = self.h0 * params.K_B_ads * sol_prev[3]
-            CB_phiB_coef = (
-                self.h0 * params.K_B_des + self.h0 * params.K_B_ads * sol_prev[3]
-            )
+            CB_phiA_coef = h0_K_B_ads * sol_prev[3]
+            CB_phiB_coef = h0_K_B_des + h0_K_B_ads * sol_prev[3]
             CB_CA_coef = self.h0 * x.K_red_sol
-            CB_CB_coef = (
-                -1.0
-                - self.h0 * x.K_ox_sol
-                - self.h0 * params.K_B_ads * (1.0 - sol_prev[0] - sol_prev[1])
-            )
+            CB_CB_coef = -1.0 - self.h0 * x.K_ox_sol - h0_K_B_ads * coverage_rem
             CB_CB1_coef = 1.0
 
             CA_multiplier = CB_phiA_coef / CA_phiA_coef
 
-            d2l = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            0.0,
-                            0.0,
-                            CA_phiA_coef,
-                            CB_phiB_coef - CA_multiplier * CA_phiB_coef,
-                        ]
-                    ),
-                    interleave_concat_2d(self.alpha_inner, self.alpha_inner),
-                    jnp.array([0.0, 0.0]),
-                ]
-            )
+            d2l = self._d2l_template.at[0].set(CA_phiA_coef)
+            d2l = d2l.at[1].set(CB_phiB_coef - CA_multiplier * CA_phiB_coef)
 
-            dl = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            0.0,
-                            -self.dt * x.K_red_ads
-                            + self.dt * params.K_B_ads * self.beta * sol_prev[3],
-                            CA_phiB_coef,
-                            CB_CA_coef - CA_multiplier * CA_CA_coef,
-                        ]
-                    ),
-                    jnp.zeros(2 * self.Nx - 2),
-                ]
+            dl = self._dl_template.at[0].set(
+                -self.dt * x.K_red_ads + dt_K_B_ads_beta * sol_prev[3]
             )
+            dl = dl.at[1].set(CA_phiB_coef)
+            dl = dl.at[2].set(CB_CA_coef - CA_multiplier * CA_CA_coef)
 
-            d = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            1.0
-                            + self.dt * x.K_red_ads
-                            + self.dt * params.K_A_des * self.beta
-                            + self.dt * params.K_A_ads * self.beta * sol_prev[2],
-                            1.0
-                            + self.dt * x.K_ox_ads
-                            + self.dt * params.K_B_des * self.beta
-                            + self.dt * params.K_B_ads * self.beta * sol_prev[3],
-                            CA_CA_coef,
-                            CB_CB_coef - CA_multiplier * CA_CB_coef,
-                        ]
-                    ),
-                    interleave_concat_2d(
-                        1 - (self.alpha_inner + self.sigma_inner),
-                        1 - (self.alpha_inner + self.sigma_inner),
-                    ),
-                    jnp.array([1.0, 1.0]),
-                ]
+            d = self._d_template.at[0].set(
+                1.0
+                + self.dt * x.K_red_ads
+                + dt_K_A_des_beta
+                + dt_K_A_ads_beta * sol_prev[2]
             )
-
-            du = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            -self.dt * x.K_ox_ads
-                            + self.dt * params.K_A_ads * self.beta * sol_prev[2],
-                            0.0,
-                            CA_CB_coef,
-                            -CA_multiplier * CA_CA1_coef,
-                        ]
-                    ),
-                    jnp.zeros(2 * self.Nx - 2),
-                ]
+            d = d.at[1].set(
+                1.0
+                + self.dt * x.K_ox_ads
+                + dt_K_B_des_beta
+                + dt_K_B_ads_beta * sol_prev[3]
             )
+            d = d.at[2].set(CA_CA_coef)
+            d = d.at[3].set(CB_CB_coef - CA_multiplier * CA_CB_coef)
 
-            d2u = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            -self.dt
-                            * params.K_A_ads
-                            * self.beta
-                            * (1 - sol_prev[0] - sol_prev[1]),
-                            -self.dt
-                            * params.K_B_ads
-                            * self.beta
-                            * (1 - sol_prev[0] - sol_prev[1]),
-                            CA_CA1_coef,
-                            CB_CB1_coef,
-                        ]
-                    ),
-                    interleave_concat_2d(self.sigma_inner, self.sigma_inner),
-                    jnp.array([0.0, 0.0]),
-                ]
+            du = self._du_template.at[0].set(
+                -self.dt * x.K_ox_ads + dt_K_A_ads_beta * sol_prev[2]
             )
+            du = du.at[2].set(CA_CB_coef)
+            du = du.at[3].set(-CA_multiplier * CA_CA1_coef)
 
-            phiA_rhs = sol_prev[0] + self.dt * params.K_A_ads * self.beta * sol_prev[
-                2
-            ] * (sol_prev[0] + sol_prev[1])
+            d2u = self._d2u_template.at[0].set(-dt_K_A_ads_beta * coverage_rem)
+            d2u = d2u.at[1].set(-dt_K_B_ads_beta * coverage_rem)
 
-            phiB_rhs = sol_prev[1] + self.dt * params.K_B_ads * self.beta * sol_prev[
-                3
-            ] * (sol_prev[0] + sol_prev[1])
+            phiA_rhs = sol_prev[0] + dt_K_A_ads_beta * sol_prev[2] * phi_sum
+            phiB_rhs = sol_prev[1] + dt_K_B_ads_beta * sol_prev[3] * phi_sum
+            CA_rhs = h0_K_A_ads * sol_prev[2] * phi_sum
+            CB_rhs = h0_K_B_ads * sol_prev[3] * phi_sum
 
-            CA_rhs = (
-                self.h0 * params.K_A_ads * sol_prev[2] * (sol_prev[0] + sol_prev[1])
-            )
-            CB_rhs = (
-                self.h0 * params.K_B_ads * sol_prev[3] * (sol_prev[0] + sol_prev[1])
-            )
-
-            rhs = jnp.concat(
-                [
-                    jnp.array(
-                        [phiA_rhs, phiB_rhs, CA_rhs, CB_rhs - CA_multiplier * CA_rhs]
-                    ),
-                    sol_prev[4:-2],
-                    jnp.array([1.0, 0.0]),
-                ]
-            )
+            rhs = sol_prev.at[0].set(phiA_rhs)
+            rhs = rhs.at[1].set(phiB_rhs)
+            rhs = rhs.at[2].set(CA_rhs)
+            rhs = rhs.at[3].set(CB_rhs - CA_multiplier * CA_rhs)
+            rhs = rhs.at[-2].set(1.0)
+            rhs = rhs.at[-1].set(0.0)
 
             sol = pentadiagonal_solve(d2l, dl, d, du, d2u, rhs)
 
-            current = self.compute_current(sol, x)
-            return sol, (sol, current)
+            return sol, jnp.array([sol[0], sol[2], sol[4], sol[6]])
 
         return stepper
 
-    def solve(self, params: AdsorptionReactionParams) -> Tuple[Array, Scalar]:
+    @partial(jit, static_argnums=(0,))
+    def solve(self, params: AdsorptionReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
         K_A_eq = params.K_A_ads / params.K_A_des
@@ -252,6 +215,7 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
             K_ox_sol=K_ox_sol,
         )
 
-        _, (sol, current) = scan(stepper, init_sol, xs)
+        _, c_surface_sol = scan(stepper, init_sol, xs)
+        current = self.compute_current(c_surface_sol)
 
-        return sol, current
+        return current

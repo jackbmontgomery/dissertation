@@ -25,9 +25,7 @@ repeating exposition.
 
 ## Notes
 
-- How do I choose the discretisation of the numerical scheme?
 - How do I non-dimensionalise the sinusoidal component of the AC voltammetry?
-- What is varying that I need to store: experiment, seed, voltammetry, noise
 
 ---
 

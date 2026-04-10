@@ -38,6 +38,11 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     h0: Scalar
     atol: float
     rtol: float
+    _d2l_template: Scalar
+    _dl_template: Scalar
+    _d_template: Scalar
+    _du_template: Scalar
+    _d2u_template: Scalar
 
     def __init__(
         self,
@@ -66,10 +71,41 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
         # Dimensionless Saturation Parameter
         self.beta = 1.0
 
+        N = 2 + 2 * self.Nx
+        n_inner = 2 * (self.Nx - 2)
+
+        alpha_interleaved = interleave_concat_2d(alpha_inner, alpha_inner)
+        sigma_interleaved = interleave_concat_2d(sigma_inner, sigma_inner)
+        d_inner = interleave_concat_2d(
+            1 - (alpha_inner + sigma_inner),
+            1 - (alpha_inner + sigma_inner),
+        )
+
+        self._d2l_template = jnp.zeros(N - 2)
+        self._d2l_template = self._d2l_template.at[2 : 2 + n_inner].set(
+            alpha_interleaved
+        )
+
+        self._dl_template = jnp.zeros(N - 1)
+
+        self._d_template = jnp.zeros(N)
+        self._d_template = self._d_template.at[4 : 4 + n_inner].set(d_inner)
+        self._d_template = self._d_template.at[-2].set(1.0)
+        self._d_template = self._d_template.at[-1].set(1.0)
+
+        self._du_template = jnp.zeros(N - 1)
+
+        self._d2u_template = jnp.zeros(N - 2)
+        self._d2u_template = self._d2u_template.at[2].set(-1.0)
+        self._d2u_template = self._d2u_template.at[3].set(-1.0)
+        self._d2u_template = self._d2u_template.at[4 : 4 + n_inner].set(
+            sigma_interleaved
+        )
+
     def compute_current(self, sol: Array) -> Scalar:
-        c0_A = sol[:, 2]
-        c1_A = sol[:, 4]
-        c2_A = sol[:, 6]
+        c0_A = sol[:, 1]
+        c1_A = sol[:, 2]
+        c2_A = sol[:, 3]
 
         h1 = self.X[1] - self.X[0]
         h2 = self.X[2] - self.X[0]
@@ -82,111 +118,63 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     def create_build_J_diags(
         self, params: AdsorptionReactionParams, x: ScanInputSequence
     ) -> Callable[[Scalar], Tuple[Scalar, Scalar, Scalar, Scalar, Scalar]]:
-        d_A_inner = 1 - (self.alpha_inner + self.sigma_inner)
-        d_B_inner = 1 - (self.alpha_inner + self.sigma_inner)
+        h0_K_A_ads = self.h0 * params.K_A_ads
+        h0_K_B_ads = self.h0 * params.K_B_ads
+        h0_K_A_des = self.h0 * params.K_A_des
+        h0_K_B_des = self.h0 * params.K_B_des
+        dt_K_A_ads_beta = self.dt * params.K_A_ads * self.beta
+        dt_K_B_ads_beta = self.dt * params.K_B_ads * self.beta
+        dt_K_A_des_beta = self.dt * params.K_A_des * self.beta
+        dt_K_B_des_beta = self.dt * params.K_B_des * self.beta
+        h0_K_red_sol = self.h0 * x.K_red_sol
+        h0_K_ox_sol = self.h0 * x.K_ox_sol
+        dt_K_red_ads = self.dt * x.K_red_ads
+        dt_K_ox_ads = self.dt * x.K_ox_ads
 
         def build_J_diags(sol: Scalar) -> Tuple[Scalar, Scalar, Scalar, Scalar, Scalar]:
-            df0_dphiA = (
-                -self.dt * x.K_red_ads
-                - self.dt * params.K_A_ads * self.beta * sol[2]
-                - self.dt * params.K_A_des * self.beta
-                - 1.0
-            )
+            phi_sum = sol[0] + sol[1]
+            coverage_rem = 1.0 - phi_sum
 
-            df0_dphiB = (
-                self.dt * x.K_ox_ads - self.dt * params.K_A_ads * self.beta * sol[2]
-            )
+            df0_dphiA = -dt_K_red_ads - dt_K_A_ads_beta * sol[2] - dt_K_A_des_beta - 1.0
+            df0_dphiB = dt_K_ox_ads - dt_K_A_ads_beta * sol[2]
+            df0_dCA = dt_K_A_ads_beta * coverage_rem
 
-            df0_dCA = self.dt * params.K_A_ads * self.beta * (1 - (sol[0] + sol[1]))
+            df1_dphiA = dt_K_red_ads - dt_K_B_ads_beta * sol[3]
+            df1_dphiB = -dt_K_ox_ads - dt_K_B_ads_beta * sol[3] - dt_K_B_des_beta - 1.0
+            df1_dCB = dt_K_B_ads_beta * coverage_rem
 
-            df1_dphiA = (
-                self.dt * x.K_red_ads - self.dt * params.K_B_ads * self.beta * sol[3]
-            )
-
-            df1_dphiB = (
-                -self.dt * x.K_ox_ads
-                - self.dt * params.K_B_ads * self.beta * sol[3]
-                - self.dt * params.K_B_des * self.beta
-                - 1.0
-            )
-
-            df1_dCB = self.dt * params.K_B_ads * self.beta * (1 - (sol[0] + sol[1]))
-
-            df2_dphiA = -self.h0 * params.K_A_ads * sol[2] - self.h0 * params.K_A_des
-
-            df2_dphiB = -self.h0 * params.K_A_ads * sol[2]
-
-            df2_dCA = (
-                1.0
-                + self.h0 * x.K_red_sol
-                + self.h0 * params.K_A_ads * (1 - (sol[0] + sol[1]))
-            )
-
-            df2_dCB = -self.h0 * x.K_ox_sol
-
+            df2_dphiA = -h0_K_A_ads * sol[2] - h0_K_A_des
+            df2_dphiB = -h0_K_A_ads * sol[2]
+            df2_dCA = 1.0 + h0_K_red_sol + h0_K_A_ads * coverage_rem
+            df2_dCB = -h0_K_ox_sol
             df2_dCA1 = -1.0
 
-            df3_dphiA = -self.h0 * params.K_B_ads * sol[3]
-
-            df3_dphiB = -self.h0 * params.K_B_ads * sol[3] - self.h0 * params.K_B_des
-
-            df3_dCA = -self.h0 * x.K_red_sol
-
-            df3_dCB = (
-                1.0
-                + self.h0 * x.K_ox_sol
-                + self.h0 * params.K_B_ads * (1 - (sol[0] + sol[1]))
-            )
-
+            df3_dphiA = -h0_K_B_ads * sol[3]
+            df3_dphiB = -h0_K_B_ads * sol[3] - h0_K_B_des
+            df3_dCA = -h0_K_red_sol
+            df3_dCB = 1.0 + h0_K_ox_sol + h0_K_B_ads * coverage_rem
             df3_dCB1 = -1.0
 
             f2_multiplier = df3_dphiA / df2_dphiA
 
-            d2l = jnp.concat(
-                [
-                    jnp.array([df2_dphiA, df3_dphiB - f2_multiplier * df2_dphiB]),
-                    interleave_concat_2d(self.alpha_inner, self.alpha_inner),
-                    jnp.array([0.0, 0.0]),
-                ],
-            )
+            d2l = self._d2l_template.at[0].set(df2_dphiA)
+            d2l = d2l.at[1].set(df3_dphiB - f2_multiplier * df2_dphiB)
 
-            dl = jnp.concat(
-                [
-                    jnp.array(
-                        [df1_dphiA, df2_dphiB, df3_dCA - f2_multiplier * df2_dCA]
-                    ),
-                    jnp.zeros(2 * self.Nx - 2),
-                ]
-            )
+            dl = self._dl_template.at[0].set(df1_dphiA)
+            dl = dl.at[1].set(df2_dphiB)
+            dl = dl.at[2].set(df3_dCA - f2_multiplier * df2_dCA)
 
-            d = jnp.concat(
-                [
-                    jnp.array(
-                        [
-                            df0_dphiA,
-                            df1_dphiB,
-                            df2_dCA,
-                            df3_dCB - f2_multiplier * df2_dCB,
-                        ]
-                    ),
-                    interleave_concat_2d(d_A_inner, d_B_inner),
-                    jnp.array([1.0, 1.0]),
-                ]
-            )
+            d = self._d_template.at[0].set(df0_dphiA)
+            d = d.at[1].set(df1_dphiB)
+            d = d.at[2].set(df2_dCA)
+            d = d.at[3].set(df3_dCB - f2_multiplier * df2_dCB)
 
-            du = jnp.concat(
-                [
-                    jnp.array([df0_dphiB, 0.0, df2_dCB, -f2_multiplier * df2_dCA1]),
-                    jnp.zeros(2 * self.Nx - 3),
-                ]
-            )
+            du = self._du_template.at[0].set(df0_dphiB)
+            du = du.at[2].set(df2_dCB)
+            du = du.at[3].set(-f2_multiplier * df2_dCA1)
 
-            d2u = jnp.concat(
-                [
-                    jnp.array([df0_dCA, df1_dCB, df2_dCA1, df3_dCB1]),
-                    interleave_concat_2d(self.sigma_inner, self.sigma_inner),
-                ]
-            )
+            d2u = self._d2u_template.at[0].set(df0_dCA)
+            d2u = d2u.at[1].set(df1_dCB)
 
             return d2l, dl, d, du, d2u
 
@@ -195,40 +183,56 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     def create_build_F(
         self, params: AdsorptionReactionParams, sol_prev: Scalar, x: ScanInputSequence
     ) -> Callable[[Scalar], Scalar]:
+        h0_K_A_ads = self.h0 * params.K_A_ads
+        h0_K_B_ads = self.h0 * params.K_B_ads
+        h0_K_A_des = self.h0 * params.K_A_des
+        h0_K_B_des = self.h0 * params.K_B_des
+        dt_K_A_ads_beta = self.dt * params.K_A_ads * self.beta
+        dt_K_B_ads_beta = self.dt * params.K_B_ads * self.beta
+        dt_K_A_des_beta = self.dt * params.K_A_des * self.beta
+        dt_K_B_des_beta = self.dt * params.K_B_des * self.beta
+        h0_K_red_sol = self.h0 * x.K_red_sol
+        h0_K_ox_sol = self.h0 * x.K_ox_sol
+        dt_K_red_ads = self.dt * x.K_red_ads
+        dt_K_ox_ads = self.dt * x.K_ox_ads
+
         def build_F(sol: Scalar) -> Scalar:
+            phi_sum = sol[0] + sol[1]
+            coverage_rem = 1.0 - phi_sum
+
             f0 = (
                 sol_prev[0]
-                - self.dt * x.K_red_ads * sol[0]
-                + self.dt * x.K_ox_ads * sol[1]
-                + self.dt * params.K_A_ads * self.beta * sol[2] * (1 - sol[0] - sol[1])
-                - self.dt * params.K_A_des * self.beta * sol[0]
+                - dt_K_red_ads * sol[0]
+                + dt_K_ox_ads * sol[1]
+                + dt_K_A_ads_beta * sol[2] * coverage_rem
+                - dt_K_A_des_beta * sol[0]
                 - sol[0]
             )
 
             f1 = (
                 sol_prev[1]
-                + self.dt * x.K_red_ads * sol[0]
-                - self.dt * x.K_ox_ads * sol[1]
-                + self.dt * params.K_B_ads * self.beta * sol[3] * (1 - sol[0] - sol[1])
-                - self.dt * params.K_B_des * self.beta * sol[1]
+                + dt_K_red_ads * sol[0]
+                - dt_K_ox_ads * sol[1]
+                + dt_K_B_ads_beta * sol[3] * coverage_rem
+                - dt_K_B_des_beta * sol[1]
                 - sol[1]
             )
 
             f2 = (
-                self.h0 * x.K_red_sol * sol[2]
-                - self.h0 * x.K_ox_sol * sol[3]
-                + self.h0 * params.K_A_ads * sol[2] * (1 - sol[0] - sol[1])
-                - self.h0 * params.K_A_des * sol[0]
+                h0_K_red_sol * sol[2]
+                - h0_K_ox_sol * sol[3]
+                + h0_K_A_ads * sol[2] * coverage_rem
+                - h0_K_A_des * sol[0]
                 - sol[4]
                 + sol[2]
             )
 
             f3 = (
                 sol[3]
-                - self.h0 * x.K_red_sol * sol[2]
-                + self.h0 * x.K_ox_sol * sol[3]
-                + self.h0 * params.K_B_ads * sol[3] * (1 - sol[0] - sol[1])
-                - self.h0 * params.K_B_des * sol[1]
+                - h0_K_red_sol * sol[2]
+                + h0_K_ox_sol * sol[3]
+                + h0_K_B_ads * sol[3] * coverage_rem
+                - h0_K_B_des * sol[1]
                 - sol[5]
             )
 
@@ -249,10 +253,8 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
             f_CA_final = sol[-2] - 1.0
             f_CB_final = sol[-1]
 
-            df2_dphiA = -self.h0 * params.K_A_ads * sol[2] - self.h0 * params.K_A_des
-
-            df3_dphiA = -self.h0 * params.K_B_ads * sol[3]
-
+            df2_dphiA = -h0_K_A_ads * sol[2] - h0_K_A_des
+            df3_dphiA = -h0_K_B_ads * sol[3]
             f2_multiplier = df3_dphiA / df2_dphiA
 
             F = jnp.concat(
@@ -302,7 +304,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
     def create_stepper(self, params: AdsorptionReactionParams) -> Callable:
         def stepper(sol_prev: Scalar, x: ScanInputSequence):
             sol = self.newton_solve(sol_prev, params, x)
-            return sol, sol
+            return sol, jnp.array([sol[0], sol[2], sol[4], sol[6]])
 
         return stepper
 
@@ -343,8 +345,8 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
             K_ox_sol=K_ox_sol,
         )
 
-        _, solution = scan(stepper, init_sol, xs)
+        _, c_surface_sol = scan(stepper, init_sol, xs)
 
-        current = self.compute_current(solution)
+        current = self.compute_current(c_surface_sol)
 
         return current

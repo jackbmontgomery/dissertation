@@ -1,16 +1,22 @@
 import jax.numpy as jnp
 import pytest
 
-from src.fdm import AdsorptionReactionExplicitFDSolver, AdsorptionReactionNewtonFDSolver
+from src.fdm import (
+    AdsorptionReactionBackwardImplicitFDSolver,
+    AdsorptionReactionExplicitFDSolver,
+    AdsorptionReactionNewtonFDSolver,
+)
 from src.params import AdsorptionReactionParams
 from src.voltammetry import CyclicDC
 
 
-@pytest.fixture(params=["newton", "explicit"])
+@pytest.fixture(params=["newton", "backward", "explicit"])
 def adsorption_reaction(request):
     voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=40)
     if request.param == "newton":
         fdm_solver = AdsorptionReactionNewtonFDSolver(voltammetry)
+    if request.param == "backward":
+        fdm_solver = AdsorptionReactionBackwardImplicitFDSolver(voltammetry)
     else:
         fdm_solver = AdsorptionReactionExplicitFDSolver(voltammetry)
     return dict(fdm_solver=fdm_solver, sigma=voltammetry.sigma)

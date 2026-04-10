@@ -15,7 +15,7 @@ from src.fdm import (
 )
 from src.reaction import AdsorptionReaction, ElectronReaction, HeterogeneousReaction
 from src.sampling_experiment import sampling_experiment
-from src.voltammetry import CyclicDC
+from src.voltammetry import CyclicAC, CyclicDC
 
 num_chains = multiprocessing.cpu_count()
 
@@ -23,7 +23,7 @@ num_chains = multiprocessing.cpu_count()
 def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
     if name == "e":
         reaction = ElectronReaction()
-        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
+        voltammetry = CyclicDC()
         fd_solver = ElectronReactionFDSolver(voltammetry)
 
         sampling_experiment(
@@ -31,23 +31,28 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             fd_solver,
             optim_steps=50,
             experimental_noise=0.02,
-            num_rwmh_samples=80_000,
-            num_nuts_samples=8_000,
+            num_rwmh_samples=20_000,
+            num_nuts_samples=2_000,
             seed=seed,
             save=save,
         )
 
     elif name == "h":
+        if seed == 1:
+            voltammetry = CyclicAC()
+        else:
+            voltammetry = CyclicDC()
+
         reaction = HeterogeneousReaction()
-        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
         fd_solver = HeterogeneousReactionFDSolver(voltammetry)
 
         sampling_experiment(
             reaction,
             fd_solver,
-            optim_learning_rate=1e-1,
-            num_rwmh_samples=160_000,
-            num_nuts_samples=12_000,
+            optim_learning_rate=2e-1,
+            optim_steps=250,
+            num_rwmh_samples=32_000,
+            num_nuts_samples=2_400,
             seed=seed,
             save=save,
         )

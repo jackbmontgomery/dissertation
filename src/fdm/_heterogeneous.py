@@ -1,5 +1,3 @@
-from functools import partial
-
 import jax.numpy as jnp
 from chex import dataclass
 from jax import jit, vmap
@@ -44,9 +42,9 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h0: float = 1e-3,
+        h0: float = 1e-5,
         omega: float = 1.1,
-        dtheta: float = 2e-1,
+        dtheta: float = 2e-2,
     ):
         T, dt, X, alpha_inner, sigma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega
@@ -169,7 +167,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
         return stepper
 
-    @partial(jit, static_argnums=(0,))
+    @jit(static_argnums=(0,))
     def solve(self, params: HeterogenousReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
@@ -222,8 +220,8 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             C0_D_coef=C0_D_coef,
         )
 
-        _, solution = scan(stepper, c_init, xs)
+        _, c_surface_sol = scan(stepper, c_init, xs)
 
-        current = self.compute_current(solution, params)
+        current = self.compute_current(c_surface_sol, params)
 
         return current

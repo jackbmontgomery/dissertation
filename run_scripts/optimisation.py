@@ -14,7 +14,7 @@ def main(
     name: Literal["e", "h", "a"], noise: float = 0.02, seed: int = 0, save: bool = True
 ):
     if name == "e":
-        voltammetry = CyclicDC(sigma=50)
+        voltammetry = CyclicDC()
         fd_solver = ElectronReactionFDSolver(voltammetry)
         reaction = ElectronReaction()
 
@@ -34,7 +34,7 @@ def main(
         )
 
     elif name == "h":
-        voltammetry = CyclicDC(sigma=50)
+        voltammetry = CyclicDC()
         fd_solver = HeterogeneousReactionFDSolver(voltammetry)
         reaction = HeterogeneousReaction()
 
@@ -44,7 +44,7 @@ def main(
         optimisation_experiment(
             reaction,
             fd_solver,
-            num_iterations=250,
+            num_iterations=100,
             num_params=32,
             noise_percentage=noise,
             cmaes_params=cmaes_param,

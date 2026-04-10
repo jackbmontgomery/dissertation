@@ -14,7 +14,7 @@ sns.set_context("paper", font_scale=2.0)
 save = False
 
 dir = "./data/sampling/"
-file = "reaction=ElectronReaction,noise=0.02,seed=100.pkl.gz"
+file = "reaction=ElectronReaction,noise=0.02,seed=0.pkl.gz"
 
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)

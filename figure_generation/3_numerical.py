@@ -13,7 +13,7 @@ sns.set_context("paper", font_scale=2.0)
 save = False
 
 # %% Analytical results
-voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
+voltammetry = CyclicDC()
 fd_solver = ElectronReactionFDSolver(voltammetry)
 
 params = ElectronReactionParams(
@@ -48,7 +48,7 @@ rev_params = ElectronReactionParams(
     alpha=jnp.array(0.6), K0=jnp.array(10.0), thetaf=jnp.array(0.5)
 )
 
-voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
+voltammetry = CyclicDC()
 
 fd_solver = ElectronReactionFDSolver(voltammetry)
 
@@ -113,10 +113,10 @@ plt.show()
 # %% Effect of parameters using a baseline reversible reaction
 
 rev_params = ElectronReactionParams(
-    alpha=jnp.array(0.6), K0=jnp.array(100.0), thetaf=jnp.array(0.5)
+    alpha=jnp.array(0.6), K0=jnp.array(200.0), thetaf=jnp.array(0.5)
 )
 
-voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
+voltammetry = CyclicDC()
 
 fd_solver = ElectronReactionFDSolver(voltammetry)
 
@@ -142,3 +142,85 @@ plt.tight_layout()
 if save:
     plt.savefig("./manuscript/figures/3-alpha-effect-reversible.png", dpi=1000)
 plt.show()
+
+
+# %% Choice of discritisation
+
+voltammetry = CyclicDC()
+params = ElectronReactionParams(
+    alpha=jnp.array(0.7),
+    K0=jnp.array(1.0),
+    thetaf=jnp.array(0.0),
+)
+
+base_dtheta = 1e-4
+base_h0 = 1e-10
+fd_solver = ElectronReactionFDSolver(voltammetry, h0=base_h0, dtheta=base_dtheta)
+base_current = fd_solver.solve(params).block_until_ready()
+base_time = jnp.arange(len(base_current)) * base_dtheta
+
+h0_range = jnp.power(10.0, jnp.arange(-9, -2))
+dtheta_range = [2e-4, 5e-4, 8e-4, 1e-3, 2e-3, 5e-3, 1e-2]
+
+for dtheta in dtheta_range:
+    dtheta_vals = []
+    coarse_time = jnp.arange(int(base_time[-1] / dtheta) + 1) * dtheta
+    base_interp = jnp.interp(coarse_time, base_time, base_current)
+    for h0 in h0_range:
+        fd_solver = ElectronReactionFDSolver(voltammetry, h0=h0, dtheta=dtheta)
+        current = fd_solver.solve(params).block_until_ready()
+        n = min(len(current), len(base_interp))
+        rel_l2 = jnp.linalg.norm(current[:n] - base_interp[:n]) / jnp.linalg.norm(
+            base_interp[:n]
+        )
+        dtheta_vals.append(float(rel_l2))
+
+    plt.plot(h0_range, dtheta_vals, label=dtheta)
+
+
+plt.yscale("log")
+plt.xscale("log")
+plt.xlabel("h0")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# %%
+
+voltammetry = CyclicDC()
+params = ElectronReactionParams(
+    alpha=jnp.array(0.7),
+    K0=jnp.array(1.0),
+    thetaf=jnp.array(0.0),
+)
+
+# Reference solution: very fine in both space and time
+ref_dtheta = 1e-5
+ref_h0 = 1e-10
+ref_solver = ElectronReactionFDSolver(voltammetry, h0=ref_h0, dtheta=ref_dtheta)
+ref_current = ref_solver.solve(params).block_until_ready()
+ref_time = jnp.arange(len(ref_current)) * ref_dtheta
+
+# Fix h0 in the flat region, sweep dtheta
+h0_fixed = 1e-8
+dtheta_range = [2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 1e-1]
+errors = []
+
+for dtheta in dtheta_range:
+    solver = ElectronReactionFDSolver(voltammetry, h0=h0_fixed, dtheta=dtheta)
+    current = solver.solve(params).block_until_ready()
+    coarse_time = jnp.arange(len(current)) * dtheta
+    ref_interp = jnp.interp(coarse_time, ref_time, ref_current)
+    rel_l2 = float(jnp.linalg.norm(current - ref_interp) / jnp.linalg.norm(ref_interp))
+    errors.append(rel_l2)
+    print(f"dtheta = {dtheta:.4f}, rel L2 error = {rel_l2:.2e}")
+
+# Compute empirical convergence order between successive pairs
+print("\nConvergence order:")
+for i in range(1, len(dtheta_range)):
+    ratio = errors[i] / errors[i - 1]
+    dt_ratio = dtheta_range[i] / dtheta_range[i - 1]
+    order = jnp.log(ratio) / jnp.log(dt_ratio)
+    print(
+        f"dtheta {dtheta_range[i - 1]:.4f} -> {dtheta_range[i]:.4f}: order = {float(order):.2f}"
+    )
