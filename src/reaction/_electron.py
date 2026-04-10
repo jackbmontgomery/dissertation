@@ -34,3 +34,13 @@ class ElectronReaction(AbstractReaction):
             K0_inv=samples[:, 1],
             thetaf_inv=samples[:, 2],
         )
+
+
+class ReversibleElectronReaction(ElectronReaction):
+    @property
+    def true_parameters(self) -> ElectronReactionParams:
+        return ElectronReactionParams(
+            alpha=jnp.array(0.6),
+            K0=jnp.array(1000.0),
+            thetaf=jnp.array(0.5),
+        )

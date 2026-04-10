@@ -59,7 +59,6 @@ def sampling_experiment(
     optim_learning_rate: float = 1e-1,
     optim_steps: int = 250,
     warmup_step_size: float = 5e-1,
-    rwmh_scale_factor: float = 50.0,
     num_rwmh_samples: int,
     num_nuts_samples: int,
     seed: int,
@@ -115,6 +114,7 @@ def sampling_experiment(
         logdensity_fn,
         is_mass_matrix_diagonal=False,
         initial_step_size=warmup_step_size,
+        progress_bar=True,
     )
 
     (last_states, window_adaption_params), _ = warmup.run(key_warmup, best_params)
@@ -123,7 +123,6 @@ def sampling_experiment(
     flat_last_states.block_until_ready()
 
     print(f"Adaption Time: {perf_counter() - adaption_start_time:.2f}s")
-    print("Adapted Params:")
     print(f"Step size: {window_adaption_params['step_size']:.2f}")
 
     print(pretty_header("RWMH", char="-"))
@@ -131,10 +130,10 @@ def sampling_experiment(
 
     # Roberts, Gelman & Gilks (1997): optimal RWMH proposal covariance
     # is (2.38^2 / D) * Sigma_target, targeting ~23.4% acceptance rate
+
     scale = (2.38**2) / reaction.parameter_dim
-    sigma_rwmh = (
-        rwmh_scale_factor * scale * window_adaption_params["inverse_mass_matrix"]
-    )
+    proposal_cov = scale * window_adaption_params["inverse_mass_matrix"]
+    sigma_rwmh = jnp.linalg.cholesky(proposal_cov)
 
     key, key_rwmh = jr.split(key)
 

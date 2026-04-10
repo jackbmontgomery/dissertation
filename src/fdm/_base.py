@@ -1,8 +1,8 @@
 from abc import abstractmethod
-from typing import Any, Tuple
+from typing import Any
 
 import jax.numpy as jnp
-from jaxtyping import Array, PyTree, Scalar
+from jaxtyping import PyTree, Scalar
 
 from src.voltammetry import AbstractVoltammetryTechnique
 

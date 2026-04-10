@@ -10,9 +10,10 @@ from src.voltammetry import CyclicDC
 sns.set_theme()
 sns.set_context("paper", font_scale=2.0)
 
-# %% Analytical results
+save = False
 
-voltammetry = CyclicDC()
+# %% Analytical results
+voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
 fd_solver = ElectronReactionFDSolver(voltammetry)
 
 params = ElectronReactionParams(
@@ -21,7 +22,7 @@ params = ElectronReactionParams(
     thetaf=jnp.array(0.0),
 )
 
-_, current = fd_solver.solve(params)
+current = fd_solver.solve(params)
 
 max_current = -0.496 * jnp.sqrt(params.alpha) * jnp.sqrt(voltammetry.sigma)
 plt.axhline(y=max_current, c="C1", linestyle="--", label="Analytical")
@@ -37,7 +38,8 @@ plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.legend()
 plt.tight_layout()
-plt.savefig("./manuscript/figures/3-analytical.png", dpi=1000)
+if save:
+    plt.savefig("./manuscript/figures/3-analytical.png", dpi=1000)
 plt.show()
 
 # %% Effect of parameters using a baseline quasi-reversible reaction
@@ -46,7 +48,7 @@ rev_params = ElectronReactionParams(
     alpha=jnp.array(0.6), K0=jnp.array(10.0), thetaf=jnp.array(0.5)
 )
 
-voltammetry = CyclicDC()
+voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
 
 fd_solver = ElectronReactionFDSolver(voltammetry)
 
@@ -59,7 +61,7 @@ alpha_params = ElectronReactionParams(
     thetaf=jnp.full_like(alpha_range, rev_params.thetaf),
 )
 
-_, alpha_currents = vmap(fd_solver.solve)(alpha_params)
+alpha_currents = vmap(fd_solver.solve)(alpha_params)
 for val, current in zip(alpha_range, alpha_currents):
     ax0.plot(fd_solver.applied_potentials, current, label=f"{val:.1f}")
 
@@ -71,7 +73,7 @@ K0_params = ElectronReactionParams(
     thetaf=jnp.full_like(K0_range, rev_params.thetaf),
 )
 
-_, K0_currents = vmap(fd_solver.solve)(K0_params)
+K0_currents = vmap(fd_solver.solve)(K0_params)
 for val, current in zip(K0_range, K0_currents):
     ax1.plot(fd_solver.applied_potentials, current, label=f"{val:.0f}")
 
@@ -83,7 +85,7 @@ Ef_params = ElectronReactionParams(
     thetaf=Ef_range,
 )
 
-_, Ef_currents = vmap(fd_solver.solve)(Ef_params)
+Ef_currents = vmap(fd_solver.solve)(Ef_params)
 for val, current in zip(Ef_range, Ef_currents):
     ax2.plot(fd_solver.applied_potentials, current, label=f"{val:.1f}")
 
@@ -103,16 +105,18 @@ ax2.legend()
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.tight_layout()
-plt.savefig("./manuscript/figures/3-parameter-effect-quasi.png", dpi=1000)
+
+if save:
+    plt.savefig("./manuscript/figures/3-parameter-effect-quasi.png", dpi=1000)
 plt.show()
 
 # %% Effect of parameters using a baseline reversible reaction
 
 rev_params = ElectronReactionParams(
-    alpha=jnp.array(0.6), K0=jnp.array(200.0), thetaf=jnp.array(0.5)
+    alpha=jnp.array(0.6), K0=jnp.array(100.0), thetaf=jnp.array(0.5)
 )
 
-voltammetry = CyclicDC()
+voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
 
 fd_solver = ElectronReactionFDSolver(voltammetry)
 
@@ -123,7 +127,7 @@ alpha_params = ElectronReactionParams(
     thetaf=jnp.full_like(alpha_range, rev_params.thetaf),
 )
 
-_, alpha_currents = vmap(fd_solver.solve)(alpha_params)
+alpha_currents = vmap(fd_solver.solve)(alpha_params)
 for val, current in zip(alpha_range, alpha_currents):
     plt.plot(fd_solver.applied_potentials, current, label=f"{val:.1f}")
 
@@ -135,5 +139,6 @@ plt.legend()
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.tight_layout()
-plt.savefig("./manuscript/figures/3-alpha-effect-reversible.png", dpi=1000)
+if save:
+    plt.savefig("./manuscript/figures/3-alpha-effect-reversible.png", dpi=1000)
 plt.show()

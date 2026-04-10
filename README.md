@@ -27,6 +27,7 @@ repeating exposition.
 
 - How do I choose the discretisation of the numerical scheme?
 - How do I non-dimensionalise the sinusoidal component of the AC voltammetry?
+- What is varying that I need to store: experiment, seed, voltammetry, noise
 
 ---
 
@@ -86,6 +87,10 @@ hard.
   limit), Compton & Banks (irreversible limit)
 - Define forward map P: parameters -> predicted current
 - Parameter effects and kinetic regimes -> motivation for Bayesian approach
+- Scan rate and its choice for the optimal chemical: The scan rate is chosen for
+  each reaction mechanism to ensure that the kinetic processes of interest
+  operate in a regime where the current response is sensitive to the target
+  parameters.
 
 **Arc:** Build solver -> verify -> define P -> show parameters are
 correlated/degenerate -> Ch 4
@@ -109,7 +114,7 @@ but wastes computation on burn-in.
 - RWMH: explain the algorithm, tuning Sigma, 23% acceptance heuristic
 - **Results:** marginal posteriors recover true values. Corner plot (3x3) --
   introduce this visualisation as baseline. Burn-in scatter plot showing
-  computational waste.
+  computational waste. We have vanilla failing when the scan rate is too low.
 - Key observation: each likelihood = one forward solve. Burn-in is expensive.
   Gradients could locate the mode and improve proposals -> Ch 5
 

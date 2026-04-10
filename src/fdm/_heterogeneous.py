@@ -1,6 +1,8 @@
+from functools import partial
+
 import jax.numpy as jnp
 from chex import dataclass
-from jax import vmap
+from jax import jit, vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
@@ -35,12 +37,9 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
     h0: Scalar
     d2l: Scalar
     d2u: Scalar
-    dl_AB_left: Scalar
-    dl_CD_right: Scalar
-    du_AB_left: Scalar
-    du_CD_right: Scalar
-    d_AB_left: Scalar
-    d_CD_right: Scalar
+    _dl_template: Scalar
+    _d_template: Scalar
+    _du_template: Scalar
 
     def __init__(
         self,
@@ -85,16 +84,14 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             ]
         )
 
-        # Super- and sub- Diagonal inner
+        # Sub-diagonal template: all zeros except 3 boundary entries set in stepper
+        self._dl_template = jnp.zeros(4 * self.Nx - 1)
 
-        self.dl_AB_left = jnp.zeros(2 * self.Nx - 3)
-        self.dl_CD_right = jnp.zeros(2 * self.Nx - 2)
+        # Super-diagonal template: all zeros except 2 boundary entries set in stepper
+        self._du_template = jnp.zeros(4 * self.Nx - 1)
 
-        self.du_AB_left = jnp.zeros(2 * self.Nx - 2)
-        self.du_CD_right = jnp.zeros(2 * self.Nx - 3)
-
-        # Diagonal Inner
-        self.d_AB_left = jnp.concat(
+        # Diagonal template: inner values fixed, 4 boundary entries set in stepper
+        d_AB_left = jnp.concat(
             [
                 jnp.ones(2),
                 interleave_concat_2d(
@@ -103,7 +100,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
                 ),
             ]
         )
-        self.d_CD_right = jnp.concat(
+        d_CD_right = jnp.concat(
             [
                 interleave_concat_2d(
                     1 - (alpha_inner_CD + gamma_inner_CD),
@@ -112,6 +109,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
                 jnp.ones(2),
             ]
         )
+        self._d_template = jnp.concat([d_AB_left, jnp.zeros(4), d_CD_right])
 
     def compute_current(
         self, c_surf: Array, params: HeterogenousReactionParams
@@ -137,52 +135,33 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
         N = self.Nx
         surface_indices = jnp.array(
             [
-                2 * N - 2,  # A0
-                2 * N - 4,  # A1
-                2 * N - 6,  # A2
-                2 * N,  # C0
-                2 * N + 2,  # C1
-                2 * N + 4,  # C2
-                2 * N - 1,  # B0
+                2 * N - 2,  # A0  (c_surf[:, 0])
+                2 * N - 4,  # A1  (c_surf[:, 1])
+                2 * N - 6,  # A2  (c_surf[:, 2])
+                2 * N,  # C0  (c_surf[:, 3])
+                2 * N + 2,  # C1  (c_surf[:, 4])
+                2 * N + 4,  # C2  (c_surf[:, 5])
+                2 * N - 1,  # B0  (c_surf[:, 6])
             ]
         )
 
         def stepper(c_prev: Array, x: ScanInputSequence):
-            dl = jnp.concat(
-                [
-                    self.dl_AB_left,
-                    jnp.array([0.0, x.B0_A_coef, x.C0_B_coef, x.D0_C_coef]),
-                    self.dl_CD_right,
-                ]
-            )
+            dl = self._dl_template.at[2 * N - 2].set(x.B0_A_coef)
+            dl = dl.at[2 * N - 1].set(x.C0_B_coef)
+            dl = dl.at[2 * N].set(x.D0_C_coef)
 
-            d = jnp.concat(
-                [
-                    self.d_AB_left,
-                    jnp.array(
-                        [x.beta_A_coef, x.beta_B_coef, x.beta_C_coef, x.beta_D_coef]
-                    ),
-                    self.d_CD_right,
-                ]
-            )
+            d = self._d_template.at[2 * N - 2].set(x.beta_A_coef)
+            d = d.at[2 * N - 1].set(x.beta_B_coef)
+            d = d.at[2 * N].set(x.beta_C_coef)
+            d = d.at[2 * N + 1].set(x.beta_D_coef)
 
-            du = jnp.concat(
-                [
-                    self.du_AB_left,
-                    jnp.array([x.A0_B_coef, 0.0, x.C0_D_coef, 0.0]),
-                    self.du_CD_right,
-                ]
-            )
+            du = self._du_template.at[2 * N - 2].set(x.A0_B_coef)
+            du = du.at[2 * N].set(x.C0_D_coef)
 
-            rhs = jnp.concat(
-                [
-                    jnp.array([1.0, 0.0]),
-                    c_prev[2 : 2 * self.Nx - 2],
-                    jnp.array([0.0, 0.0, 0.0, 0.0]),
-                    c_prev[2 * self.Nx + 2 : -2],
-                    jnp.array([0.0, 0.0]),
-                ]
-            )
+            rhs = c_prev.at[0].set(1.0)
+            rhs = rhs.at[1].set(0.0)
+            rhs = rhs.at[2 * N - 2 : 2 * N + 2].set(jnp.zeros(4))
+            rhs = rhs.at[-2:].set(jnp.zeros(2))
 
             c = pentadiagonal_solve(self.d2l, dl, d, du, self.d2u, rhs)
 
@@ -190,6 +169,7 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
 
         return stepper
 
+    @partial(jit, static_argnums=(0,))
     def solve(self, params: HeterogenousReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 

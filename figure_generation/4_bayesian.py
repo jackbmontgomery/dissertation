@@ -3,12 +3,11 @@ import jax.numpy as jnp
 import jax.random as jr
 import matplotlib.pyplot as plt
 import seaborn as sns
-from jax import jit
 
 from src.fdm import ElectronReactionFDSolver
 from src.params import ElectronReactionParams
 from src.reaction import ElectronReaction
-from src.sampling import RWMHSampler, inference_loop
+from src.sampling import RWMHSampler
 from src.utils import generate_noisy_samples
 from src.voltammetry import CyclicDC
 
@@ -16,13 +15,14 @@ sns.set_theme()
 sns.set_context("paper", font_scale=2.0)
 
 key = jr.key(0)
+save = False
 
 # %% Noisy Samples
 fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharex=True, sharey=True)
 
 samples_key, sampling_key, key = jr.split(key, 3)
-cyclic_dc = CyclicDC()
-fd_solver = ElectronReactionFDSolver(cyclic_dc)
+voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
+fd_solver = ElectronReactionFDSolver(voltammetry)
 true_params = ElectronReactionParams(
     alpha=jnp.array(0.6),
     K0=jnp.array(10.0),
@@ -32,7 +32,7 @@ init_params = ElectronReactionParams(
     alpha=jnp.array(0.5), K0=jnp.array(15.0), thetaf=jnp.array(0.5)
 )
 
-_, base_current = fd_solver.solve(true_params)
+base_current = fd_solver.solve(true_params)
 
 all_noise = [0.01, 0.02]
 
@@ -52,29 +52,30 @@ axs[1].set_xlabel(r"$\theta$")
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.tight_layout()
-plt.savefig("./manuscript/figures/4-noisy-data.png", dpi=1000)
+if save:
+    plt.savefig("./manuscript/figures/4-noisy-data.png", dpi=1000)
 plt.show()
 
 # %% Random-Walk Metropolis Hasting with no burn-in
 
 key_samples, key_init, key_sampling = jr.split(key, 3)
-cyclic_dc = CyclicDC()
-fd_solver = ElectronReactionFDSolver(cyclic_dc)
+voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
+fd_solver = ElectronReactionFDSolver(voltammetry)
 reaction = ElectronReaction()
 
 true_params = reaction.true_parameters
-_, base_current = fd_solver.solve(true_params)
+base_current = fd_solver.solve(true_params)
 
 experimental_samples = generate_noisy_samples(
     10,
     base_current,
-    0.02,
+    0.01,
     key=key_samples,
 )
 
 
 def logdensity_fn(params: ElectronReactionParams):
-    _, current = fd_solver.solve(params)
+    current = fd_solver.solve(params)
     return -jnp.sum((experimental_samples - current) ** 2)
 
 
@@ -82,7 +83,7 @@ init_params = reaction.create_init_params(key_init, 1)
 
 rwmh = RWMHSampler(logdensity_fn, 2000, 1)
 
-rwmh_params = {"random_step": blackjax.mcmc.random_walk.normal(jnp.repeat(0.01, 3))}
+rwmh_params = {"random_step": blackjax.mcmc.random_walk.normal(jnp.repeat(0.1, 3))}
 
 samples, _ = rwmh.run(init_params, rwmh_params, key=key_sampling)
 samples: ElectronReactionParams = samples
@@ -106,7 +107,8 @@ ax3.axvline(x=true_params.thetaf, linestyle="--", color="black")
 handles, labels = ax1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2)
 plt.tight_layout(rect=(0, 0.1, 1, 1))
-plt.savefig("./manuscript/figures/4-rwmh-hist.png", dpi=1000)
+if save:
+    plt.savefig("./manuscript/figures/4-rwmh-hist.png", dpi=1000)
 plt.show()
 
 # %% Scatter plot for no burn-in
@@ -125,5 +127,6 @@ plt.scatter(
 plt.xlabel(r"$\alpha$")
 plt.ylabel(r"$K_0$")
 plt.tight_layout()
-plt.savefig("./manuscript/figures/4-rwmh-scatter.png", dpi=1000)
+if save:
+    plt.savefig("./manuscript/figures/4-rwmh-scatter.png", dpi=1000)
 plt.show()

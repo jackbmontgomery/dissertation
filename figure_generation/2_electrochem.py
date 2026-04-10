@@ -15,11 +15,11 @@ true_params = ElectronReactionParams(
     alpha=jnp.array(0.6), K0=jnp.array(1e6), thetaf=jnp.array(0.0)
 )
 
-voltammetry = CyclicDC()
+voltammetry = CyclicDC(theta_i=10.0, theta_v=-10.0, sigma=1000.0)
 
 fd_solver = ElectronReactionFDSolver(voltammetry)
 
-_, current = fd_solver.solve(true_params)
+current = fd_solver.solve(true_params)
 
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3))
 

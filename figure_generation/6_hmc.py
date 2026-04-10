@@ -11,9 +11,10 @@ from src.reaction import ElectronReaction
 
 sns.set_theme()
 sns.set_context("paper", font_scale=2.0)
+save = False
 
 dir = "./data/sampling/"
-file = "reaction=ElectronReaction,noise=0.02,seed=0.pkl.gz"
+file = "reaction=ElectronReaction,noise=0.02,seed=100.pkl.gz"
 
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
@@ -47,7 +48,8 @@ ax3.axvline(x=true_params.thetaf, linestyle="--", color="black")
 handles, labels = ax1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=3)
 plt.tight_layout(rect=(0, 0.1, 1, 1))
-plt.savefig("./manuscript/figures/6-hmc-hist.png", dpi=1000)
+if save:
+    plt.savefig("./manuscript/figures/6-hmc-hist.png", dpi=1000)
 plt.show()
 
 # %%
@@ -71,5 +73,6 @@ axs[1].set_xlabel("Sample Proportion")
 handles, labels = axs[0].get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2)
 plt.tight_layout(rect=(0, 0.1, 1, 1))
-plt.savefig("./manuscript/figures/6-ess.png", dpi=1000)
+if save:
+    plt.savefig("./manuscript/figures/6-ess.png", dpi=1000)
 plt.show()

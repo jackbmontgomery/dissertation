@@ -44,7 +44,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
         voltammetry: AbstractVoltammetryTechnique,
         h0: float = 1e-4,
         omega: float = 1.1,
-        dtheta: float = 5e-1,
+        dtheta: float = 2e-1,
         atol: float = 1e-8,
         rtol: float = 1e-6,
     ):
@@ -306,7 +306,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
 
         return stepper
 
-    def solve(self, params: AdsorptionReactionParams) -> Tuple[Array, Scalar]:
+    def solve(self, params: AdsorptionReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
         K_A_eq = params.K_A_ads / params.K_A_des
@@ -347,4 +347,4 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
 
         current = self.compute_current(solution)
 
-        return solution, current
+        return current

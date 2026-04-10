@@ -23,7 +23,7 @@ num_chains = multiprocessing.cpu_count()
 def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
     if name == "e":
         reaction = ElectronReaction()
-        voltammetry = CyclicDC()
+        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
         fd_solver = ElectronReactionFDSolver(voltammetry)
 
         sampling_experiment(
@@ -31,7 +31,6 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             fd_solver,
             optim_steps=50,
             experimental_noise=0.02,
-            rwmh_scale_factor=50.0,
             num_rwmh_samples=80_000,
             num_nuts_samples=8_000,
             seed=seed,
@@ -40,14 +39,13 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
 
     elif name == "h":
         reaction = HeterogeneousReaction()
-        voltammetry = CyclicDC()
+        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
         fd_solver = HeterogeneousReactionFDSolver(voltammetry)
 
         sampling_experiment(
             reaction,
             fd_solver,
-            optim_learning_rate=2e-1,
-            rwmh_scale_factor=20.0,
+            optim_learning_rate=1e-1,
             num_rwmh_samples=160_000,
             num_nuts_samples=12_000,
             seed=seed,
@@ -66,7 +64,6 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             data_fd_solver=data_fd_solver,
             optim_learning_rate=2e-1,
             optim_steps=1000,
-            rwmh_scale_factor=1.0,
             num_rwmh_samples=160_000,
             num_nuts_samples=8_000,
             seed=seed,

@@ -30,7 +30,7 @@ def test_monolayer_analytical(adsorption_reaction):
     )
     fdm_solver = adsorption_reaction["fdm_solver"]
     sigma = adsorption_reaction["sigma"]
-    solution, current = fdm_solver.solve(params)
+    current = fdm_solver.solve(params)
     analytical_flux = (
         -sigma
         * jnp.exp(-(fdm_solver.applied_potentials - params.thetaf_ads))

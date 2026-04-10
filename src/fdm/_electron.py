@@ -1,8 +1,9 @@
+from functools import partial
 from typing import Callable, Tuple
 
 import jax.numpy as jnp
 from chex import dataclass
-from jax import vmap
+from jax import jit, vmap
 from jax.lax import scan
 from jaxtyping import Array, Scalar
 
@@ -26,14 +27,14 @@ class ElectronReactionFDSolver(AbstractFDSolver):
     h0: Scalar
     dl: Scalar
     du: Scalar
-    d: Scalar
+    _d_template: Scalar
 
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
         h0: float = 1e-3,
         omega: float = 1.1,
-        dtheta: float = 2e-1,
+        dtheta: float = 1e-1,
     ):
         T, dt, X, alpha_inner, gamma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega
@@ -46,12 +47,11 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         self.h0 = jnp.array(h0)
 
         self.dl = jnp.concat([alpha_inner, jnp.array([0.0])])
-
-        self.d = jnp.concat(
-            [jnp.zeros(1), 1 - (alpha_inner + gamma_inner), jnp.ones(1)]
-        )
-
         self.du = jnp.concatenate([jnp.array([-1.0]), gamma_inner])
+
+        self._d_template = jnp.concat(
+            [jnp.empty(1), 1 - (alpha_inner + gamma_inner), jnp.ones(1)]
+        )
 
     def compute_current(self, c_surface: Array) -> Scalar:
         h1 = self.X[1] - self.X[0]
@@ -70,13 +70,14 @@ class ElectronReactionFDSolver(AbstractFDSolver):
         Tuple[Scalar, Scalar],
     ]:
         def stepper(c_prev: Scalar, x: ScanInputSequence):
-            d = self.d.at[0].set(x.beta0)
+            d = self._d_template.at[0].set(x.beta0)
             rhs = c_prev.at[0].set(x.delta0).at[-1].set(1.0)
             c = tridiagonal_solve(self.dl, d, self.du, rhs)
             return c, c[:3]
 
         return stepper
 
+    @partial(jit, static_argnums=(0,))
     def solve(self, params: ElectronReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 

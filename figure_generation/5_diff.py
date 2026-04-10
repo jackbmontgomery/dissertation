@@ -2,7 +2,6 @@ import blackjax
 import jax.numpy as jnp
 import jax.random as jr
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
 
 from src.fdm import ElectronReactionFDSolver
@@ -17,17 +16,18 @@ sns.set_theme()
 sns.set_context("paper", font_scale=2)
 
 key = jr.key(0)
+save = False
 
 # %% RWMH vs ADAM
 
 key_samples, key_init, key_sampling, key_cmaes = jr.split(key, 4)
 
-cyclic_dc = CyclicDC()
-fd_solver = ElectronReactionFDSolver(cyclic_dc)
+voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
+fd_solver = ElectronReactionFDSolver(voltammetry)
 reaction = ElectronReaction()
 
 true_params = reaction.true_parameters
-_, base_current = fd_solver.solve(true_params)
+base_current = fd_solver.solve(true_params)
 
 experimental_samples = generate_noisy_samples(
     10,
@@ -38,7 +38,7 @@ experimental_samples = generate_noisy_samples(
 
 
 def logdensity_fn(params: ElectronReactionParams):
-    _, current = fd_solver.solve(params)
+    current = fd_solver.solve(params)
     return -jnp.sum((experimental_samples - current) ** 2)
 
 
@@ -125,5 +125,6 @@ fig.colorbar(
     label="Index",
     location="right",
 )
-fig.savefig("./manuscript/figures/5-burn-in-scatter.png", dpi=1000)
+if save:
+    fig.savefig("./manuscript/figures/5-burn-in-scatter.png", dpi=1000)
 plt.show()

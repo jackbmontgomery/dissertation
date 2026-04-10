@@ -1,5 +1,4 @@
 import jax.numpy as jnp
-import jax.random as jr
 from chex import PRNGKey
 
 from src.params import AdsorptionReactionParams
@@ -28,41 +27,6 @@ class AdsorptionReaction(AbstractReaction):
 
     def __str__(self) -> str:
         return "AdsorptionReaction"
-
-    def create_init_params(self, key: PRNGKey, num: int):
-        k1, k2, k3, k4, k5, k6, k7, k8, k9 = jr.split(key, 9)
-
-        alpha_sol_vals = jnp.linspace(0.3, 0.5, num)
-        K0_sol_vals = jnp.linspace(1e-6, 5.0, num)
-        thetaf_sol_vals = jnp.linspace(-0.5, 0.5, num)
-        alpha_ads_vals = jnp.linspace(0.3, 0.5, num)
-        K0_ads_vals = jnp.linspace(1e-6, 5.0, num)
-        K_A_ads_vals = jnp.linspace(1e-6, 5.0, num)
-        K_A_des_vals = jnp.linspace(1e-6, 5.0, num)
-        K_B_ads_vals = jnp.linspace(1e-6, 5.0, num)
-        K_B_des_vals = jnp.linspace(1e-6, 5.0, num)
-
-        alpha_sol = jr.permutation(k1, alpha_sol_vals)
-        K0_sol = jr.permutation(k2, K0_sol_vals)
-        thetaf_sol = jr.permutation(k3, thetaf_sol_vals)
-        alpha_ads = jr.permutation(k4, alpha_ads_vals)
-        K0_ads = jr.permutation(k5, K0_ads_vals)
-        K_A_ads = jr.permutation(k6, K_A_ads_vals)
-        K_A_des = jr.permutation(k7, K_A_des_vals)
-        K_B_ads = jr.permutation(k8, K_B_ads_vals)
-        K_B_des = jr.permutation(k9, K_B_des_vals)
-
-        return AdsorptionReactionParams(
-            alpha_sol=alpha_sol,
-            K0_sol=K0_sol,
-            thetaf_sol=thetaf_sol,
-            alpha_ads=alpha_ads,
-            K0_ads=K0_ads,
-            K_A_ads=K_A_ads,
-            K_A_des=K_A_des,
-            K_B_ads=K_B_ads,
-            K_B_des=K_B_des,
-        )
 
     def create_init_params(self, key: PRNGKey, num: int, scale: float = 2.0):
         true_p = self.true_parameters

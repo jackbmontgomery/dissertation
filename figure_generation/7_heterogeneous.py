@@ -17,6 +17,7 @@ from src.voltammetry import CyclicAC, CyclicDC
 
 sns.set_theme()
 sns.set_context("paper", font_scale=2)
+save = False
 
 # %% Analytical Results
 
@@ -96,7 +97,7 @@ plt.show()
 # %% Optimisation Comparison
 
 electron_optim = np.load(
-    "./data/optimisation/reaction=HeterogeneousReaction,noise=0.02,seed=0.npz"
+    "./data/optimisation/reaction=HeterogeneousReaction,noise=0.02,seed=50.npz"
 )
 
 adam_ld = electron_optim["adam_ld"]
@@ -116,7 +117,7 @@ plt.fill_between(iterations, a_ld_mean - a_ld_std, a_ld_mean + a_ld_std, alpha=0
 plt.plot(iterations, c_ld_mean, label="CMA-ES")
 plt.fill_between(iterations, c_ld_mean - c_ld_std, c_ld_mean + c_ld_std, alpha=0.5)
 
-plt.ylim(mode_ld * 5, 300)
+plt.ylim(mode_ld * 5, 10)
 
 plt.axhline(y=mode_ld * 2, linestyle="--", c="C3")
 plt.legend()
@@ -124,13 +125,14 @@ plt.legend()
 plt.ylabel("Log Density")
 plt.xlabel("Iteration")
 plt.tight_layout()
-plt.savefig("./manuscript/figures/7-optim.png", dpi=1000)
+if save:
+    plt.savefig("./manuscript/figures/7-optim.png", dpi=1000)
 plt.show()
 
 # %% Sampling: Seed 0
 
 dir = "./data/sampling"
-file = "reaction=HeterogeneousReaction,noise=0.02,seed=0.pkl.gz"
+file = "reaction=HeterogeneousReaction,noise=0.02,seed=50.pkl.gz"
 
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
@@ -293,7 +295,7 @@ rwmh: HeterogenousReactionParams = data["rwmh"]
 
 true_params: HeterogenousReactionParams = HeterogeneousReaction().true_parameters
 
-fig = plt.figure(figsize=(12, 5))
+fig = plt.figure(figsize=(14, 6))
 
 gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
 
@@ -388,7 +390,7 @@ for i, (h_ei, r_ei) in enumerate(zip(nuts_end_idx, rwmh_end_idx)):
 
 # %%  Plot ESS
 
-fig = plt.figure(figsize=(12, 5))
+fig = plt.figure(figsize=(14, 6))
 
 gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
 
@@ -429,5 +431,5 @@ for i, ax in enumerate(axs):
     ax.plot(idx, rwmh_ess[i, :], label="RWMH")
 
 handles, labels = ax_a1.get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower right", ncol=2)
+fig.legend(handles, labels, loc="lower right", ncol=1)
 plt.show()

@@ -8,7 +8,6 @@ import seaborn as sns
 
 from src.fdm import AdsorptionReactionNewtonFDSolver
 from src.params import AdsorptionReactionParams
-from src.plotting import plot_ess_over_time, plot_potential_scale_reduction_over_time
 from src.reaction import AdsorptionReaction
 from src.voltammetry import CyclicDC
 
@@ -17,7 +16,7 @@ sns.set_context("paper", font_scale=2)
 
 # %%
 
-voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=50)
+voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=10)
 
 fd_solver = AdsorptionReactionNewtonFDSolver(voltammetry)
 params = AdsorptionReaction().true_parameters

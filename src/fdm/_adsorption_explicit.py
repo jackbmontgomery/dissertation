@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Callable, Tuple
+from typing import Callable
 
 import jax.numpy as jnp
 from chex import dataclass
@@ -63,14 +63,13 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
         )
 
     def compute_current(self, sol: Array) -> Scalar:
-        c0_A = sol[:, 2]
-        c1_A = sol[:, 4]
-        c2_A = sol[:, 6]
-
+        # sol has shape (Nt, 4): [gamma_A, c_A[0], c_A[1], c_A[2]]
         h1 = self.X[1] - self.X[0]
         h2 = self.X[2] - self.X[0]
 
-        dcA_dx = (h2**2 * (c0_A - c1_A) + h1**2 * (c2_A - c0_A)) / (h1 * h2 * (h1 - h2))
+        dcA_dx = (h2**2 * (sol[:, 1] - sol[:, 2]) + h1**2 * (sol[:, 3] - sol[:, 1])) / (
+            h1 * h2 * (h1 - h2)
+        )
         dgA_dt = jnp.gradient(sol[:, 0], self.dt)
 
         return -(dcA_dx - dgA_dt / self.beta)
@@ -135,12 +134,12 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
 
             sol = pentadiagonal_solve(d2l, dl, d, du, d2u, rhs)
 
-            return sol, sol
+            return sol, jnp.array([sol[0], sol[2], sol[4], sol[6]])
 
         return stepper
 
     @partial(jit, static_argnums=(0,))
-    def solve(self, params: AdsorptionReactionParams) -> Tuple[Array, Scalar]:
+    def solve(self, params: AdsorptionReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
         K_A_eq = params.K_A_ads / params.K_A_des
@@ -181,4 +180,4 @@ class AdsorptionReactionExplicitFDSolver(AbstractFDSolver):
 
         current = self.compute_current(fd_solution)
 
-        return fd_solution, current
+        return current
