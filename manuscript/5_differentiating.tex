@@ -1,13 +1,14 @@
 \chapter{Differentiating Through the Forward Solver}\label{ch:adjoint}
 
-The previous chapter postulated that gradient information is could be desirable
-both for initialising the Markov chain and for
-constructing more efficient MCMC proposals. Computing the gradient of the
+The previous chapter established that gradient information can both
+initialise the Markov chain near the posterior mode and enable more
+efficient MCMC proposals. Computing the gradient of the
 log-likelihood~\cref{eq:log-likelihood} with respect to the
 parameters~$\phi$ requires differentiating through the forward
 map~$\mathcal{P}$, which itself involves solving a sequence of tridiagonal
 linear systems. In this chapter we describe how these derivatives are
-obtained efficiently.
+obtained efficiently, demonstrate their value through gradient-based
+optimisation, and compare the result against a gradient-free alternative.
 
 \section{Discretise Then Optimise}\label{sec:disc-then-opt}
 
@@ -15,13 +16,11 @@ There are broadly two strategies for differentiating through a numerical
 solver. In the \emph{optimise then discretise} approach one derives the
 continuous adjoint equations analytically and then discretises them; in the
 \emph{discretise then optimise} approach one first discretises the forward
-problem and then differentiates the discrete computation. Generally,
-the discretise then optimise is preferable as it computes the exact
-gradient of the quantity that is actually evaluated in code, avoiding
-the consistency errors that can arise
-when the adjoint PDE is discretised independently of the forward PDE
-\cite{kidger2021neural}. We
-adopt this approach throughout.
+problem and then differentiates the discrete computation. The latter is
+preferable here because it computes the exact gradient of the quantity
+that is actually evaluated in code, avoiding the consistency errors that
+can arise when the adjoint PDE is discretised independently of the forward
+PDE~\cite{kidger2021neural}. We adopt this approach throughout.
 
 Concretely, our forward map~$\mathcal{P}$ is implemented as a
 sequence of algebraic operations --- assembling tridiagonal systems and
@@ -30,56 +29,52 @@ the surface flux. The gradient we seek is therefore the derivative of a
 composition of these discrete operations with respect to the
 parameters~$\phi$.
 
-\section{Reverse Mode Automatic Differentiation}\label{sec:reverse-ad}
+\section{Reverse-Mode Automatic Differentiation}\label{sec:reverse-ad}
 
 The log-likelihood is a scalar-valued function of the parameter
-vector. In this setting  reverse mode
-automatic differentiation (AD) is the
-natural choice, as it computes the full gradient in a single backward
+vector. In this setting reverse-mode automatic differentiation (AD) is
+the natural choice, as it computes the full gradient in a single backward
 pass regardless of the number of parameters.
 
-Reverse mode AD decomposes the gradient computation into a sequence of
+Reverse-mode AD decomposes the gradient computation into a sequence of
 \emph{vector--Jacobian products} (VJPs). If the forward computation is
 written as a composition $f = f_L \circ f_{L-1} \circ \cdots \circ f_1$,
 then the chain rule gives
 \begin{equation}
   \frac{\partial f}{\partial \phi}
-  = \frac{\partial f_L}{\partial f_{L-1}}
-  \cdot \frac{\partial f_{L-1}}{\partial f_{L-2}}
-  \cdots
-  \frac{\partial f_1}{\partial \phi}.
+  = J_{f_L}\, J_{f_{L-1}} \cdots J_{f_1},
   \label{eq:chain-rule}
 \end{equation}
-In reverse mode, this product is evaluated from left to right: at each
-stage a row vector (the adjoint, or cotangent) is multiplied by the
-Jacobian of the corresponding primitive operation. The intermediate
-Jacobians are never formed explicitly; only the VJP of each primitive is
+where $J_{f_i}$ denotes the Jacobian matrix of~$f_i$ with respect to its
+input. In reverse mode this product is evaluated from left to right: at
+each stage a row vector (the adjoint, or cotangent) is multiplied by the
+Jacobian of the corresponding primitive, so that the intermediate
+Jacobians are never formed explicitly. Only the VJP of each primitive is
 required.
 
 For the forward map~$\mathcal{P}$ the dominant primitives are the
 tridiagonal solves --- one per timestep. The question therefore reduces
 to: how should the VJP of a tridiagonal solve be implemented?
 
-\section{Differentiating Through Linear Solves}\label{sec:diff-linear}
+\section{Na\"ive Taping and Its Cost}\label{sec:naive-taping}
 
 Consider a single linear system $A x = b$, where $A$ depends on the
-parameters~$\phi$ and
-$b$ depends on the solution at the previous timestep. A na\"ive approach
-is to record every intermediate value of the Thomas algorithm on the
-forward pass and replay them in reverse during the backward pass. This is
-what a generic AD framework will do if the Thomas algorithm is
-implemented as a sequence of elementary operations: the entire
-computational graph of the factorisation and back-substitution is stored
-on a tape.
+parameters~$\phi$ and $b$ depends on the solution at the previous
+timestep. A na\"ive approach is to record every intermediate value of the
+Thomas algorithm on the forward pass and replay them in reverse during the
+backward pass. This is what a generic AD framework will do if the Thomas
+algorithm is implemented as a sequence of elementary operations: the
+entire computational graph of the factorisation and back-substitution is
+stored on a tape.
 
 For a single tridiagonal solve on $n$ unknowns the memory overhead of
 taping is modest. However, the forward map involves $m$ consecutive
 solves (one per timestep), and the tape must be retained across all of
 them because the backward pass traverses the full time history in
 reverse. The total memory cost therefore scales as $O(mn)$, which becomes
-prohibitive for fine spatial and temporal grids. Worse, the overhead of
-maintaining and traversing the tape degrades runtime performance even when
-memory is not the binding constraint.
+prohibitive for fine spatial and temporal grids. The overhead of
+maintaining and traversing the tape also degrades runtime performance even
+when memory is not the binding constraint.
 
 \section{Adjoint of the Tridiagonal Solve}\label{sec:adjoint-solve}
 
@@ -98,51 +93,76 @@ This is equivalent to solving the \emph{adjoint system}
   A^T \lambda = \bar{x},
   \label{eq:adjoint-system}
 \end{equation}
-and setting $\bar{b} = \lambda^T$. Similarly, the adjoint with respect to
-the matrix entries of~$A$ is
+and setting $\bar{b} = \lambda^T$. To obtain the adjoint with respect to
+the matrix entries of~$A$, we differentiate the identity $Ax = b$ to get
+\begin{equation}
+  dA\, x + A\, dx = db.
+\end{equation}
+Contracting both sides with the adjoint variable~$\lambda^T$ (i.e.\
+left-multiplying by $\lambda^T$) and using $\lambda^T A = \bar{x}^T$
+gives
+\begin{equation}
+  \lambda^T dA\, x + \bar{x}^T dx = \lambda^T db.
+\end{equation}
+The term $\bar{x}^T dx$ contributes to $\bar{b}$, which has already been
+accounted for. Reading off the remaining term, the adjoint with respect
+to~$A$ is
 \begin{equation}
   \bar{A} = -\lambda\, x^T,
   \label{eq:adjoint-A}
 \end{equation}
-which follows from differentiating the identity $A x = b$ and
-substituting the solution of the adjoint system.
+where the entry $\bar{A}_{ij} = -\lambda_i\, x_j$.
 
 The key observation is that $A^T$ is also tridiagonal (with the sub- and
-super-diagonals transposed), so the adjoint system~\cref{eq:adjoint-system}
-can be solved by the Thomas algorithm at the same $O(n)$ cost as the
-forward solve. Crucially, this approach requires only the matrix~$A$ and
-the forward solution~$x$ to be stored --- not the full tape of
-intermediate values from the factorisation. The memory cost per timestep
-is therefore $O(n)$ rather than the $O(n)$ per operation of na\"ive
-taping, and the total cost across all $m$ timesteps is reduced from
-taping the entire forward history to storing only the tridiagonal
-coefficients and solutions at each level.
+super-diagonals transposed), so the adjoint
+system~\cref{eq:adjoint-system} can be solved by the Thomas algorithm at
+the same $O(n)$ cost as the forward solve. This approach requires only
+the matrix~$A$ and the forward solution~$x$ to be cached per timestep ---
+not the full tape of intermediate values from the factorisation. The tape
+for na\"ive AD records every intermediate scalar produced during the
+Thomas algorithm (elimination multipliers, modified diagonals, partial
+sums), whereas the adjoint method stores only two arrays of length~$n$
+per timestep. The total storage across all~$m$ timesteps is $O(mn)$ in
+both cases, but the per-timestep constant is reduced from the number of
+intermediate operations in the Thomas algorithm to just the system matrix
+and solution vector.
 
 In practice we implement this by defining a custom VJP rule for the
-tridiagonal solve in \emph{JAX} \cite{jax2018github}. On the forward
-pass the Thomas algorithm solves
-$Ax = b$ and caches $A$ and~$x$. On the backward pass the custom rule
-receives~$\bar{x}$, solves $A^T \lambda = \bar{x}$ using the banded
-transpose, and returns $\bar{b} = \lambda^T$ and
-$\bar{A} = -\lambda\, x^T$. No taping of the Thomas algorithm's internal
-operations is required.
+tridiagonal solve in JAX~\cite{jax2018github}. On the forward pass
+the Thomas algorithm solves $Ax = b$ and caches $A$ and~$x$. On the
+backward pass the custom rule receives~$\bar{x}$, solves
+$A^T \lambda = \bar{x}$ using the banded transpose, and returns
+$\bar{b} = \lambda^T$ and $\bar{A} = -\lambda\, x^T$. No taping of the
+Thomas algorithm's internal operations is required.
+
+\subsection{Full Backward Pass}\label{sec:full-backward}
+
+The custom VJP handles a single timestep. The full gradient
+$\nabla_\phi \ell$ is assembled by walking backward through the time
+levels $k = m, m-1, \ldots, 1$. At each level the adjoint
+system~\cref{eq:adjoint-system} is solved using the cached $A^k$
+and~$x^k$, yielding $\lambda^k$. The matrix adjoint
+$\bar{A}^k = -\lambda^k (x^k)^T$ is then propagated through the assembly
+of~$A^k$ to obtain contributions to~$\nabla_\phi \ell$: the
+Butler--Volmer coefficients in the first row depend on~$\phi$ through
+$K_{\mathrm{red}}$ and $K_{\mathrm{ox}}$, so their partial derivatives
+with respect to~$\alpha$, $K_0$, and~$\theta_f$ are accumulated at each
+timestep. The interior coefficients are independent of~$\phi$ and
+contribute nothing. The result is the exact gradient of the discrete
+log-likelihood at a cost of one adjoint solve per timestep.
 
 \section{Extension to Pentadiagonal Systems}\label{sec:pentadiagonal}
 
-The benefits of the custom adjoint become even more pronounced for
-higher-order discretisations that produce pentadiagonal (or wider banded)
-systems. A pentadiagonal factorisation involves substantially more
-intermediate values than a tridiagonal one, and taping the full forward
-computation through the banded solver would incur a correspondingly
-larger memory and runtime penalty. The adjoint approach sidesteps this
-entirely: the transpose of a pentadiagonal matrix is again
-pentadiagonal, so the adjoint system is solved by a banded solver at the
-same $O(n)$ cost per timestep. The custom VJP rule generalises directly
---- one simply solves with the transposed band structure --- making this
-a crucial step in enabling the use of higher-order spatial
-discretisations within the differentiable forward map.
+The custom adjoint generalises directly to pentadiagonal systems. The
+transpose of a pentadiagonal matrix is again pentadiagonal, so the
+adjoint system is solved by a banded solver at the same $O(n)$ cost per
+timestep. The saving over na\"ive taping grows with bandwidth, since a
+pentadiagonal factorisation produces more intermediate values than a
+tridiagonal one. We exploit this in \cref{ch:heterogeneous,ch:adsorption},
+where coupled multi-species reactions lead to pentadiagonal structure
+after a spatial reordering of the unknowns.
 
-\section{Initialisation Results}\label{sec:init-results}
+\section{Optimisation Results}\label{sec:init-results}
 
 As discussed in \cref{sec:sampling-results}, initialising a Markov chain
 far from the posterior mode wastes computational resources on burn-in
@@ -157,14 +177,18 @@ region of high likelihood rather than oscillating away from it.
 We compare the ADAM optimiser~\cite{kingma2014adam}, which exploits the
 gradient of the log-likelihood computed via the adjoint method, against
 CMA-ES~\cite{hansen2001completely}, a gradient-free evolutionary strategy.
-CMA-ES maintains a population of candidate solutions; we set the
-population size to~$4$. Since the backward (adjoint) pass costs
+CMA-ES maintains a population of candidate solutions whose covariance is
+adapted over generations. We use the default population size
+$\lambda = 4 + \lfloor 3 \ln d \rfloor$~\cite{hansen2001completely},
+which gives $\lambda = 7$ for the $d = 3$ parameter space of the
+electron-transfer reaction. Since the backward (adjoint) pass costs
 approximately $1$--$3\times$ the forward pass, a single ADAM step
-(one forward and one backward pass) is roughly comparable in cost to
-evaluating the forward map for all four members of the CMA-ES population.
-We therefore equalise the computational budget by giving both algorithms
-the same number of iterations, each iteration comprising one ADAM update
-or one CMA-ES generation of four candidates.
+(one forward and one backward pass) costs roughly two forward-solve
+equivalents. One CMA-ES generation costs $\lambda = 7$ forward solves.
+We fix a total budget of~$B$ forward-solve equivalents and
+allocate $B / 2$ iterations to ADAM and $\lfloor B / 7 \rfloor$
+generations to CMA-ES, so that both algorithms consume the same total
+compute.
 
 \Cref{fig:electron-optim} shows the log-posterior density over the course
 of the optimisation at two noise levels ($\eta = 0.01$ and
@@ -172,25 +196,25 @@ $\eta = 0.02$). Each algorithm is run from $32$~initial conditions
 drawn uniformly from a physically reasonable region of the parameter
 space; solid lines show the mean and shaded regions indicate one standard
 deviation across these runs. Both methods converge toward the posterior
-mode, but ADAM does so more rapidly and with markedly lower variance
-across initialisations, indicating greater robustness to starting
-conditions.
+mode, but ADAM reaches the high-density region in fewer forward-solve
+equivalents and with lower variance across initialisations. At
+$\eta = 0.02$, all $32$ ADAM runs are within $5\%$ of the modal
+log-density by iteration~$100$, whereas several CMA-ES runs have not yet
+converged at the same budget. Once ADAM reaches the mode it remains
+stable, confirming its suitability as an initialisation strategy for the
+sampler introduced in the next chapter.
 
 \begin{figure}[ht]
   \begin{center}
     \includegraphics[width=0.95\textwidth]{figures/5-optim.png}
   \end{center}
-  \caption{Log-posterior density during optimisation for ADAM (blue) and
-    CMA-ES at noise levels $\eta = 0.02$  and $\eta = 0.01$.
-    Each algorithm is run from
-    $32$~randomly drawn initial conditions; solid lines show the mean
-    and shaded regions indicate $\pm 1$ standard deviation across runs.
-    The dashed red line marks the log-density evaluated at five times the true
-    parameters -- denoting a high density area. Both algorithms are
-    given equal computational budgets
-    (CMA-ES population size~$4$, matching the cost of one ADAM gradient
-    step). ADAM converges faster, with lower variance across
-    initialisations, and remains stable once it reaches the high-density
-  region.}
+  \caption[ADAM vs CMA-ES optimisation comparison]{Log-posterior density
+    during optimisation for ADAM and CMA-ES (population size~$7$) at
+    noise levels $\eta = 0.02$ and $\eta = 0.01$. Each algorithm is run
+    from $32$~randomly drawn initial conditions; solid lines show the
+    mean and shaded regions indicate $\pm 1$ standard deviation across
+    runs. The dashed line marks the log-density evaluated at the true
+    parameters~$\phi^*$. Both algorithms are given equal total
+  computational budgets measured in forward-solve equivalents.}
   \label{fig:electron-optim}
 \end{figure}

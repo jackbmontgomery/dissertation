@@ -1,100 +1,424 @@
 \chapter{Heterogeneous Reaction}\label{ch:heterogeneous}
 
-We will now be extending the methodology we have built up over the
-previous chapters to a more complicated electrochemical reaciton
-invoving two redox reaction and a heterogeneous chemical reaction
-that couples the product and the reactant from the two equations
-which occurs at the surface of the working electrode.
+This chapter applies the inference framework developed in
+\cref{ch:bayesian,ch:adjoint,ch:hmc} to a reaction mechanism involving
+two electron transfers coupled by an irreversible heterogeneous chemical
+step. The parameter space grows from three to seven dimensions, providing
+a first test of how the relative efficiency of NUTS and RWMH scales with
+dimension. Because the methodology has already been established, we
+focus on what is new: the reaction scheme, the coupled PDE system and its
+boundary conditions, the reordering that yields a pentadiagonal linear
+system, and the inference results. A more detailed treatment of
+heterogeneous surface processes --- including explicit surface
+concentrations and adsorption/desorption kinetics --- is deferred to
+\cref{ch:adsorption}.
 
-\begin{equation}\label{eq:hetero}
+\section{Reaction Scheme}\label{sec:het-scheme}
+
+We consider the $\mathrm{EC}_{\mathrm{irr,het}}\mathrm{E}$ mechanism
+\cite{compton2014understanding}:
+\begin{equation}\label{eq:het-scheme}
   \begin{gathered}
-    \mathrm{A}+\mathrm{e}^{-} \rightleftarrows \mathrm{B} \\
-    \mathrm{~B} \xrightarrow{k_{\text {het }}} \mathrm{C} \\
-    \mathrm{C}+\mathrm{e}^{-} \rightleftarrows \mathrm{D}
+    \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B}, \\
+    \mathrm{B} \xrightarrow{k_{\mathrm{het}}} \mathrm{C}, \\
+    \mathrm{C} + \mathrm{e}^{-} \rightleftharpoons \mathrm{D}.
   \end{gathered}
 \end{equation}
-
-This type of reaction appears in electroreduction of
-halonitroaromatic compounds in aprotic media \cite{compton2014understanding}.
-
-%TODO: Mention something about a more detailed description of these
-% systems needs the consideration of adsorption / desorption which we
-% deal with in the next chapter
-
-%TODO: Mention that we now have the charge coefficient, rate constant
-% formal potential for both reactions and heterogeneous rate constant
-% as parameters
+Species~$\mathrm{A}$ is reduced to~$\mathrm{B}$ at the electrode
+surface; $\mathrm{B}$ is then converted irreversibly to~$\mathrm{C}$ by
+a surface-catalysed chemical process with rate constant
+$k_{\mathrm{het}}$~($\mathrm{m\,s^{-1}}$); and $\mathrm{C}$ undergoes
+a second electron transfer to form~$\mathrm{D}$. The chemical step
+occurs only at the electrode surface, so the bulk transport of all four
+species is governed by Fick's second law without additional kinetic
+terms. This type of reaction appears, for example, in the
+electroreduction of halonitroaromatic compounds in aprotic media
+\cite{compton2014understanding}.
 
 \begin{figure}
   \centering
   \input{figures/heterogeneous-reaction.tex}
-  \caption{}
+  \caption[Schematic of the
+  $\mathrm{EC}_{\mathrm{irr,het}}\mathrm{E}$ reaction]{Schematic of
+    the $\mathrm{EC}_{\mathrm{irr,het}}\mathrm{E}$ reaction mechanism.
+    Two electrochemical steps (vertical) are coupled by an irreversible
+  heterogeneous chemical step (horizontal) at the electrode surface.}
+  \label{fig:het-schematic}
 \end{figure}
 
-\section{Mathematical Description}
-We are able to express the reaction using the same non-dimensional
-scheme as for the electron reaction. Only that we now need to model
-the A, B, C and D species in separate governing equations. The
-electrode boundary conditions change to:
-\begin{equation}
+Each electron transfer is characterised by its own transfer
+coefficient~$\alpha$, dimensionless rate constant~$K_0$, and formal
+potential~$\theta_f$. Together with the dimensionless heterogeneous rate
+constant~$K_{\mathrm{het}}$, the parameter vector is
+\begin{equation}\label{eq:het-params}
+  \phi = \bigl(\alpha^{(1)},\, K_0^{(1)},\, \theta_f^{(1)},\,
+    \alpha^{(2)},\, K_0^{(2)},\, \theta_f^{(2)},\,
+  K_{\mathrm{het}}\bigr) \in \mathbb{R}^7.
+\end{equation}
+
+\section{Mathematical Description}\label{sec:het-maths}
+
+\subsection{Governing Equations}
+
+All four species diffuse freely in solution. Under the equal-diffusion
+assumption ($d_j = 1$ for all~$j$), each satisfies the same
+dimensionless diffusion equation as in \cref{eq:nd_diffusion}:
+\begin{equation}\label{eq:het-diffusion}
+  \frac{\partial C_j}{\partial T} = \frac{\partial^2 C_j}{\partial X^2},
+  \qquad j \in \{\mathrm{A},\,\mathrm{B},\,\mathrm{C},\,\mathrm{D}\}.
+\end{equation}
+In the single-electron-transfer case of \cref{ch:electrochem}, the
+equal-diffusion assumption reduced the system to a single PDE via the
+conservation relation $C_\mathrm{A} + C_\mathrm{B} = \mathrm{const}$.
+That reduction relied on stoichiometric conservation at the electrode:
+every molecule of~$\mathrm{A}$ consumed produced exactly one molecule
+of~$\mathrm{B}$, and vice versa. Here the heterogeneous step breaks
+this balance --- $\mathrm{B}$ is consumed not only by oxidation back
+to~$\mathrm{A}$ but also by conversion to~$\mathrm{C}$ --- so
+$C_\mathrm{A} + C_\mathrm{B}$ is no longer conserved and all four
+equations must be solved independently.
+
+\subsection{Initial and Far-Field Conditions}
+
+Initially only species~$\mathrm{A}$ is present in solution at its bulk
+concentration:
+\begin{equation}\label{eq:het-ic}
+  C_\mathrm{A}(0, X) = 1, \qquad
+  C_\mathrm{B}(0, X) = C_\mathrm{C}(0, X) = C_\mathrm{D}(0, X) = 0.
+\end{equation}
+These values are also imposed at the far-field boundary
+$X = X_{\mathrm{max}}$.
+
+\subsection{Electrode Boundary Conditions}
+
+The boundary conditions at $X = 0$ couple the four species through the
+Butler--Volmer kinetics of the two electron transfers and the
+heterogeneous rate constant. In dimensional form
+\cite{compton2014understanding}:
+\begin{equation}\label{eq:het-bc-dim}
   \begin{aligned}
-    D_{\mathrm{A}}\left(\frac{\partial c_{\mathrm{A}}}{\partial
-    x}\right)_{x=0} & =k_{\text {red }}^{(1)} c_{\mathrm{A}}(0,
-    t)-k_{\mathrm{ox}}^{(1)} c_{\mathrm{B}}(0, t) \\
-    D_{\mathrm{B}}\left(\frac{\partial c_{\mathrm{B}}}{\partial
-    x}\right)_{x=0} & =-k_{\text {red }}^{(1)} c_{\mathrm{A}}(0,
-    t)+k_{\mathrm{ox}}^{(1)} c_{\mathrm{B}}(0, t)+k_{\text {het }}
-    c_{\mathrm{B}}(0, t) \\
-    D_{\mathrm{C}}\left(\frac{\partial c_{\mathrm{C}}}{\partial
-    x}\right)_{x=0} & =k_{\text {red }}^{(2)} c_{\mathrm{C}}(0,
-    t)-k_{\mathrm{ox}}^{(2)} c_{\mathrm{D}}(0, t)-k_{\text {het }}
-    c_{\mathrm{B}}(0, t) \\
-    D_{\mathrm{D}}\left(\frac{\partial c_{\mathrm{D}}}{\partial
-    x}\right)_{x=0} & =-k_{\text {red }}^{(2)} c_{\mathrm{C}}(0,
-    t)+k_{\mathrm{ox}}^{(2)} c_{\mathrm{D}}(0, t)
+    D_\mathrm{A}\left(\frac{\partial c_\mathrm{A}}{\partial x}\right)_{x=0}
+    &= k_{\mathrm{red}}^{(1)}\, c_\mathrm{A}(0,t)
+    - k_{\mathrm{ox}}^{(1)}\, c_\mathrm{B}(0,t), \\
+    D_\mathrm{B}\left(\frac{\partial c_\mathrm{B}}{\partial x}\right)_{x=0}
+    &= -k_{\mathrm{red}}^{(1)}\, c_\mathrm{A}(0,t)
+    + k_{\mathrm{ox}}^{(1)}\, c_\mathrm{B}(0,t)
+    + k_{\mathrm{het}}\, c_\mathrm{B}(0,t), \\
+    D_\mathrm{C}\left(\frac{\partial c_\mathrm{C}}{\partial x}\right)_{x=0}
+    &= k_{\mathrm{red}}^{(2)}\, c_\mathrm{C}(0,t)
+    - k_{\mathrm{ox}}^{(2)}\, c_\mathrm{D}(0,t)
+    - k_{\mathrm{het}}\, c_\mathrm{B}(0,t), \\
+    D_\mathrm{D}\left(\frac{\partial c_\mathrm{D}}{\partial x}\right)_{x=0}
+    &= -k_{\mathrm{red}}^{(2)}\, c_\mathrm{C}(0,t)
+    + k_{\mathrm{ox}}^{(2)}\, c_\mathrm{D}(0,t).
   \end{aligned}
 \end{equation}
+The first and fourth rows have the same structure as the
+single-electron-transfer boundary condition of \cref{ch:electrochem}:
+they balance the diffusive flux against the net electrochemical rate. The
+second and third rows contain the additional $k_{\mathrm{het}}\,
+c_\mathrm{B}(0,t)$ term: positive in the $\mathrm{B}$~equation
+(consuming~$\mathrm{B}$) and negative in the $\mathrm{C}$~equation
+(producing~$\mathrm{C}$). This term is the sole coupling between the
+two electron-transfer subsystems.
 
-Using the non-dimensional as we have described before and assuming
-equal diffusion coefficients:
-\begin{equation}
+\subsection{Non-Dimensionalisation}
+
+We apply the same scalings as in \cref{tab:normalisation}, defining
+dimensionless rate constants for each electron transfer via
+\begin{equation}\label{eq:het-kred-kox}
+  K_{\mathrm{red}}^{(i)} = K_0^{(i)}
+  \exp\!\bigl[-\alpha^{(i)}\bigl(\theta(T) - \theta_f^{(i)}\bigr)\bigr],
+  \qquad
+  K_{\mathrm{ox}}^{(i)} = K_0^{(i)}
+  \exp\!\bigl[(1-\alpha^{(i)})\bigl(\theta(T) - \theta_f^{(i)}\bigr)\bigr],
+\end{equation}
+for $i = 1, 2$, generalising \cref{eq:kred_kox}. The dimensionless
+heterogeneous rate constant is
+\begin{equation}\label{eq:Khet}
+  K_{\mathrm{het}} = \frac{k_{\mathrm{het}}\,\epsilon}{D_\mathrm{A}}.
+\end{equation}
+Under the equal-diffusion assumption ($d_j = 1$), the boundary
+conditions~\cref{eq:het-bc-dim} become
+\begin{equation}\label{eq:het-bc-nondim}
   \begin{aligned}
-    & T>0, X=0: \\
-    & \quad\left(\frac{\partial C_{\mathrm{A}}}{\partial
-    X}\right)_{X=0}=K_{\text {red }}^{(1)} C_{\mathrm{A}}(0,
-    T)-K_{\text {ox }}^{(1)} C_{\mathrm{B}}(0, T) \\
-    & \quad\left(\frac{\partial C_{\mathrm{B}}}{\partial
-    X}\right)_{X=0}=-K_{\text {red
-    }}^{(1)} C_{\mathrm{A}}(0, T)+\left(K_{\text {ox }}^{(1)}+K_{\text
-    {het }}\right) C_{\mathrm{B}}(0, T)\\
-    & \quad\left(\frac{\partial C_{\mathrm{C}}}{\partial
-    X}\right)_{X=0}=K_{\text {red
-    }}^{(2)} C_{\mathrm{C}}(0, T)-K_{\text {ox }}^{(2)}
-    C_{\mathrm{D}}(0, T)-K_{\text {het }} C_{\mathrm{B}}(0, T) \\
-    & \quad\left(\frac{\partial C_{\mathrm{D}}}{\partial
-    X}\right)_{X=0}=-K_{\text {red
-    }}^{(2)} C_{\mathrm{C}}(0, T)+K_{\text {ox }}^{(2)}
-    C_{\mathrm{D}}(0, T)
+    \left(\frac{\partial C_\mathrm{A}}{\partial X}\right)_{X=0}
+    &= K_{\mathrm{red}}^{(1)}\, C_\mathrm{A}(0,T)
+    - K_{\mathrm{ox}}^{(1)}\, C_\mathrm{B}(0,T), \\[4pt]
+    \left(\frac{\partial C_\mathrm{B}}{\partial X}\right)_{X=0}
+    &= -K_{\mathrm{red}}^{(1)}\, C_\mathrm{A}(0,T)
+    + \bigl(K_{\mathrm{ox}}^{(1)} + K_{\mathrm{het}}\bigr)\,
+    C_\mathrm{B}(0,T), \\[4pt]
+    \left(\frac{\partial C_\mathrm{C}}{\partial X}\right)_{X=0}
+    &= K_{\mathrm{red}}^{(2)}\, C_\mathrm{C}(0,T)
+    - K_{\mathrm{ox}}^{(2)}\, C_\mathrm{D}(0,T)
+    - K_{\mathrm{het}}\, C_\mathrm{B}(0,T), \\[4pt]
+    \left(\frac{\partial C_\mathrm{D}}{\partial X}\right)_{X=0}
+    &= -K_{\mathrm{red}}^{(2)}\, C_\mathrm{C}(0,T)
+    + K_{\mathrm{ox}}^{(2)}\, C_\mathrm{D}(0,T).
   \end{aligned}
 \end{equation}
-where the dimensionless rate constant of the heterogeneous chemical
-reaction is given by
-\begin{equation}
-  K_{\mathrm{het}}=\frac{k_{\mathrm{het}} \epsilon}{D_{\mathrm{A}}}
-\end{equation}
+The $K_{\mathrm{het}}$ term appears in the boundary conditions for
+$\mathrm{B}$ and $\mathrm{C}$ and nowhere else; the bulk equations and
+far-field conditions are identical to those of the single-species case.
 
-Notice the $K_{\mathrm{het}}$ term in the boundary for both
-$\mathrm{B}$ and $\mathrm{C}$.
-Regarding the current response the
-total current will be given by the sum of the contribution of the
-different heterogeneous \emph{electrochemical} reactions:
-\begin{equation}
-  \frac{I}{\mathrm{~F} A}
-  =-\left\{D_{\mathrm{A}}\left(\frac{\partial
-      c_{\mathrm{A}}}{\partial
-    x}\right)_{x=0}+D_{\mathrm{C}}\left(\frac{\partial
-    c_{\mathrm{C}}}{\partial x}\right)_{x=0}+k_{\text {het }}
-  c_{\mathrm{B}}(0, t)\right\} \\
-\end{equation}
+\subsection{Current}
 
-% TODO: Mention the dimensionless conditions as everything is zero except A.
+The measured current is the sum of the fluxes from both electrochemical
+steps plus the contribution from the heterogeneous conversion of
+$\mathrm{B}$ at the surface:
+\begin{equation}\label{eq:het-current}
+  \frac{I}{FA} = -\left\{
+    D_\mathrm{A}\left(\frac{\partial c_\mathrm{A}}{\partial x}\right)_{x=0}
+    + D_\mathrm{C}\left(\frac{\partial c_\mathrm{C}}{\partial x}\right)_{x=0}
+    + k_{\mathrm{het}}\, c_\mathrm{B}(0,t)
+  \right\}.
+\end{equation}
+The $k_{\mathrm{het}}\, c_\mathrm{B}$ term accounts for the electrons
+transferred indirectly: each molecule of~$\mathrm{B}$ converted
+to~$\mathrm{C}$ at the surface is equivalent to one electron passing
+through the external circuit, because $\mathrm{C}$ can subsequently be
+reduced to~$\mathrm{D}$.
+
+\section{Discretisation and the Pentadiagonal System}\label{sec:het-disc}
+
+%TODO: Insert band-structure schematic figure
+% \begin{figure}
+%   \centering
+%   \input{figures/band-structure.tex}
+%   \caption[Band structure of the coefficient matrix]{Band structure
+%     of the coefficient matrix. Left: natural ordering produces a
+%     block-tridiagonal system with off-diagonal coupling from
+%     $K_{\mathrm{het}}$. Right: the reversed-index reordering
+%     interleaves the unknowns so that the coupling falls within a
+%     pentadiagonal band.}
+%   \label{fig:band-structure}
+% \end{figure}
+
+Each species is discretised on the same exponentially expanding spatial
+mesh described in \cref{sec:discretisation}. At each timestep the four
+species are coupled only through the boundary conditions at $X = 0$; in
+the interior each satisfies an independent tridiagonal system. A natural
+ordering of the unknowns as
+$(C_\mathrm{A}^0, \ldots, C_\mathrm{A}^{n-1},\,
+  C_\mathrm{B}^0, \ldots, C_\mathrm{B}^{n-1},\,
+C_\mathrm{C}^0, \ldots, C_\mathrm{D}^{n-1})$
+produces a block-tridiagonal system in which the $K_{\mathrm{het}}$
+coupling between $\mathrm{B}$ and $\mathrm{C}$ creates off-diagonal
+entries separated by $n$ positions from the main diagonal --- far outside
+any narrow band.
+
+The bandwidth can be reduced by reordering the unknowns. We index
+$\mathrm{A}$ and $\mathrm{B}$ from $X_{n-1}$ down to $X_0$ (far field
+to electrode) and $\mathrm{C}$ and $\mathrm{D}$ from $X_0$ up to
+$X_{n-1}$ (electrode to far field), interleaving the four species so that
+the electrode-surface nodes of all species are adjacent. Concretely, the
+unknown vector is ordered as
+\begin{equation}\label{eq:het-ordering}
+  \mathbf{C} = \bigl(
+    C_\mathrm{A}^{n-1}, C_\mathrm{B}^{n-1}, \ldots,
+    C_\mathrm{A}^{0}, C_\mathrm{B}^{0},\,
+    C_\mathrm{C}^{0}, C_\mathrm{D}^{0}, \ldots,
+    C_\mathrm{C}^{n-1}, C_\mathrm{D}^{n-1}
+  \bigr)^T.
+\end{equation}
+In this ordering the interior stencil for each species occupies three
+diagonals (stride~2 apart, since the two species at each spatial node are
+interleaved). The $K_{\mathrm{het}}$ coupling between $C_\mathrm{B}^0$
+and $C_\mathrm{C}^0$ now falls within two positions of the main diagonal.
+The result is a pentadiagonal system that can be solved in $O(n)$
+operations per timestep using a banded LU factorisation.
+
+As noted in \cref{sec:pentadiagonal}, the transpose of a pentadiagonal
+matrix is again pentadiagonal, so the adjoint system required for gradient
+computation is solved at the same $O(n)$ cost. The custom VJP rule
+generalises directly from the tridiagonal case.
+
+\section{Inference Setup}\label{sec:het-inference}
+
+The inference workflow follows \cref{sec:workflow} without modification.
+The seven parameters are transformed to unconstrained space:
+$\alpha^{(i)} \mapsto \operatorname{logit}(\alpha^{(i)})$,
+$K_0^{(i)} \mapsto \log K_0^{(i)}$, and
+$K_{\mathrm{het}} \mapsto \log K_{\mathrm{het}}$,
+with $\theta_f^{(i)}$ left untransformed. Uniform priors
+are placed on the transformed parameters over a range chosen to be wide
+relative to the posterior.
+
+Synthetic data are generated at the true parameter values
+$\phi^* = (0.5,\, 15.0,\, 0.2,\, 0.5,\, 6.0,\, 0.4,\, 25.0)$,
+with dimensionless scan rate $\sigma = 1000$ and noise level
+$\eta = 0.02$ (the same values used in \cref{ch:hmc}).
+
+\section{Results}\label{sec:het-results}
+
+\subsection{Solver Verification}\label{sec:het-verification}
+
+We verify the forward solver by checking two limiting cases
+\cite{prieto1997electrode}. When $K_{\mathrm{het}} \to 0$ the chemical
+step is inactive: no $\mathrm{C}$ or $\mathrm{D}$ is produced, and the
+system reduces to a single electron transfer
+$\mathrm{A} + \mathrm{e}^- \rightleftharpoons \mathrm{B}$. The peak
+current and peak potential should therefore match the irreversible
+single-electron expressions of \cref{eq:irreversible-peak}. In the
+opposite limit, $K_{\mathrm{het}} \to \infty$ with $K_0^{(2)} \to
+\infty$, every molecule of~$\mathrm{B}$ produced at the surface is
+instantly converted to~$\mathrm{C}$ and immediately reduced
+to~$\mathrm{D}$. The reaction then behaves as a single two-electron
+transfer, and the peak current approaches twice the single-electron
+value. \Cref{fig:het-analytical} confirms that the numerical solver
+reproduces both limits: the dashed lines indicate the analytical peak
+current and peak potential in each case.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.8\textwidth]{figures/7-analytical.png}
+  \caption[Verification of the heterogeneous solver against analytical
+  limits]{Verification of the forward solver in two limiting regimes.
+    Blue: $K_{\mathrm{het}} \to 0$, recovering the single-electron
+    voltammogram. Orange: $K_{\mathrm{het}} \to \infty$ with
+    $K_0^{(2)} \to \infty$, recovering a two-electron transfer. Red
+    dashed lines indicate the analytical peak current and peak
+    potential from~\cref{eq:irreversible-peak} (scaled by a factor of
+    two for the two-electron case)
+  \cite{prieto1997electrode}.}
+  \label{fig:het-analytical}
+\end{figure}
+
+\subsection{Posterior Distributions}\label{sec:het-posteriors}
+
+\Cref{fig:het-corner} shows selected pairwise marginal posteriors
+obtained by NUTS and RWMH under equal computational budgets. Both
+samplers recover the true parameter values across all seven dimensions,
+with the marginals concentrating around the dashed lines. The NUTS and
+RWMH contours agree, confirming convergence to the same target
+distribution ($\hat{R} < 1.01$ for all parameters). The formal potentials
+$\theta_f^{(1)}$ and $\theta_f^{(2)}$ are omitted from this plot for
+clarity; their marginals are similarly well-recovered.
+
+The off-diagonal panels reveal the correlation structure of the
+posterior. There is visible correlation between $\alpha^{(1)}$ and
+$K_0^{(1)}$, and between $\alpha^{(2)}$ and $K_0^{(2)}$, reflecting
+the same kinetic trade-off observed in the single-electron case
+(\cref{sec:bv-effects}): increasing $\alpha$ while decreasing $K_0$ can
+produce a similar voltammogram. The RWMH contours are noticeably broader
+than those of NUTS; this is not a difference in the target distribution
+but a consequence of higher autocorrelation in the RWMH chain, which
+produces fewer independent samples within the same budget.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/7-corner.png}
+  \caption[Selected pairwise posteriors for the heterogeneous
+  reaction]{Selected pairwise marginal posteriors for the heterogeneous
+    reaction. NUTS (blue) and RWMH (orange) are overlaid; dashed lines
+    indicate the true parameter values. The formal potentials are
+  omitted for clarity.}
+  \label{fig:het-corner}
+\end{figure}
+
+\Cref{fig:het-current-fit} overlays the voltammogram simulated at the
+posterior mean with the voltammogram at the true parameters. The two
+curves are indistinguishable, confirming that the posterior mean provides
+an accurate reconstruction of the current response.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.7\textwidth]{figures/7-current-fit.png}
+  \caption[Current fit for the heterogeneous reaction]{Voltammogram
+    simulated at the posterior mean (solid blue) overlaid on the
+  voltammogram at the true parameters (dashed red).}
+  \label{fig:het-current-fit}
+\end{figure}
+
+\subsection{Sampling Efficiency}\label{sec:het-ess}
+
+\Cref{fig:het-ess} compares the effective sample size (ESS) of NUTS and
+RWMH as a function of the sampling budget, measured in forward-solve
+equivalents. For every parameter, NUTS accumulates independent samples at
+a higher rate than RWMH. The gap is consistent across all seven
+parameters, with NUTS achieving roughly three to four times the ESS of
+RWMH at the end of the run. Compared with the three-parameter
+electron-transfer case (\cref{sec:hmc-results}), the relative advantage
+of NUTS has grown: in the lower-dimensional problem the ESS ratio was
+approximately two, whereas here it is three to four. This is consistent
+with the known scaling behaviour of random-walk proposals, whose mixing
+time grows with dimension, while NUTS proposals exploit gradient
+information to maintain efficient exploration.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/7-ess.png}
+  \caption[ESS comparison for the heterogeneous reaction]{Effective
+    sample size as a function of sample proportion for each parameter.
+    NUTS (blue) accumulates independent samples at a higher rate than
+    RWMH (orange) across all seven parameters. The gap is wider than
+  in the three-parameter case of \cref{sec:hmc-results}.}
+  \label{fig:het-ess}
+\end{figure}
+
+\section{AC Voltammetry}\label{sec:het-ac}
+
+The DC voltammograms studied so far use a triangular potential waveform.
+In AC voltammetry, a sinusoidal perturbation is superimposed on the DC
+ramp, so that the applied dimensionless potential becomes
+\begin{equation}\label{eq:ac-potential}
+  \theta(T) = \theta_{\mathrm{DC}}(T) + \Delta\theta\,
+  \sin(2\pi f\, T),
+\end{equation}
+where $\Delta\theta$ is the amplitude and $f$ is the frequency of the
+perturbation. The resulting current contains both a slowly varying DC
+component and oscillatory contributions at harmonics of~$f$.
+
+The motivation for considering AC voltammetry is that the oscillatory
+component of the current probes the electrode kinetics on a faster
+timescale than the DC sweep alone, providing additional information about
+the rate constants and transfer coefficients. Gavaghan
+et~al.~\cite{gavaghan2018bayesian} demonstrated this for the
+single-electron-transfer reaction: the posteriors obtained from AC data
+were narrower than those from DC data at the same noise level. We repeat
+this comparison for the heterogeneous reaction.
+
+\Cref{fig:ac-voltam} shows the AC voltammogram for the heterogeneous
+reaction at the true parameter values. The sinusoidal perturbation
+produces oscillations superimposed on the DC envelope; the oscillations
+are largest near the formal potentials, where the Butler--Volmer kinetics
+are most sensitive to potential changes. No changes are required to the
+forward solver or the inference workflow: the only modification is the
+potential waveform~\cref{eq:ac-potential}, which enters through the
+time-dependent $K_{\mathrm{red}}^{(i)}$ and $K_{\mathrm{ox}}^{(i)}$
+terms in the boundary conditions.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.7\textwidth]{figures/7-ac-voltam.png}
+  \caption[AC voltammogram for the heterogeneous reaction]{AC
+    voltammogram for the heterogeneous reaction at the true parameter
+    values. The sinusoidal perturbation produces oscillations that are
+  largest near the formal potentials of the two electron transfers.}
+  \label{fig:ac-voltam}
+\end{figure}
+
+\Cref{fig:ac-dc-comparison} overlays the marginal posteriors obtained
+from DC and AC data using NUTS. For every parameter the AC posteriors
+are narrower than, or comparable to, the DC posteriors, with both
+centred on the true values. The effect is most pronounced for
+$K_0^{(1)}$ and $\theta_f^{(1)}$, where the AC marginals are
+noticeably tighter. This is consistent with the observation of Gavaghan
+et~al.~\cite{gavaghan2018bayesian}: the oscillatory component of the AC
+current carries additional information about the electrode kinetics that
+is absent from the DC waveform. The posterior for $K_{\mathrm{het}}$ also
+narrows under AC, indicating that the sinusoidal perturbation helps
+constrain the heterogeneous rate constant.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/7-ac-hist-comparison.png}
+  \caption[AC vs DC posterior comparison for the heterogeneous
+  reaction]{Marginal posteriors under DC (blue) and AC (orange)
+    voltammetry for all seven parameters. Dashed lines indicate
+    the true values. The AC posteriors are narrower for most
+    parameters, reflecting the additional kinetic information in
+  the oscillatory current.}
+  \label{fig:ac-dc-comparison}
+\end{figure}

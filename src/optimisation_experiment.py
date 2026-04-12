@@ -1,3 +1,4 @@
+from math import floor
 from time import perf_counter
 from typing import Dict
 
@@ -16,7 +17,7 @@ from src.utils import generate_noisy_samples, pretty_header
 def optimisation_experiment(
     reaction: AbstractReaction,
     fd_solver: AbstractFDSolver,
-    num_iterations: int,
+    budget: int,
     num_params: int,
     num_experimental_samples: int = 10,
     noise_percentage: float = 0.02,
@@ -46,8 +47,15 @@ def optimisation_experiment(
 
     init_params = reaction.create_init_params(key_init, num_params)
 
-    cmaes_optimise = make_cmaes_optimise(num_iterations, logdensity_fn, **cmaes_params)
-    adam_optimise = make_adam_optimise(num_iterations, logdensity_fn, **adam_params)
+    cmaes_optimise = make_cmaes_optimise(
+        floor(budget / cmaes_params["population_size"]), logdensity_fn, **cmaes_params
+    )
+    if reaction.parameter_dim == 3:
+        adam_num_steps = budget // 2
+    else:
+        adam_num_steps = budget // 4
+
+    adam_optimise = make_adam_optimise(adam_num_steps, logdensity_fn, **adam_params)
 
     start_time = perf_counter()
 

@@ -8,8 +8,8 @@ to the electrochemical setting, namely the exponentially expanding spatial
 mesh and the incorporation of the Butler--Volmer boundary condition into
 the tridiagonal system.
 
-For the remainder of this chapter we assume $C_B^* = 0$ (no product
-initially present in solution), so that the equal-diffusion-coefficient
+For the remainder of this chapter we assume $C_B^* = 0$, so that the
+equal-diffusion-coefficient
 boundary condition~\cref{eq:equal_diff_bc} becomes
 \begin{equation}
   \frac{\partial C}{\partial X}\bigg|_{X=0} =
@@ -67,8 +67,7 @@ For $0 \leq i \leq n-2$ the spacing grows geometrically as
 $\Delta X_+ = h_0\,\omega^i$, so the mesh is finest at the electrode and
 coarsens exponentially into the bulk. The final point $(i = n-1)$ is placed at
 $X_{\mathrm{max}} = 6\sqrt{T_{\mathrm{max}}}$ as discussed in the
-previous chapter, ensuring the far-field boundary does not influence the
-solution.
+previous chapter.
 
 \section{Finite Difference Scheme}\label{sec:fd-scheme}
 
@@ -158,7 +157,9 @@ $(\alpha_1, \ldots, \alpha_{n-1})$, main diagonal
 $(\beta_0, \ldots, \beta_{n-1})$, and upper diagonal
 $(\gamma_0, \ldots, \gamma_{n-2})$. Because the electrode boundary
 coefficients depend on the applied potential, the first row of the system
-is reassembled at each timestep; the interior coefficients are
+is reassembled at each timestep. (This row is an algebraic constraint
+  from the boundary condition, not a time-stepping equation; it contains
+no~$\Delta T$ term.) The interior coefficients are
 time-independent and can be precomputed.
 
 This system is solved in $O(n)$ operations using the Thomas algorithm
@@ -188,7 +189,7 @@ of~$\mathcal{P}$ consists of assembling and solving the tridiagonal system
 at each of the $m$~timesteps and extracting the surface flux at each step.
 
 Although the electrode boundary condition is discretised with a two-point
-approximation (to preserve the tridiagonal structure), the surface flux
+approximation, the surface flux
 used to compute the current is evaluated with a higher-order three-point
 formula. Writing $h_1 = X_1 - X_0$ and $h_2 = X_2 - X_0$, we fit a
 quadratic through $(X_0, C_0^k)$, $(X_1, C_1^k)$, $(X_2, C_2^k)$ and
@@ -201,30 +202,41 @@ differentiate at $X_0$ to obtain
   \label{eq:numerical_flux}
 \end{equation}
 
-We can verify the solution produced from the mapping against
-analytical results for the position and value of the peak current in
-the reversible reigime \cite{compton2014understanding}. According to
-the non-dimensionalisation we described in \cref{ch:electrochem}.
-
+We verify the solver against known analytical results in two
+limiting regimes. In the \emph{reversible} limit ($K_0 \gg
+\sqrt{\sigma}$), the Randles--\v{S}ev\v{c}\'{\i}k result
+\cite{randles1947kinetics,sevcik1948oscillographic} gives the peak
+current as
 \begin{equation}
-  \begin{aligned}
-    J_{\text{p,irre}} &= -0.496 \sqrt{\alpha\sigma}\\
-    \theta_{\text{p,irre}} &= \frac{1}{\alpha}\left[\ln
-    \left(\frac{K_0}{\sqrt{\alpha \sigma}}\right)-0.78\right]
-  \end{aligned}
-  \label{eq:electron-analytical}
+  J_{\text{p,rev}} = -0.4463\,\sqrt{\sigma}.
+  \label{eq:randles-sevcik}
 \end{equation}
+In the \emph{irreversible} limit ($K_0 \ll \sqrt{\alpha\sigma}$),
+the peak current and potential are
+\cite{compton2014understanding}
+\begin{equation}
+  J_{\text{p,irr}} = -0.4958\,\sqrt{\alpha\sigma}, \qquad
+  \theta_{\text{p,irr}} = \theta_f + \frac{1}{\alpha}
+  \left[\ln\!\left(\frac{K_0}{\sqrt{\alpha\sigma}}\right)
+  - 0.78\right].
+  \label{eq:irreversible-peak}
+\end{equation}
+\Cref{fig:electron-analytical} compares the numerical flux with
+both expressions; the relative error in the peak current is below
+$0.1\%$ in each case.
 
-As we can see in \cref{fig:electron-analytical}, we have excellent
-agreement between the analytical current and the numerical flux computed.
-
-%TODO: Caption
-
-\begin{figure}
-  \begin{center}
-    \includegraphics[width=0.6\textwidth]{figures/3-analytical.png}
-  \end{center}
-  \caption{}\label{fig:electron-analytical}
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.8\textwidth]{figures/3-analytical.png}
+  \caption[Verification of the forward solver against analytical
+  peak-current expressions]{Verification of the forward solver with
+    $\sigma = 1000$
+    Left: reversible limit ($K_0 = 1000, \ \alpha = 0.5$), compared with the
+    Randles--\v{S}ev\v{c}\'{\i}k peak
+    current~\cref{eq:randles-sevcik}.
+    Right: irreversible limit ($K_0 = 1, \ \alpha = 0.5$), compared
+  with~\cref{eq:irreversible-peak}.}
+  \label{fig:electron-analytical}
 \end{figure}
 
 \section{Effect of Butler--Volmer Parameters}\label{sec:bv-effects}
@@ -234,7 +246,8 @@ three parameters of interest: the transfer coefficient~$\alpha$, the
 dimensionless rate constant~$K_0$, and the dimensionless formal
 potential~$\theta_f$. Each parameter has a distinct qualitative effect on
 the shape of the voltammogram. We illustrate these effects by varying
-each parameter in turn about a quasi-reversible baseline in
+each parameter in turn about a \emph{quasi-reversible} ($K_0 \approx
+\sqrt{\sigma \alpha}$) baseline in
 \cref{fig:elec-parameter-effect-quasi}.
 
 Increasing the transfer coefficient~$\alpha$ enhances the cathodic peak
@@ -255,8 +268,10 @@ measured.
   \begin{center}
     \includegraphics[width=0.95\textwidth]{figures/3-parameter-effect-quasi.png}
   \end{center}
-  \caption{Effect of each Butler--Volmer parameter on the dimensionless
-    voltammogram for a quasi-reversible reaction. In each panel one
+  \caption[Effect of Butler--Volmer parameters on the quasi-reversible
+  voltammogram]{Effect of each Butler--Volmer parameter on the dimensionless
+    voltammogram for a quasi-reversible reaction ($K_0=20, \,
+    \alpha=0.6, \, \sigma = 1000$). In each panel one
     parameter is varied while the others are held fixed. Left:
     varying~$\alpha$ changes the relative heights of the cathodic and
     anodic peaks. Centre: increasing~$K_0$ symmetrises and sharpens the
@@ -265,43 +280,42 @@ measured.
   \label{fig:elec-parameter-effect-quasi}
 \end{figure}
 
-The interplay between these parameters is important to note. Because
-changes in one parameter can produce features in the voltammogram that
+Because changes in one parameter can produce features in the voltammogram that
 partially resemble changes in another, there is potential for
 compensating errors in parameter estimation. For instance, a rate
-constant that is too small --- which broadens the peaks and shifts them
-apart --- could be partially offset by an adjustment in the formal
+constant that is too small -- which broadens the peaks and shifts them
+apart -- could be partially offset by an adjustment in the formal
 potential that translates the peaks back towards the observed positions.
 Such parameter correlations suggest that a point estimate obtained by
 optimisation alone may not capture the full uncertainty in the inferred
 values.
 
 The situation is compounded in the reversible limit.
-\Cref{fig:alpha-parameter-effect-rev} shows the effect of varying
-$\alpha$ at $K_0 = 200$, well into the reversible regime. The three
-voltammograms for $\alpha = 0.3,\, 0.5,\, 0.7$ are nearly
-indistinguishable: when the rate constant is large the exponential terms
-in the Butler--Volmer equation force the surface concentrations to their
-thermodynamic equilibrium values regardless of~$\alpha$, and the transfer
-coefficient effectively drops out of the problem. In this regime, any
-attempt to estimate~$\alpha$ from the voltammogram alone --- whether by
-maximum likelihood or other point-estimation methods --- will yield an
-essentially uninformative result.
+The left panel of \cref{fig:alpha-k0-parameter-effect-rev} shows the
+effect of varying $\alpha$ at $K_0 = 200$, well into the reversible
+regime. The three voltammograms for $\alpha = 0.3,\, 0.5,\, 0.7$ are nearly
+indistinguishable. Similarly, the right panel shows almost no
+difference between the flux for $K_0 = 200, \, 500, \, 1000$.
 
 \begin{figure}[ht]
   \begin{center}
-    \includegraphics[width=0.6\textwidth]{figures/3-alpha-effect-reversible.png}
+    \includegraphics[width=0.8\textwidth]{figures/3-alpha-K0-effect-reversible.png}
   \end{center}
-  \caption{Effect of the transfer coefficient~$\alpha$ on the
+  \caption[Non-identifiability of the transfer coefficient and rate
+    constant in the
+  reversible regime]{Left: Effect of the transfer coefficient~$\alpha$ on the
     voltammogram in the reversible regime ($K_0 = 200$). The three
     curves are nearly indistinguishable, demonstrating that~$\alpha$
     has negligible influence on the voltammogram when the reaction
-  kinetics are fast.}
-  \label{fig:alpha-parameter-effect-rev}
+    kinetics are fast. Right: Effect of the rate constant ($K_0$) for
+    values in the reversible. We see very little difference between the
+  voltammagrams.}
+  \label{fig:alpha-k0-parameter-effect-rev}
 \end{figure}
 
 The combination of parameter correlations in the quasi-reversible regime,
-the practical non-identifiability of~$\alpha$ in the reversible regime,
+the practical non-identifiability of~$\alpha$ and~$K_0$ in the
+reversible regime,
 and the inherent noise present in experimental data means that estimating
 the Butler--Volmer parameters is a problem better suited to a
 probabilistic framework than to a purely optimisation-based approach. A

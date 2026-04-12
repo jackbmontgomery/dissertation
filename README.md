@@ -25,8 +25,6 @@ repeating exposition.
 
 ## Notes
 
-- How do I non-dimensionalise the sinusoidal component of the AC voltammetry?
-
 ---
 
 ## Chapter 1: Introduction
@@ -56,6 +54,9 @@ complete.
 
 ## Chapter 2: Electrochemical Systems
 
+**Status:** Happy with it, might be a tad long but given the examiners
+background it makes sense to spend time here
+
 **Job:** Teach the markers the electrochemistry. Only chapter that does this.
 
 **Key points:**
@@ -72,6 +73,10 @@ complete.
 ---
 
 ## Chapter 3: Numerical Methods
+
+**Status:** Happy with the narrative, but it needs to be shorter. Given the
+assumptions about the examiners I think we can be must faster with the
+derivations of the finite difference scheme.
 
 **Job:** Discretise the forward problem, verify it, then show why inference is
 hard.
@@ -98,6 +103,16 @@ correlated/degenerate -> Ch 4
 ---
 
 ## Chapter 4: Bayesian Approach
+
+**Status:** Happy with all it covers, but again, I think we can be a bit faster
+in the exposition to save words and then I don't want to oversell the gradient
+based sampling. I think we can mention that there are methods that use it, but I
+still think we must state the caution with using these methods. We require
+gradient computations that are not cheep to give. So we are not guaranteed to
+have the gradient based methods be better than the gradient-free ones in this
+context. But I am not even sure this point belongs here. It might make more
+sense to include in the HMC chapter or the end of the diff chapter when we
+introduce it.
 
 **Job:** Frame the inverse problem probabilistically, run RWMH, show it works
 but wastes computation on burn-in.
@@ -126,6 +141,11 @@ Gilks (1997), Morris (2013)
 
 ## Chapter 5: Differentiating Through the Forward Solver
 
+**Status:** Not happy with this. There is a lot of explanation about what we are
+doing that I don't think is necessary. And there is lots of repetition. This is
+probably the most important chapter in the dissertation and it is the worst
+right now.
+
 **Job:** Core technical contribution. Efficient grad(l) via adjoint of the
 tridiagonal solve.
 
@@ -134,8 +154,8 @@ tridiagonal solve.
 - Discretise-then-optimise: exact gradient of the discrete computation
 - Reverse-mode AD natural (scalar output), but naive taping is O(mn) memory
 - Adjoint: A^T lambda = xbar is itself tridiagonal -> O(n) per timestep, cache A
-  and x only. Abar = -lambda x^T for matrix entry gradients.
-- Custom VJP rule in JAX
+  and x only. Abar = -lambda x^T for matrix entry gradients. Implemented via
+  Custom VJP rule in JAX
 - Generalises to pentadiagonal -- state briefly, payoff in Ch 7
 - **Optimisation results:** ADAM vs CMA-ES on equalised forward-solve budget, 32
   random starts, two noise levels. ADAM converges faster, lower variance.
@@ -149,6 +169,13 @@ demonstrate via optimisation -> Ch 6
 ---
 
 ## Chapter 6: Hamiltonian Monte Carlo
+
+**Status:** Happy in general. But once again, just needs some refinement. The
+reader won't be familiar with this so it makes sense to motivate why this method
+should have higher acceptance, but less correlated points. There are also quite
+a few results to present here so I just need to make sure that each is given
+adaqute reference and that they are put in context of the discussions previously
+in the dissertation.
 
 **Job:** Introduce HMC/NUTS, describe the full inference workflow, show it
 outperforms RWMH.
@@ -180,6 +207,10 @@ Gelman Roberts & Gilks (1997)
 
 ## Chapter 7: Heterogeneous Reaction
 
+**Status:** Happy in general. But this is getting very long and lots of results,
+need to ensure I mention something about the number of points in each
+oscillation because Kathryn always spoke about that.
+
 **Job:** First application to a harder system. Concise -- no re-exposition.
 
 **What's new:**
@@ -192,7 +223,8 @@ Gelman Roberts & Gilks (1997)
 - Pentadiagonal adjoint generalises trivially from Ch 5
 - 7 parameters: alpha_1, K0_1, theta_f_1, alpha_2, K0_2, theta_f_2, K_het
 - **AC voltammetry:** same workflow with sinusoidal perturbation. Show
-  posteriors tighten vs DC. Gavaghan et al. (2018) result.
+  posteriors tighten vs DC. Gavaghan et al. (2018) result. And mention briefly
+  the non-dimensionalisation scheme
 - Frame as simplification of Ch 8 (irreversible surface step, no explicit
   surface concentrations)
 

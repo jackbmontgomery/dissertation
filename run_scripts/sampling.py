@@ -1,6 +1,8 @@
 import multiprocessing
 import os
 
+from src.reaction._electron import ReversibleElectronReaction
+
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
     multiprocessing.cpu_count()
 )
@@ -8,6 +10,7 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 from typing import Literal
 
 from src.fdm import (
+    AdsorptionReactionBackwardImplicitFDSolver,
     AdsorptionReactionExplicitFDSolver,
     AdsorptionReactionNewtonFDSolver,
     ElectronReactionFDSolver,
@@ -22,17 +25,20 @@ num_chains = multiprocessing.cpu_count()
 
 def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
     if name == "e":
-        reaction = ElectronReaction()
         voltammetry = CyclicDC()
         fd_solver = ElectronReactionFDSolver(voltammetry)
+        if seed == 1:
+            reaction = ReversibleElectronReaction()
+        else:
+            reaction = ElectronReaction()
 
         sampling_experiment(
             reaction,
             fd_solver,
             optim_steps=50,
             experimental_noise=0.02,
-            num_rwmh_samples=20_000,
-            num_nuts_samples=2_000,
+            num_rwmh_samples=24_000,
+            num_nuts_samples=2_400,
             seed=seed,
             save=save,
         )
@@ -59,8 +65,8 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
 
     elif name == "a":
         reaction = AdsorptionReaction()
-        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=50)
-        sampling_fd_solver = AdsorptionReactionExplicitFDSolver(voltammetry)
+        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=10)
+        sampling_fd_solver = AdsorptionReactionBackwardImplicitFDSolver(voltammetry)
         data_fd_solver = AdsorptionReactionNewtonFDSolver(voltammetry)
 
         sampling_experiment(
@@ -69,8 +75,8 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             data_fd_solver=data_fd_solver,
             optim_learning_rate=2e-1,
             optim_steps=1000,
-            num_rwmh_samples=160_000,
-            num_nuts_samples=8_000,
+            num_rwmh_samples=40_000,
+            num_nuts_samples=2_000,
             seed=seed,
             save=save,
         )

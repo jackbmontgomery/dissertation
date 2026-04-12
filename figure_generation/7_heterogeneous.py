@@ -4,9 +4,11 @@ from typing import Callable
 
 import blackjax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from jax import jit, vmap
 
@@ -17,7 +19,6 @@ from src.voltammetry import CyclicAC, CyclicDC
 
 sns.set_theme()
 sns.set_context("paper", font_scale=2)
-save = False
 
 # %% Analytical Results
 
@@ -44,158 +45,126 @@ params_2 = HeterogenousReactionParams(
 )
 
 max_current = -0.496 * jnp.sqrt(params_1.alpha_1) * jnp.sqrt(voltammetry.sigma)
-plt.axhline(y=max_current, c="C2", linestyle="--", label="Analytical")
-plt.axhline(y=2 * max_current, c="C2", linestyle="--", label="Analytical")
+plt.axhline(y=max_current, c="C3", linestyle="--", label="Analytical")
+plt.axhline(y=2 * max_current, c="C3", linestyle="--", label="Analytical")
 
 max_current_position = (
     jnp.log(params_1.K0_1 / jnp.sqrt(params_1.alpha_1 * voltammetry.sigma)) - 0.78
 ) / params_1.alpha_1
-plt.axvline(x=max_current_position, c="C2", linestyle="--")
+plt.axvline(x=max_current_position, c="C3", linestyle="--")
 
 current_1 = fd_solver.solve(params_1)
 current_2 = fd_solver.solve(params_2)
 
+plt.xlabel(r"$\theta$")
+plt.ylabel(r"$J$")
 plt.plot(fd_solver.applied_potentials, current_1)
 plt.plot(fd_solver.applied_potentials, current_2)
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
+plt.savefig("./manuscript/figures/7-analytical.png", dpi=1000)
 plt.show()
 
-# %%
-
-ac_voltammetry = CyclicAC()
-dc_voltammetry = CyclicDC()
-
-fd_solver = HeterogeneousReactionFDSolver(ac_voltammetry, dtheta=0.01)
-linear_applied_potentials = HeterogeneousReactionFDSolver(
-    dc_voltammetry, dtheta=0.01
-).applied_potentials
-
-K0_1_range = jnp.array([15.0, 25.0, 50.0])
-
-params = HeterogenousReactionParams(
-    alpha_1=jnp.full_like(K0_1_range, 0.5),
-    K0_1=K0_1_range,
-    thetaf_1=jnp.full_like(K0_1_range, 0.2),
-    alpha_2=jnp.full_like(K0_1_range, 0.5),
-    K0_2=jnp.full_like(K0_1_range, 6.0),
-    thetaf_2=jnp.full_like(K0_1_range, 0.4),
-    K_het=jnp.full_like(K0_1_range, 100.0),
-)
-
-
-currents = vmap(fd_solver.solve)(params)
-
-
-for c in currents:
-    plt.plot(linear_applied_potentials, c)
-plt.gca().invert_xaxis()
-plt.gca().invert_yaxis()
-plt.show()
-
-
-# %% Optimisation Comparison
-
-electron_optim = np.load(
-    "./data/optimisation/reaction=HeterogeneousReaction,noise=0.02,seed=0.npz"
-)
-
-adam_ld = electron_optim["adam_ld"]
-cmaes_ld = electron_optim["cmaes_ld"]
-mode_ld = electron_optim["mode_logdensity"]
-iterations = jnp.arange(1, adam_ld.shape[1] + 1)
-
-a_ld_mean = jnp.mean(adam_ld, axis=0)
-a_ld_std = jnp.std(adam_ld, axis=0)
-
-c_ld_mean = jnp.mean(cmaes_ld, axis=0)
-c_ld_std = jnp.std(cmaes_ld, axis=0)
-
-plt.plot(iterations, a_ld_mean, label="ADAM")
-plt.fill_between(iterations, a_ld_mean - a_ld_std, a_ld_mean + a_ld_std, alpha=0.5)
-
-plt.plot(iterations, c_ld_mean, label="CMA-ES")
-plt.fill_between(iterations, c_ld_mean - c_ld_std, c_ld_mean + c_ld_std, alpha=0.5)
-
-plt.ylim(mode_ld * 5, 10)
-
-plt.axhline(y=mode_ld * 2, linestyle="--", c="C3")
-plt.legend()
-
-plt.ylabel("Log Density")
-plt.xlabel("Iteration")
-plt.tight_layout()
-if save:
-    plt.savefig("./manuscript/figures/7-optim.png", dpi=1000)
-plt.show()
-
-# %% Sampling: Seed 0
+# %% Sampling: Seed 0 Corner plot
 
 dir = "./data/sampling"
 file = "reaction=HeterogeneousReaction,noise=0.02,seed=0.pkl.gz"
-
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
-
 nuts: HeterogenousReactionParams = data["nuts"]
 rwmh: HeterogenousReactionParams = data["rwmh"]
-
 true_params: HeterogenousReactionParams = HeterogeneousReaction().true_parameters
 
-fig = plt.figure(figsize=(12, 5))
+# Build a combined DataFrame
+params = {
+    r"$\alpha^{(1)}$": ("alpha_1", true_params.alpha_1),
+    r"$\alpha^{(2)}$": ("alpha_2", true_params.alpha_2),
+    r"$K_0^{(1)}$": ("K0_1", true_params.K0_1),
+    r"$K_0^{(2)}$": ("K0_2", true_params.K0_2),
+    r"$K_{\mathrm{het}}$": ("K_het", true_params.K_het),
+}
 
-gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
+rows = []
+for label, (attr, _) in params.items():
+    pass  # just defining the mapping
 
-ax_a1 = fig.add_subplot(gs[0, 0])
-ax_K1 = fig.add_subplot(gs[0, 1])
-ax_thetaf1 = fig.add_subplot(gs[0, 2])
-ax_a2 = fig.add_subplot(gs[1, 0])
-ax_K2 = fig.add_subplot(gs[1, 1])
-ax_thetaf2 = fig.add_subplot(gs[1, 2])
 
-gs_right = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[:, 3], hspace=0)
-ax_Khet = fig.add_subplot(gs_right[1, 0])
+def make_df(samples, sampler_name):
+    d = {}
+    for label, (attr, _) in params.items():
+        d[label] = getattr(samples, attr).flatten()
+    d["Sampler"] = sampler_name
+    return pd.DataFrame(d)
 
-options = {"density": True, "bins": 50, "alpha": 0.8, "histtype": "step"}
 
-ax_a1.set_title(r"$\alpha^{(1)}$")
-ax_a1.hist(nuts.alpha_1.flatten(), label="NUTS", **options)
-ax_a1.hist(rwmh.alpha_1.flatten(), **options, label="RWMH")
-ax_a1.axvline(x=true_params.alpha_1, linestyle="--", color="black", label="True Value")
+df = pd.concat([make_df(nuts, "NUTS"), make_df(rwmh, "RWMH")], ignore_index=True)
 
-ax_a2.set_title(r"$\alpha^{(2)}$")
-ax_a2.hist(nuts.alpha_2.flatten(), **options)
-ax_a2.hist(rwmh.alpha_2.flatten(), **options)
-ax_a2.axvline(x=true_params.alpha_2, linestyle="--", color="black")
+vars_list = list(params.keys())
 
-ax_K1.set_title(r"$K_0^{(1)}$")
-ax_K1.hist(nuts.K0_1.flatten(), **options)
-ax_K1.hist(rwmh.K0_1.flatten(), **options)
-ax_K1.axvline(x=true_params.K0_1, linestyle="--", color="black")
+g = sns.PairGrid(
+    df,
+    vars=vars_list,
+    hue="Sampler",
+    palette={"NUTS": "C0", "RWMH": "C1"},
+    corner=True,
+    diag_sharey=False,
+)
 
-ax_K2.set_title(r"$K_0^{(2)}$")
-ax_K2.hist(nuts.K0_2.flatten(), **options)
-ax_K2.hist(rwmh.K0_2.flatten(), **options)
-ax_K2.axvline(x=true_params.K0_2, linestyle="--", color="black")
+# Diagonal: histograms
+g.map_diag(
+    sns.histplot,
+    stat="density",
+    bins=50,
+    alpha=0.8,
+    element="step",
+    fill=False,
+    linewidth=1.2,
+    common_norm=False,
+)
 
-ax_thetaf1.set_title(r"$\theta_f^{(1)}$")
-ax_thetaf1.hist(nuts.thetaf_1.flatten(), **options)
-ax_thetaf1.hist(rwmh.thetaf_1.flatten(), **options)
-ax_thetaf1.axvline(x=true_params.thetaf_1, linestyle="--", color="black")
+# Lower triangle: KDE
+g.map_lower(sns.kdeplot, levels=5, fill=False, linewidths=1.2, thresh=0.05)
 
-ax_thetaf2.set_title(r"$\theta_f^{(2)}$")
-ax_thetaf2.hist(nuts.thetaf_2.flatten(), **options)
-ax_thetaf2.hist(rwmh.thetaf_2.flatten(), **options)
-ax_thetaf2.axvline(x=true_params.thetaf_2, linestyle="--", color="black")
+# Add true value lines on diagonal
+for i, label in enumerate(vars_list):
+    ax = g.axes[i, i]
+    _, true_val = params[label]
+    ax.axvline(x=true_val, linestyle="--", color="black", linewidth=1.0)
 
-ax_Khet.set_title(r"$K_{\text{het}}$")
-ax_Khet.hist(nuts.K_het.flatten(), **options)
-ax_Khet.hist(rwmh.K_het.flatten(), **options)
-ax_Khet.axvline(x=true_params.K_het, linestyle="--", color="black")
+# Add true value crosshairs on lower off-diagonal
+for i in range(len(vars_list)):
+    for j in range(i):
+        ax = g.axes[i, j]
+        _, true_y = params[vars_list[i]]
+        _, true_x = params[vars_list[j]]
+        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
+        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
 
-handles, labels = ax_a1.get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower right", ncol=1)
+g.add_legend()
+g.figure.set_size_inches(10, 10)
+plt.tight_layout()
+plt.savefig("./manuscript/figures/7-corner.png", dpi=1000)
+plt.show()
 
+# %% Current Fit
+
+cyclic_dc = CyclicDC()
+fd_solver = HeterogeneousReactionFDSolver(cyclic_dc)
+
+true_current = fd_solver.solve(true_params)
+nuts_mean = jtu.tree_map(lambda x: jnp.mean(x), nuts)
+nuts_current = fd_solver.solve(nuts_mean)
+
+plt.plot(fd_solver.applied_potentials, nuts_current, label="NUTS")
+plt.plot(
+    fd_solver.applied_potentials,
+    true_current,
+    c="C3",
+    linestyle="--",
+    label="True Current",
+)
+
+plt.savefig("./manuscript/figures/7-current-fit.png", dpi=1000)
 plt.show()
 
 # %% ESS
@@ -237,7 +206,7 @@ for i, (h_ei, r_ei) in enumerate(zip(nuts_end_idx, rwmh_end_idx)):
 
 # %%  Plot ESS
 
-fig = plt.figure(figsize=(12, 5))
+fig = plt.figure(figsize=(15, 6))
 
 gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
 
@@ -279,6 +248,26 @@ for i, ax in enumerate(axs):
 
 handles, labels = ax_a1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower right", ncol=1)
+plt.savefig("./manuscript/figures/7-ess.png", dpi=1000)
+plt.show()
+
+
+# %%
+
+ac_voltammetry = CyclicAC()
+dc_voltammetry = CyclicDC()
+
+fd_solver = HeterogeneousReactionFDSolver(ac_voltammetry)
+linear_applied_potentials = HeterogeneousReactionFDSolver(
+    dc_voltammetry
+).applied_potentials
+params = HeterogeneousReaction().true_parameters
+current = fd_solver.solve(params)
+
+plt.plot(linear_applied_potentials, current)
+plt.gca().invert_xaxis()
+plt.gca().invert_yaxis()
+plt.savefig("./manuscript/figures/7-ac-voltam.png", dpi=1000)
 plt.show()
 
 # %% Sampling: AC vs DC
@@ -299,7 +288,7 @@ ac_nuts: HeterogenousReactionParams = ac_data["nuts"]
 
 true_params: HeterogenousReactionParams = HeterogeneousReaction().true_parameters
 
-fig = plt.figure(figsize=(12, 5))
+fig = plt.figure(figsize=(15, 6))
 
 gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
 
@@ -316,8 +305,8 @@ ax_Khet = fig.add_subplot(gs_right[1, 0])
 options = {"density": True, "bins": 50, "alpha": 0.8, "histtype": "step"}
 
 ax_a1.set_title(r"$\alpha^{(1)}$")
-ax_a1.hist(dc_nuts.alpha_1.flatten(), label="dc_nuts", **options)
-ax_a1.hist(ac_nuts.alpha_1.flatten(), **options, label="ac_nuts")
+ax_a1.hist(dc_nuts.alpha_1.flatten(), label="DC", **options)
+ax_a1.hist(ac_nuts.alpha_1.flatten(), **options, label="AC")
 ax_a1.axvline(x=true_params.alpha_1, linestyle="--", color="black", label="True Value")
 
 ax_a2.set_title(r"$\alpha^{(2)}$")
@@ -352,7 +341,7 @@ ax_Khet.axvline(x=true_params.K_het, linestyle="--", color="black")
 
 handles, labels = ax_a1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower right", ncol=1)
-
+plt.savefig("./manuscript/figures/7-ac-hist-comparison.png", dpi=1000)
 plt.show()
 
 # %% Numerical Convergence Checks

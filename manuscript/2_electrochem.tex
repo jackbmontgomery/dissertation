@@ -1,17 +1,13 @@
 \chapter{Electrochemical Systems}\label{ch:electrochem}
 
-A typical electrochemical experiment uses an electrochemical cell to drive
-reduction and oxidation (redox) reactions at the surface of a working
-electrode. The cell consists of at least two electrodes immersed in an
-electrolyte solution: the \emph{working electrode}, at whose surface the
-reaction of interest takes place, and a \emph{counter electrode}, which
-completes the circuit. A third \emph{reference electrode} is commonly
-included to provide a stable, known potential against which the potential
-of the working electrode is measured and controlled. A device called a
-\emph{potentiostat} maintains the desired potential difference between the
-working and reference electrodes, drives the current through the circuit
-formed by the working and counter electrodes, and simultaneously measures
-that current.
+In a typical electrochemical experiment, a device called a
+\emph{potentiostat} applies a controlled, time-varying potential to a
+\emph{working electrode} immersed in an electrolyte solution and
+simultaneously records the resulting current
+(\cref{fig:electrochemical-cell}). A \emph{reference electrode} provides
+a stable potential against which the working electrode is measured, and a
+\emph{counter electrode} completes the circuit. This is depicted in
+\cref{fig:electrochemical-cell}.
 
 \begin{figure}
   \centering
@@ -32,7 +28,7 @@ reaction:
 \begin{equation}\label{eq:redox}
   \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B},
 \end{equation}
-where species $\mathrm{A}$ is reduced --- that is, it gains one electron ---
+where species $\mathrm{A}$ is reduced -- that is, it gains one electron --
 to form species $\mathrm{B}$. The reverse process, in which $\mathrm{B}$
 loses an electron to regenerate $\mathrm{A}$, is the corresponding
 oxidation. Throughout this chapter we restrict attention to this
@@ -58,9 +54,9 @@ potential of the redox couple that the reaction is driven to completion at
 the electrode surface; it serves only as the turning point of the sweep.
 The potential is then swept back to~$E_i$, reversing the direction of
 electron transfer and reforming~$\mathrm{A}$.
-Throughout this process the current $I$ is recorded. The triangle
-waveform and the resulting voltammagram are shown in the left and
-right panels of \cref{fig:potential-voltammagram}, respectively.
+Throughout this process the current $I$ is recorded. The triangular
+waveform and the resulting voltammogram are shown in the left and
+right panels of \cref{fig:potential-voltammogram}, respectively.
 
 The forward sweep produces
 a reduction (cathodic) peak as the potential moves through the range at
@@ -85,17 +81,17 @@ transported to the electrode by diffusion is now the limiting factor.
 
 \begin{figure}
   \begin{center}
-    \includegraphics[width=0.8\textwidth]{figures/2-voltammagram.png}
+    \includegraphics[width=0.8\textwidth]{figures/2-voltammogram.png}
   \end{center}
-  \caption[Applied potential and voltammogram example]{Left: the triangular
+  \caption[Applied potential and voltammogram]{Left: the triangular
     potential waveform applied in a cyclic voltammetry experiment. Right:
-    the resulting reversible reaction's voltammogram showing the cathodic
-    (reduction) peak which occurs on the forward sweep and the anodic
-  (oxidation) peak which occurs on the reverse sweep.}
-  \label{fig:potential-voltammagram}
+    the resulting voltammogram for a reversible reaction, showing the cathodic
+    (reduction) peak on the forward sweep and the anodic
+  (oxidation) peak on the reverse sweep.}
+  \label{fig:potential-voltammogram}
 \end{figure}
 
-Cyclic Voltammetry is particularly useful because the position, shape, and
+Cyclic voltammetry is particularly useful because the position, shape, and
 relative heights of the peaks provide a signature of the
 electrochemical process. The potential at which each peak occurs is related
 to the formal potential $E^{\circ}_f$, and the separation between
@@ -117,7 +113,7 @@ diffusion and can reveal coupled chemical reactions.
 
 We now formulate the governing equations for the system. The first
 assumption we make is that we have a ``macro''-electrode: specifically, we
-consider a planar disc electrode of radius~$\epsilon$, whose characteristic
+consider a planar disc electrode of radius~$r_e$, whose characteristic
 dimension is much larger than the distance over which species can diffuse
 on the timescale of the experiment. As a consequence, edge effects are
 negligible and we can model only the diffusion perpendicular to the
@@ -126,12 +122,14 @@ electrode surface, reducing the problem to one spatial dimension.
 \begin{figure}
   \centering
   \input{figures/electrode-reaction.tex}
-  \caption{Schematic of the one-dimensional electrode reaction. Species
+  \caption[One-dimensional electrode reaction]{Schematic of the
+    one-dimensional electrode reaction. Species
     $\mathrm{A}$ diffuses from the bulk solution towards the electrode
     surface, where it is reduced ($+e^-$) to form species $\mathrm{B}$.
     The reverse oxidation ($-e^-$) converts $\mathrm{B}$ back to
     $\mathrm{A}$. Species $\mathrm{B}$ diffuses away from the electrode
   into the bulk.}
+  \label{fig:electrode-reaction}
 \end{figure}
 
 \subsection{Diffusion: Fick's Second Law}\label{sec:diffusion}
@@ -250,7 +248,7 @@ single-electron reduction of species $\mathrm{A}$ is
   I = F A_{\mathrm{el}}\, j_{0, A}
   \label{eq:current}
 \end{equation}
-where $A_{\mathrm{el}} = \pi\epsilon^2$ is the area of the disc electrode
+where $A_{\mathrm{el}} = \pi r_e^2$ is the area of the disc electrode
 and $j_{0, A}$ is the net flux of species $\mathrm{A}$ at the electrode
 surface, which is proportional to the concentration gradient at that point
 by Fick's first law~\cref{eq:ficks-first}. Under our sign convention a
@@ -258,21 +256,17 @@ positive $j_{0,A}$ corresponds to net consumption of~$\mathrm{A}$ at the
 surface (reduction) and hence a positive current. Computing the current
 therefore reduces to evaluating how $j_{0, A}$ evolves in time.
 
-\section{Non-Dimensionalisation}
+\section{Non-Dimensionalisation}\label{sec:nondim}
 
 The combination of
 \cref{eq:diffusion,eq:electrode-boundary-condition,eq:mass-conservation,%
 eq:initial-conditions,eq:infinite-boundary-condition} constitutes an
-initial-boundary value problem. It is advantageous to solve a
-non-dimensional version of this problem: the results of a single
-non-dimensional simulation can be rescaled to any combination of physical
-parameters without rerunning the computation. We non-dimensionalise in the
-standard way, scaling concentrations by the bulk concentration
+initial-boundary value problem. We non-dimensionalise by scaling
+concentrations by the bulk concentration
 of~$\mathrm{A}$, diffusion coefficients by~$D_A$, lengths by the
-electrode radius~$\epsilon$, and potentials by the thermal voltage
-$\mathcal{R}\mathcal{T}/F$.
-
-We present a summary of the normalisation in \cref{tab:normalisation}.
+electrode radius~$r_e$, and potentials by the thermal voltage
+$\mathcal{R}\mathcal{T}/F$. \Cref{tab:normalisation} summarises the
+scalings.
 
 \begin{table}[ht]
   \centering
@@ -282,19 +276,18 @@ We present a summary of the normalisation in \cref{tab:normalisation}.
     \hline
     concentration & $C_j = c_j / c_{\mathrm{A}}^*$ \\
     diffusion coefficient & $d_j = D_j / D_{\mathrm{A}}$ \\
-    spatial coordinate & $X = x / \epsilon$ \\
-    time & $T = D_{\mathrm{A}} t / \epsilon^2$ \\
+    spatial coordinate & $X = x / r_e$ \\
+    time & $T = D_{\mathrm{A}} t / r_e^2$ \\
     applied potential & $\theta = (F / \mathcal{R}\mathcal{T})\,E$ \\
     formal potential & $\theta_f = (F /
     \mathcal{R}\mathcal{T})\,E_{\mathrm{f}}^0$ \\
-    rate constant & $K_0 = k_0\,\epsilon / D_{\mathrm{A}}$ \\
-    scan rate & $\sigma = (\epsilon^2 / D_{\mathrm{A}})(F /
+    rate constant & $K_0 = k_0\,r_e / D_{\mathrm{A}}$ \\
+    scan rate & $\sigma = (r_e^2 / D_{\mathrm{A}})(F /
     \mathcal{R}\mathcal{T})\,\nu$ \\
-    current & $J = I / (\pi \epsilon F D_{\mathrm{A}} c_{\mathrm{A}}^*)$ \\
+    current & $J = I / (\pi r_e F D_{\mathrm{A}} c_{\mathrm{A}}^*)$ \\
     \hline
   \end{tabular}
-  \caption{Dimensionless normalisation of variables. Here $\epsilon$ is the
-  radius of the disc electrode.}
+  \caption{Dimensionless normalisation of variables.}
   \label{tab:normalisation}
 \end{table}
 
@@ -302,31 +295,20 @@ We define the dimensionless concentration, diffusion coefficient, spatial
 coordinate, and time as
 \begin{equation}
   C_j = \frac{c_j}{c_A^*}, \quad d_j = \frac{D_j}{D_A}, \quad X =
-  \frac{x}{\epsilon}, \quad T = \frac{D_A\, t}{\epsilon^2},
+  \frac{x}{r_e}, \quad T = \frac{D_A\, t}{r_e^2},
 \end{equation}
 and the dimensionless rate constant as
 \begin{equation}
-  K_0 = \frac{k_0\,\epsilon}{D_A}.
+  K_0 = \frac{k_0\,r_e}{D_A}.
+  \label{eq:nd_K0}
 \end{equation}
 We now substitute these into the governing equations, initial conditions,
 and boundary conditions.
 
 \subsection{Governing Equation}
 
-Considering the left-hand side of \cref{eq:diffusion}:
-$$
-\frac{\partial c_j}{\partial t}
-= \frac{\partial c_j}{\partial C_j}\frac{\partial C_j}{\partial t}
-= c_A^*\frac{\partial C_j}{\partial t}
-= \frac{c_A^* D_A}{\epsilon^2}\frac{\partial C_j}{\partial T}.
-$$
-Now the right-hand side:
-$$
-D_j \frac{\partial^2 c_j}{\partial x^2}
-= D_j \frac{c_A^*}{\epsilon^2}\frac{\partial^2 C_j}{\partial X^2}
-= d_j \frac{c_A^* D_A}{\epsilon^2}\frac{\partial^2 C_j}{\partial X^2}.
-$$
-Equating gives the dimensionless diffusion equation:
+Substituting the definitions from \cref{tab:normalisation} into
+\cref{eq:diffusion} gives the dimensionless diffusion equation:
 \begin{equation}
   \frac{\partial C_j}{\partial T} = d_j \frac{\partial^2 C_j}{\partial X^2}.
   \label{eq:nd_diffusion}
@@ -393,47 +375,29 @@ respect to dimensionless time:
   \sigma = \frac{d\theta}{dT}.
   \label{eq:nd_scan_rate}
 \end{equation}
-To relate $\sigma$ to $\nu$ we note that
-$$
-\nu = \frac{\partial E}{\partial t}
-= \frac{\mathcal{R}\mathcal{T}}{F}\frac{\partial \theta}{\partial t}
-= \frac{\mathcal{R}\mathcal{T} D_A}{F \epsilon^2}\frac{\partial
-\theta}{\partial T},
-$$
-and hence
+Substituting the definitions of $\theta$ and $T$ gives
 \begin{equation}
-  \sigma = \frac{F \epsilon^2}{\mathcal{R}\mathcal{T} D_A}\, \nu.
+  \sigma = \frac{F r_e^2}{\mathcal{R}\mathcal{T} D_A}\, \nu.
   \label{eq:sigma_nu}
 \end{equation}
 
 \subsection{Current}
 
-Since the model is now in dimensionless units we cannot compute the flux
-$j_{0,A}$ directly, but we can compute a dimensionless flux and relate the
-two. We define
+We define the dimensionless flux
 \begin{equation}
   J_{X^*,\, j} = -d_j \left(\frac{\partial C_j}{\partial X}\right)_{X^*}.
   \label{eq:nd_flux}
 \end{equation}
-To recover the dimensional flux, we note that
-$$
-j_j = -D_j \left(\frac{\partial c_j}{\partial x}\right)_{x^*}
-= -d_j \frac{c_A^* D_A}{\epsilon}\frac{\partial C_j}{\partial X}
-= \frac{c_A^* D_A}{\epsilon}\, J_j.
-$$
-Substituting into \cref{eq:current} with $A_{\mathrm{el}} = \pi\epsilon^2$
-gives
+Substituting into \cref{eq:current} with $A_{\mathrm{el}} = \pi r_e^2$
+and using the scalings from \cref{tab:normalisation} gives
 \begin{equation}
-  I = \pi \epsilon\, F\, D_A\, c_A^*\, J_{0,A}.
+  I = \pi r_e\, F\, D_A\, c_A^*\, J_{0,A}.
   \label{eq:nondim_current}
 \end{equation}
-When we run a simulation we record the dimensionless flux $J$ as a
-function of the dimensionless potential $\theta$. To obtain the physical
-voltammogram the results need only be scaled by the values of $c_A^*$,
-$D_A$, and $\epsilon$. Consequently, the results of a single simulation
-apply to any set of these parameters; the simulation does not need to be
-rerun when, for example, the bulk concentration of $\mathrm{A}$ is
-changed.
+A simulation records $J$ as a function of $\theta$; the physical
+voltammogram is recovered by scaling with $c_A^*$, $D_A$, and $r_e$.
+A single simulation therefore applies to any combination of these
+parameters.
 
 \section{Equal Diffusion Coefficients}
 
@@ -481,4 +445,4 @@ For ease of notation we denote:
   \label{eq:kred_kox}
 \end{equation}
 These shorthand expressions are used extensively in the numerical
-discretisation that follows in next chapter.
+discretisation that follows in the next chapter.

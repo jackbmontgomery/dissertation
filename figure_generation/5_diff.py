@@ -1,130 +1,56 @@
-import blackjax
 import jax.numpy as jnp
-import jax.random as jr
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 
-from src.fdm import ElectronReactionFDSolver
-from src.optimisers import make_adam_optimise, make_cmaes_optimise
-from src.params import ElectronReactionParams
-from src.reaction import ElectronReaction
-from src.sampling import RWMHSampler
-from src.utils import generate_noisy_samples
-from src.voltammetry import CyclicDC
-
 sns.set_theme()
-sns.set_context("paper", font_scale=2)
+sns.set_context("paper", font_scale=1.5)
 
-key = jr.key(0)
-save = False
+# %% Algorithm noise comparison
 
-# %% RWMH vs ADAM
+fig, axs = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
+noise_levels = [0.01, 0.02]
 
-key_samples, key_init, key_sampling, key_cmaes = jr.split(key, 4)
-
-voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=100)
-fd_solver = ElectronReactionFDSolver(voltammetry)
-reaction = ElectronReaction()
-
-true_params = reaction.true_parameters
-base_current = fd_solver.solve(true_params)
-
-experimental_samples = generate_noisy_samples(
-    10,
-    base_current,
-    0.02,
-    key=key_samples,
-)
-
-
-def logdensity_fn(params: ElectronReactionParams):
-    current = fd_solver.solve(params)
-    return -jnp.sum((experimental_samples - current) ** 2)
-
-
-init_params = reaction.create_init_params(key_init, 1)
-
-rwmh = RWMHSampler(logdensity_fn, 750, 1)
-
-rwmh_params = {"random_step": blackjax.mcmc.random_walk.normal(jnp.repeat(0.01, 3))}
-
-samples, infos = rwmh.run(init_params, rwmh_params, key=key_sampling)
-samples: ElectronReactionParams = samples
-
-adam_params = {"learning_rate": 1e-1}
-adam_optimise = make_adam_optimise(50, logdensity_fn, **adam_params)
-
-_, adam_ld, adam_pp = adam_optimise(init_params)
-adam_pp: ElectronReactionParams = adam_pp
-
-cmaes_params = {"population_size": 4}
-cmaes_optimise = make_cmaes_optimise(50, logdensity_fn, **cmaes_params)
-
-_, cmaes_ld, cmaes_pp = cmaes_optimise(init_params, key_cmaes)
-cmaes_pp: ElectronReactionParams = cmaes_pp
-
-# %%
-
-fig, (ax1, ax2, ax3) = plt.subplots(
-    1, 3, figsize=(10, 3), sharex=True, sharey=True, layout="constrained"
-)
-
-idx_adam = jnp.arange(len(adam_pp.alpha.flatten()))
-idx_cmaes = jnp.arange(len(cmaes_pp.alpha.flatten()))
-idx_hmc = jnp.arange(len(samples.alpha.flatten()))
-
-# Normalise all indices to [0, 1] for a shared colormap
-norm = plt.Normalize(vmin=0, vmax=1)
-
-sc1 = ax1.scatter(
-    adam_pp.alpha.flatten(),
-    adam_pp.K0.flatten(),
-    c=idx_adam / idx_adam.max(),
-    cmap="viridis",
-    norm=norm,
-    s=1,
-)
-sc2 = ax2.scatter(
-    cmaes_pp.alpha.flatten(),
-    cmaes_pp.K0.flatten(),
-    c=idx_cmaes / idx_cmaes.max(),
-    cmap="viridis",
-    norm=norm,
-    s=1,
-)
-sc3 = ax3.scatter(
-    samples.alpha.flatten(),
-    samples.K0.flatten(),
-    c=idx_hmc / idx_hmc.max(),
-    cmap="viridis",
-    norm=norm,
-    s=1,
-)
-
-for ax in (ax1, ax2, ax3):
-    ax.scatter(
-        [true_params.alpha],
-        [true_params.K0],
-        marker="x",
-        s=75.0,
-        c="black",
-        label="True Value",
-        zorder=5,
+for n, ax in zip(noise_levels, axs):
+    ax.set_title(rf"$\eta={n}$")
+    electron_optim = np.load(
+        f"./data/optimisation/reaction=ElectronReaction,noise={n},seed=0.npz"
     )
 
-ax1.set_title("ADAM")
-ax1.set_xlabel(r"$\alpha$")
-ax2.set_title("CMA-ES")
-ax2.set_xlabel(r"$\alpha$")
-ax3.set_title("RWMH")
-ax3.set_xlabel(r"$\alpha$")
-ax1.set_ylabel(r"$K_0$")
-fig.colorbar(
-    sc3,
-    ax=[ax1, ax2, ax3],
-    label="Index",
-    location="right",
-)
-if save:
-    fig.savefig("./manuscript/figures/5-burn-in-scatter.png", dpi=1000)
+    adam_ld = electron_optim["adam_ld"]
+    cmaes_ld = electron_optim["cmaes_ld"]
+    mode_ld = electron_optim["mode_logdensity"]
+
+    iterations_adam = jnp.arange(1, adam_ld.shape[1] + 1) / adam_ld.shape[1]
+    iterations_cmaes = jnp.arange(1, cmaes_ld.shape[1] + 1) / cmaes_ld.shape[1]
+
+    a_ld_mean = jnp.mean(adam_ld, axis=0)
+    a_ld_std = jnp.std(adam_ld, axis=0)
+
+    c_ld_mean = jnp.mean(cmaes_ld, axis=0)
+    c_ld_std = jnp.std(cmaes_ld, axis=0)
+
+    ax.plot(iterations_adam, a_ld_mean, label="ADAM")
+    ax.fill_between(
+        iterations_adam, a_ld_mean - a_ld_std, a_ld_mean + a_ld_std, alpha=0.5
+    )
+
+    ax.plot(iterations_cmaes, c_ld_mean, label="CMA-ES")
+    ax.fill_between(
+        iterations_cmaes, c_ld_mean - c_ld_std, c_ld_mean + c_ld_std, alpha=0.5
+    )
+
+    ax.set_ylim(mode_ld * 5, -mode_ld)
+
+    ax.axhline(y=mode_ld * 2, linestyle="--", c="C3")
+
+
+handles, labels = axs[0].get_legend_handles_labels()
+fig.legend(handles, labels, loc="lower center", ncol=2)
+
+axs[0].set_ylabel("Log Density")
+axs[0].set_xlabel("Iteration")
+axs[1].set_xlabel("Iteration")
+plt.tight_layout(rect=(0, 0.1, 1, 1))
+plt.savefig("./manuscript/figures/5-optim.png", dpi=1000)
 plt.show()

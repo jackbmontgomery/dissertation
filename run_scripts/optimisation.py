@@ -1,3 +1,4 @@
+from math import floor, log
 from typing import Literal
 
 from src.fdm import (
@@ -19,12 +20,12 @@ def main(
         reaction = ElectronReaction()
 
         adam_params = {"learning_rate": 1e-1}
-        cmaes_param = {"population_size": 4}
+        cmaes_param = {"population_size": 4 + floor(3 * log(reaction.parameter_dim))}
 
         optimisation_experiment(
             reaction,
             fd_solver,
-            num_iterations=50,
+            budget=200,
             num_params=32,
             noise_percentage=noise,
             cmaes_params=cmaes_param,
@@ -39,12 +40,12 @@ def main(
         reaction = HeterogeneousReaction()
 
         adam_params = {"learning_rate": 1e-1}
-        cmaes_param = {"population_size": 4}
+        cmaes_param = {"population_size": 4 + floor(3 * log(reaction.parameter_dim))}
 
         optimisation_experiment(
             reaction,
             fd_solver,
-            num_iterations=100,
+            budget=400,
             num_params=32,
             noise_percentage=noise,
             cmaes_params=cmaes_param,
@@ -55,16 +56,16 @@ def main(
 
     elif name == "a":
         reaction = AdsorptionReaction()
-        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=40)
+        voltammetry = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=10)
         fd_solver = AdsorptionReactionExplicitFDSolver(voltammetry)
 
-        adam_params = {"learning_rate": 1e-1}
-        cmaes_param = {"population_size": 4}
+        adam_params = {"learning_rate": 2e-1}
+        cmaes_param = {"population_size": 4 + floor(3 * log(reaction.parameter_dim))}
 
         optimisation_experiment(
             reaction,
             fd_solver,
-            num_iterations=500,
+            budget=400,
             num_params=32,
             noise_percentage=noise,
             cmaes_params=cmaes_param,

@@ -41,6 +41,6 @@ class ReversibleElectronReaction(ElectronReaction):
     def true_parameters(self) -> ElectronReactionParams:
         return ElectronReactionParams(
             alpha=jnp.array(0.6),
-            K0=jnp.array(1000.0),
+            K0=jnp.array(500.0),
             thetaf=jnp.array(0.5),
         )

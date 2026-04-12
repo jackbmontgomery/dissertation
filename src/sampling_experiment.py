@@ -32,7 +32,7 @@ def print_optim(params, log_densities, num_chains):
     rows = []
     for i in range(num_chains):
         chain_params = tree_util.tree_map(lambda x: x[i], params)
-        row_data = [f"{getattr(chain_params, name):.4f}" for name in display_names]
+        row_data = [f"{getattr(chain_params, name):.2f}" for name in display_names]
         row_data.append(f"{log_densities[i, -1]:.2f}")
         rows.append(row_data)
 

@@ -1,0 +1,577 @@
+\chapter{Adsorption Reaction}\label{ch:adsorption}
+
+This chapter applies the inference framework to a reaction involving
+adsorption of the electroactive species onto the electrode surface. The
+adsorption process introduces surface coverage variables governed by
+ordinary differential equations coupled to the diffusion PDE through the
+boundary conditions. The Langmuir adsorption model leads to nonlinear
+terms --- products of surface coverages and surface concentrations ---
+that prevent a direct banded linear solve. We describe three
+discretisation strategies with different trade-offs between accuracy and
+compatibility with automatic differentiation, and select the one that
+permits gradient computation through JAX while reproducing the current
+response with sufficient fidelity. The parameter space grows to nine
+dimensions, completing the dimensionality sequence $3 \to 7 \to 9$ that
+has been the recurring comparison between NUTS and RWMH.
+
+\section{Reaction Scheme}\label{sec:ads-scheme}
+
+We consider a single electron transfer in which both the reactant
+$\mathrm{A}$ and the product $\mathrm{B}$ can adsorb on the electrode
+surface \cite{compton2014understanding}:
+\begin{equation}\label{eq:ads-scheme}
+  \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B}.
+\end{equation}
+The electron transfer can proceed through both the solution-phase
+species (with rate constants $k_{\mathrm{red/ox}}^{\mathrm{sol}}$) and
+the surface-bound species (with rate constants
+$k_{\mathrm{red/ox}}^{\mathrm{ads}}$). In addition, each species
+adsorbs onto and desorbs from the electrode surface with its own rate
+constants $k_{\mathrm{ads}}^{j}$ and $k_{\mathrm{des}}^{j}$, competing
+for a finite number of surface sites characterised by the maximum
+surface concentration $\Gamma_{\mathrm{max}}$
+(\cref{fig:ads-schematic}).
+
+\begin{figure}
+  \centering
+  \input{figures/adsorption-reaction.tex}
+  \caption[Schematic of the adsorption reaction]{Schematic of the
+    adsorption reaction mechanism. Species $\mathrm{A}$ and $\mathrm{B}$
+    exist in both a solution phase and a surface-bound (adsorbed) phase.
+    Electron transfer can occur between both solution-phase and
+    adsorbed species. Adsorption and desorption exchange species between
+  the two phases.}
+  \label{fig:ads-schematic}
+\end{figure}
+
+The solution-phase and adsorbed electron transfers are each
+characterised by their own transfer coefficient and rate constant:
+$(\alpha^{\mathrm{sol}},\, K_0^{\mathrm{sol}})$ and
+$(\alpha^{\mathrm{ads}},\, K_0^{\mathrm{ads}})$ respectively. The nine
+parameters to be inferred are
+\begin{equation}\label{eq:ads-params}
+  \phi = \bigl(\alpha^{\mathrm{sol}},\, K_0^{\mathrm{sol}},\,
+    \theta_f^{\mathrm{sol}},\,
+    \alpha^{\mathrm{ads}},\, K_0^{\mathrm{ads}},\,
+    K_{\mathrm{ads}}^{\mathrm{A}},\, K_{\mathrm{des}}^{\mathrm{A}},\,
+    K_{\mathrm{ads}}^{\mathrm{B}},\, K_{\mathrm{des}}^{\mathrm{B}}
+  \bigr) \in \mathbb{R}^9.
+\end{equation}
+The saturation parameter $\beta = c_\mathrm{A}^*\,\epsilon /
+\Gamma_{\mathrm{max}}$ is treated as known and fixed at $\beta = 1$; in
+practice it is determined by the bulk concentration and electrode
+geometry.
+
+\section{Mathematical Description}\label{sec:ads-maths}
+
+\subsection{Governing Equations}
+
+The transport of $\mathrm{A}$ and $\mathrm{B}$ in solution is governed
+by the same dimensionless diffusion equation as in
+\cref{eq:nd_diffusion}:
+\begin{equation}\label{eq:ads-diffusion}
+  \frac{\partial C_j}{\partial T} = \frac{\partial^2 C_j}{\partial X^2},
+  \qquad j \in \{\mathrm{A},\,\mathrm{B}\}.
+\end{equation}
+Unlike the heterogeneous reaction of \cref{ch:heterogeneous}, there are
+no additional kinetic source terms in the bulk. All coupling between the
+species enters through the boundary conditions at the electrode surface.
+
+\subsection{Surface Coverage Equations}
+
+The amounts of $\mathrm{A}$ and $\mathrm{B}$ adsorbed on the electrode
+surface are described by the surface coverages $\xi_j =
+\Gamma_j / \Gamma_{\mathrm{max}}$, where $\Gamma_j$
+($\mathrm{mol\,m^{-2}}$) is the surface concentration of species~$j$.
+These evolve according to
+\begin{equation}\label{eq:ads-coverage-ode}
+  \begin{aligned}
+    \frac{\mathrm{d}\xi_\mathrm{A}}{\mathrm{d}T}
+    &= -K_{\mathrm{red}}^{\mathrm{ads}}\,\xi_\mathrm{A}
+    + K_{\mathrm{ox}}^{\mathrm{ads}}\,\xi_\mathrm{B}
+    + K_{\mathrm{ads}}^{\mathrm{A}}\,C_{0,\mathrm{A}}
+    \bigl[1 - (\xi_\mathrm{A} + \xi_\mathrm{B})\bigr]
+    - K_{\mathrm{des}}^{\mathrm{A}}\,\xi_\mathrm{A}, \\[4pt]
+    \frac{\mathrm{d}\xi_\mathrm{B}}{\mathrm{d}T}
+    &= K_{\mathrm{red}}^{\mathrm{ads}}\,\xi_\mathrm{A}
+    - K_{\mathrm{ox}}^{\mathrm{ads}}\,\xi_\mathrm{B}
+    + K_{\mathrm{ads}}^{\mathrm{B}}\,C_{0,\mathrm{B}}
+    \bigl[1 - (\xi_\mathrm{A} + \xi_\mathrm{B})\bigr]
+    - K_{\mathrm{des}}^{\mathrm{B}}\,\xi_\mathrm{B},
+  \end{aligned}
+\end{equation}
+where $C_{0,j} = C_j(T, 0)$ is the surface concentration in solution
+and we have set $\beta = 1$.
+The first two terms in each equation are the electron transfer between
+adsorbed species; the third is adsorption according to the Langmuir
+isotherm, with the factor $[1 - (\xi_\mathrm{A} + \xi_\mathrm{B})]$
+representing the fraction of unoccupied surface sites; the fourth is
+desorption.
+
+\subsection{Electrode Boundary Conditions}
+
+The surface flux of each solution-phase species is determined by both
+the electron transfer in solution and the net adsorption/desorption
+flux:
+\begin{equation}\label{eq:ads-bc}
+  \begin{aligned}
+    \left(\frac{\partial C_\mathrm{A}}{\partial X}\right)_{X=0}
+    &= K_{\mathrm{red}}^{\mathrm{sol}}\,C_{0,\mathrm{A}}
+    - K_{\mathrm{ox}}^{\mathrm{sol}}\,C_{0,\mathrm{B}}
+    + K_{\mathrm{ads}}^{\mathrm{A}}\,C_{0,\mathrm{A}}
+    \bigl[1 - (\xi_\mathrm{A} + \xi_\mathrm{B})\bigr]
+    - K_{\mathrm{des}}^{\mathrm{A}}\,\xi_\mathrm{A}, \\[4pt]
+    \left(\frac{\partial C_\mathrm{B}}{\partial X}\right)_{X=0}
+    &= \frac{1}{d_\mathrm{B}}\Bigl\{
+      -K_{\mathrm{red}}^{\mathrm{sol}}\,C_{0,\mathrm{A}}
+      + K_{\mathrm{ox}}^{\mathrm{sol}}\,C_{0,\mathrm{B}}
+      + K_{\mathrm{ads}}^{\mathrm{B}}\,C_{0,\mathrm{B}}
+      \bigl[1 - (\xi_\mathrm{A} + \xi_\mathrm{B})\bigr]
+      - K_{\mathrm{des}}^{\mathrm{B}}\,\xi_\mathrm{B}
+    \Bigr\}.
+  \end{aligned}
+\end{equation}
+The dimensionless rate constants for the solution-phase and adsorbed
+electron transfers follow the Butler--Volmer form with their respective
+transfer coefficients:
+\begin{equation}\label{eq:ads-kred-kox}
+  \begin{aligned}
+    K_{\mathrm{red}}^{\mathrm{sol}}
+    &= K_0^{\mathrm{sol}}
+    \exp\!\bigl[-\alpha^{\mathrm{sol}}\bigl(\theta(T) -
+    \theta_f^{\mathrm{sol}}\bigr)\bigr],
+    &\qquad
+    K_{\mathrm{ox}}^{\mathrm{sol}}
+    &= K_0^{\mathrm{sol}}
+    \exp\!\bigl[(1-\alpha^{\mathrm{sol}})\bigl(\theta(T) -
+    \theta_f^{\mathrm{sol}}\bigr)\bigr],
+    \\[4pt]
+    K_{\mathrm{red}}^{\mathrm{ads}}
+    &= K_0^{\mathrm{ads}}
+    \exp\!\bigl[-\alpha^{\mathrm{ads}}\bigl(\theta(T) -
+    \theta_f^{\mathrm{ads}}\bigr)\bigr],
+    &\qquad
+    K_{\mathrm{ox}}^{\mathrm{ads}}
+    &= K_0^{\mathrm{ads}}
+    \exp\!\bigl[(1-\alpha^{\mathrm{ads}})\bigl(\theta(T) -
+    \theta_f^{\mathrm{ads}}\bigr)\bigr],
+  \end{aligned}
+\end{equation}
+where $K_0^{\mathrm{sol}} = k_0^{\mathrm{sol}}\,\epsilon / D_\mathrm{A}$
+and $K_0^{\mathrm{ads}} = k_0^{\mathrm{ads}}\,\epsilon^2 / D_\mathrm{A}$
+are the dimensionless standard rate constants. The solution-phase and
+adsorbed couples share the same underlying redox process, so their
+formal potentials are related through the adsorption equilibrium
+constants \cite{compton2014understanding}:
+\begin{equation}\label{eq:ads-thetaf-relation}
+  \theta_f^{\mathrm{ads}} = \theta_f^{\mathrm{sol}}
+  - \ln\!\left(
+    \frac{K_{\mathrm{ads}}^{\mathrm{A}} / K_{\mathrm{des}}^{\mathrm{A}}}
+    {K_{\mathrm{ads}}^{\mathrm{B}} / K_{\mathrm{des}}^{\mathrm{B}}}
+  \right).
+\end{equation}
+This is not an additional free parameter: $\theta_f^{\mathrm{ads}}$ is
+determined by $\theta_f^{\mathrm{sol}}$ and the four
+adsorption/desorption rate constants already in~$\phi$.
+The adsorption/desorption rate constants are
+\begin{equation}\label{eq:ads-kads-kdes}
+  K_{\mathrm{ads}}^{j}
+  = \frac{k_{\mathrm{ads}}^{j}\,\Gamma_{\mathrm{max}}\,\epsilon}
+  {D_\mathrm{A}},
+  \qquad
+  K_{\mathrm{des}}^{j}
+  = \frac{k_{\mathrm{des}}^{j}\,\Gamma_{\mathrm{max}}\,\epsilon}
+  {c_\mathrm{A}^*\,D_\mathrm{A}}.
+\end{equation}
+
+\subsection{Initial Conditions}
+
+Initially only species $\mathrm{A}$ is present in solution at its bulk
+concentration:
+\begin{equation}\label{eq:ads-ic-conc}
+  C_\mathrm{A}(0, X) = 1, \qquad C_\mathrm{B}(0, X) = 0.
+\end{equation}
+The initial surface coverages are determined by the Langmuir equilibrium
+with the bulk solution:
+\begin{equation}\label{eq:ads-ic-coverage}
+  \xi_\mathrm{A}(0) =
+  \frac{K_{\mathrm{ads}}^{\mathrm{A}} / K_{\mathrm{des}}^{\mathrm{A}}}
+  {1 + K_{\mathrm{ads}}^{\mathrm{A}} / K_{\mathrm{des}}^{\mathrm{A}}
+    + C_\mathrm{B}^*\, K_{\mathrm{ads}}^{\mathrm{B}} /
+  K_{\mathrm{des}}^{\mathrm{B}}},
+  \qquad
+  \xi_\mathrm{B}(0) =
+  \frac{C_\mathrm{B}^*\, K_{\mathrm{ads}}^{\mathrm{B}} /
+  K_{\mathrm{des}}^{\mathrm{B}}}
+  {1 + K_{\mathrm{ads}}^{\mathrm{A}} / K_{\mathrm{des}}^{\mathrm{A}}
+    + C_\mathrm{B}^*\, K_{\mathrm{ads}}^{\mathrm{B}} /
+  K_{\mathrm{des}}^{\mathrm{B}}}.
+\end{equation}
+With $C_\mathrm{B}^* = 0$ this simplifies to
+$\xi_\mathrm{B}(0) = 0$ and
+$\xi_\mathrm{A}(0) = (K_{\mathrm{ads}}^{\mathrm{A}} /
+K_{\mathrm{des}}^{\mathrm{A}}) / (1 +
+K_{\mathrm{ads}}^{\mathrm{A}} / K_{\mathrm{des}}^{\mathrm{A}})$.
+
+\subsection{Current}
+
+The measured current has contributions from both the solution-phase and
+adsorbed electron transfers:
+\begin{equation}\label{eq:ads-current}
+  \frac{I}{\pi\epsilon F D_\mathrm{A} c_\mathrm{A}^*}
+  = -\left\{
+    \left(\frac{\partial C_\mathrm{A}}{\partial X}\right)_{X=0}
+    - \frac{1}{\beta}
+    \frac{\mathrm{d}\xi_\mathrm{A}}{\mathrm{d}T}
+  \right\}.
+\end{equation}
+The first term is the diffusive flux from the solution-phase reaction;
+the second accounts for the charge transferred by the conversion of
+adsorbed $\mathrm{A}$ to adsorbed $\mathrm{B}$.
+
+\section{Nonlinearity and Discretisation}\label{sec:ads-disc}
+
+\subsection{Source of Nonlinearity}
+
+The Langmuir adsorption terms in \cref{eq:ads-coverage-ode,eq:ads-bc}
+contain products of the unknown surface concentrations $C_{0,j}$ and
+the unknown surface coverages $\xi_j$, specifically terms of the form
+$C_{0,j}\,[1 - (\xi_\mathrm{A} + \xi_\mathrm{B})]$. After
+discretisation with the backward Euler scheme these become products of
+unknowns at the current timestep~$k$, making the algebraic system
+nonlinear. This is in contrast to the heterogeneous reaction of
+\cref{ch:heterogeneous}, where all coupling terms were linear in the
+unknowns and the system could be solved directly as a banded linear
+system at each timestep.
+
+\subsection{Newton--Raphson Solver}\label{sec:ads-newton}
+
+We order the unknowns at each timestep as
+\begin{equation}\label{eq:ads-ordering}
+  \mathbf{x} = \bigl(
+    \xi_\mathrm{A}^k,\, \xi_\mathrm{B}^k,\,
+    C_{0,\mathrm{A}}^k,\, C_{0,\mathrm{B}}^k,\,
+    C_{1,\mathrm{A}}^k,\, C_{1,\mathrm{B}}^k,\,
+    \ldots,\,
+    C_{n-1,\mathrm{A}}^k,\, C_{n-1,\mathrm{B}}^k
+  \bigr)^T \in \mathbb{R}^{2n+2},
+\end{equation}
+and define the residual vector $\mathbf{F}(\mathbf{x}) = 0$, where each
+component is one of the discretised equations. The first two components
+are the backward-Euler discretisation of
+\cref{eq:ads-coverage-ode}:
+\begin{equation}\label{eq:ads-disc-coverage}
+  \begin{aligned}
+    f_0 &=
+    \frac{\xi_\mathrm{A}^k - \xi_\mathrm{A}^{k-1}}{\Delta T}
+    + K_{\mathrm{red}}^{\mathrm{ads}}\,\xi_\mathrm{A}^k
+    - K_{\mathrm{ox}}^{\mathrm{ads}}\,\xi_\mathrm{B}^k
+    - K_{\mathrm{ads}}^{\mathrm{A}}\,\beta\,C_{0,\mathrm{A}}^k
+    \bigl[1 - (\xi_\mathrm{A}^k + \xi_\mathrm{B}^k)\bigr]
+    + K_{\mathrm{des}}^{\mathrm{A}}\,\beta\,\xi_\mathrm{A}^k, \\[4pt]
+    f_1 &=
+    \frac{\xi_\mathrm{B}^k - \xi_\mathrm{B}^{k-1}}{\Delta T}
+    - K_{\mathrm{red}}^{\mathrm{ads}}\,\xi_\mathrm{A}^k
+    + K_{\mathrm{ox}}^{\mathrm{ads}}\,\xi_\mathrm{B}^k
+    - K_{\mathrm{ads}}^{\mathrm{B}}\,\beta\,C_{0,\mathrm{B}}^k
+    \bigl[1 - (\xi_\mathrm{A}^k + \xi_\mathrm{B}^k)\bigr]
+    + K_{\mathrm{des}}^{\mathrm{B}}\,\beta\,\xi_\mathrm{B}^k.
+  \end{aligned}
+\end{equation}
+The next two components are the discretised boundary
+conditions~\cref{eq:ads-bc}, and the remaining $2(n-1)$ components are
+the standard backward-Euler diffusion equations for each species at the
+interior and far-field nodes.
+
+The Jacobian $\mathbf{J} = \partial\mathbf{F}/\partial\mathbf{x}$
+has a sparse structure. The first four rows (corresponding to
+$f_0,\ldots,f_3$) are coupled to the surface coverage and surface
+concentration unknowns. After a preliminary row elimination to remove
+the $\xi_\mathrm{A}^k$ dependence from~$f_3$
+\cite{compton2014understanding}, the remaining system reduces to a
+pentadiagonal form that can be solved in $O(n)$ operations. The
+Newton--Raphson iteration is
+\begin{equation}\label{eq:ads-newton}
+  \mathbf{J}(\mathbf{x}_s)\,\delta\mathbf{x}
+  = -\mathbf{F}(\mathbf{x}_s),
+  \qquad
+  \mathbf{x}_{s+1} = \mathbf{x}_s + \delta\mathbf{x},
+\end{equation}
+and is repeated until $\|\delta\mathbf{x}\|_\infty < \varepsilon$. The
+initial guess at each timestep is the solution from the previous
+timestep, which provides a good starting point since the potential
+changes smoothly between steps. In practice two to four iterations
+suffice.
+
+This solver serves as the ground-truth reference. However, the
+Newton iteration involves a variable number of iterations controlled by
+a convergence check --- a \texttt{while} loop whose iteration count
+depends on the input values. JAX requires fixed control flow for
+tracing: a \texttt{while} loop with a data-dependent termination
+condition cannot be traced through, so the Newton solver cannot be
+differentiated by the standard adjoint machinery of
+\cref{ch:adjoint}. We therefore require an alternative solver for
+inference.
+
+\subsection{Alternative Solvers}\label{sec:ads-alt-solvers}
+
+Two alternative discretisation strategies avoid the Newton iteration by
+linearising the nonlinear terms at each timestep, producing a linear
+system that can be solved directly and differentiated through.
+
+\paragraph{Explicit linearisation.}
+The nonlinear products $C_{0,j}^k\,[1 - (\xi_\mathrm{A}^k +
+\xi_\mathrm{B}^k)]$ are approximated by evaluating the surface
+coverage at the previous timestep:
+\begin{equation}\label{eq:ads-explicit}
+  C_{0,j}^k\,\bigl[1 - (\xi_\mathrm{A}^k + \xi_\mathrm{B}^k)\bigr]
+  \approx
+  C_{0,j}^k\,\bigl[1 - (\xi_\mathrm{A}^{k-1} + \xi_\mathrm{B}^{k-1})\bigr].
+\end{equation}
+This replaces the product of two unknowns at timestep~$k$ with a
+product of one unknown ($C_{0,j}^k$) and a known quantity from
+timestep~$k-1$. The resulting system is linear in the unknowns at
+each timestep and can be assembled into a banded matrix and solved
+directly. The approximation is first-order in $\Delta T$ and is
+accurate when the surface coverage does not change rapidly between
+timesteps.
+
+\paragraph{Backward implicit linearisation.}
+Following Britz~\cite{britz2005digital}, the product of two unknowns
+at timestep~$k$ is approximated as
+\begin{equation}\label{eq:ads-britz}
+  C_{0,j}^k\,\xi_l^k
+  \approx
+  C_{0,j}^k\,\xi_l^{k-1}
+  + C_{0,j}^{k-1}\,\xi_l^k
+  - C_{0,j}^{k-1}\,\xi_l^{k-1}.
+\end{equation}
+This is the same linearisation used for second-order catalytic
+mechanisms \cite{compton2014understanding}: the product is expanded to
+first order about the previous-timestep values, retaining linear terms
+in both unknowns. The resulting system is again linear at each timestep
+and admits a banded solve. This approximation is also first-order in
+$\Delta T$ but retains more implicit coupling than the explicit
+scheme.
+
+Both alternatives produce a linear system at each timestep with the
+same pentadiagonal structure as the Newton solver (after the
+preliminary row elimination), and both are compatible with the adjoint
+differentiation framework of \cref{ch:adjoint}.
+
+\subsection{Solver Comparison}\label{sec:ads-solver-comparison}
+
+\Cref{fig:ads-solver-comparison} compares the two AD-compatible solvers
+against the Newton reference by plotting the absolute relative error in
+the current at each timestep on a logarithmic scale. The backward
+implicit scheme is three to four orders of magnitude more accurate than
+the explicit scheme across most of the potential sweep. The difference
+is largest near the current peaks, where the surface coverage changes
+rapidly between timesteps and the explicit approximation --- which
+evaluates $\xi_j$ at the previous timestep --- lags behind the true
+solution. The backward implicit linearisation retains linear coupling to
+$\xi_j^k$ at the current timestep, tracking these rapid changes more
+faithfully.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/8-solver-comparison.png}
+  \caption[Solver comparison for the adsorption reaction]{Absolute
+    relative error of the explicit (blue) and backward implicit (orange)
+    solvers against the Newton reference, evaluated at each timestep.
+    The backward implicit scheme is three to four orders of magnitude
+  more accurate across most of the sweep.}
+  \label{fig:ads-solver-comparison}
+\end{figure}
+
+The backward implicit solver is slower than the explicit solver (80\,ms
+vs 60\,ms per forward solve) due to the additional terms in the matrix
+assembly from the linearisation~\cref{eq:ads-britz}. This 33\%
+overhead is acceptable given the accuracy gain, and we adopt the
+backward implicit scheme for all inference runs. The Newton solver is
+retained as the ground-truth reference for verification.
+
+\section{Inference Setup}\label{sec:ads-inference}
+
+The inference workflow follows \cref{sec:workflow} without modification.
+The nine parameters are transformed to unconstrained space:
+$\alpha^{\mathrm{sol}} \mapsto \operatorname{logit}(\alpha^{\mathrm{sol}})$,
+$\alpha^{\mathrm{ads}} \mapsto \operatorname{logit}(\alpha^{\mathrm{ads}})$,
+and $K_0^{\mathrm{sol}}$, $K_0^{\mathrm{ads}}$,
+$K_{\mathrm{ads}}^{\mathrm{A}}$, $K_{\mathrm{des}}^{\mathrm{A}}$,
+$K_{\mathrm{ads}}^{\mathrm{B}}$, $K_{\mathrm{des}}^{\mathrm{B}}$
+are each log-transformed,
+with $\theta_f^{\mathrm{sol}}$ left untransformed.
+Uniform priors are placed on the transformed parameters over a range
+wide relative to the posterior.
+
+Synthetic data are generated using the Newton solver at the true
+parameter values
+% NOTE: Insert true parameter values once finalised
+$\phi^*$,
+with dimensionless scan rate $\sigma = 10$ and noise level
+$\eta = 0.02$ (the same noise model as in
+\cref{ch:hmc,ch:heterogeneous}).
+
+The scan rate is an order of magnitude lower than the $\sigma = 1000$
+used for the electron-transfer and heterogeneous reactions. This
+reflects the different timescales involved. In the earlier reactions the
+processes of interest --- electron transfer and heterogeneous surface
+conversion --- are fast, and a high scan rate is needed to drive the
+system into the quasi-reversible regime where the current is sensitive
+to the kinetic parameters. The adsorption and desorption processes
+operate on a slower timescale: they involve the physical attachment and
+detachment of molecules from the electrode surface, not just electron
+exchange. At $\sigma = 1000$ the potential sweeps too fast for
+adsorption to respond, and the voltammogram becomes insensitive to the
+adsorption rate constants. Reducing the scan rate to $\sigma = 10$
+allows the adsorption/desorption dynamics to compete with diffusion
+within the voltammetric window, producing a current response that
+carries information about all nine parameters.
+
+\section{Results}\label{sec:ads-results}
+
+\subsection{Solver Verification}\label{sec:ads-verification}
+
+We verify the forward solver against the analytical solution for a
+pure monolayer --- a system in which all electroactive material is
+pre-adsorbed on the electrode surface and no solution-phase electron
+transfer occurs. This situation arises experimentally when an electrode
+is modified with a redox-active film (for example, a self-assembled
+monolayer of ferrocene-terminated thiols on gold) and the voltammetry
+is performed in a blank electrolyte containing no dissolved
+electroactive species. Because the adsorbed material is confined to the
+surface, no diffusive transport is involved: the current is determined
+entirely by the rate at which the finite population of adsorbed
+molecules is interconverted by the applied potential.
+
+For a fully reversible adsorbed redox couple the voltammogram is
+symmetric about $\theta_f^{\mathrm{ads}}$, with forward and reverse
+peaks at the same potential and peak current
+\cite{compton2014understanding}
+\begin{equation}\label{eq:ads-monolayer-peak}
+  \frac{I_{\mathrm{peak}}}{FA}
+  = \frac{\sigma}{4}\,\Gamma_{\mathrm{total}},
+\end{equation}
+where $\Gamma_{\mathrm{total}} = \Gamma_\mathrm{A} + \Gamma_\mathrm{B}$
+is the total surface coverage. The peak current scales linearly with
+the scan rate~$\sigma$, in contrast to the $\sqrt{\sigma}$ dependence
+of the solution-phase Randles--\v{S}ev\v{c}\'{\i}k result: the adsorbed
+material is finite and does not require diffusive replenishment, so a
+faster sweep converts the monolayer more rapidly and produces a
+proportionally larger peak. \Cref{fig:ads-verification} confirms that
+the solver reproduces both the peak position and peak height predicted
+by~\cref{eq:ads-monolayer-peak}.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/8-analytical.png}
+  \caption[Verification against the monolayer analytical
+  solution]{Voltammogram for a pure monolayer with a reversible adsorbed
+    redox couple. The numerical solution (solid blue) matches the
+    analytical peak current and peak position (dashed) predicted
+  by~\cref{eq:ads-monolayer-peak}.}
+  \label{fig:ads-verification}
+\end{figure}
+
+\subsection{Posterior Distributions}\label{sec:ads-posteriors}
+
+\Cref{fig:ads-corner} shows selected pairwise marginal posteriors
+obtained by NUTS and RWMH under equal computational budgets. Both
+samplers recover the true parameter values across all nine dimensions,
+with the marginals concentrating around the dashed lines. The NUTS and
+RWMH contours agree, confirming convergence to the same target
+distribution ($\hat{R} < 1.01$ for all parameters).
+
+The off-diagonal panels reveal the correlation structure. As in the
+lower-dimensional cases, $\alpha^{\mathrm{sol}}$ and
+$K_0^{\mathrm{sol}}$ are correlated due to the kinetic trade-off in
+the Butler--Volmer equation. The same correlation appears between
+$\alpha^{\mathrm{ads}}$ and $K_0^{\mathrm{ads}}$ for the adsorbed
+electron transfer. The adsorption and desorption rate constants for
+each species ($K_{\mathrm{ads}}^{j}$ and $K_{\mathrm{des}}^{j}$) are
+also correlated: the voltammogram depends on adsorption primarily
+through the equilibrium ratio
+$K_{\mathrm{ads}}^{j}/K_{\mathrm{des}}^{j}$, so an increase in
+$K_{\mathrm{ads}}^{j}$ can be partially compensated by an increase in
+$K_{\mathrm{des}}^{j}$. Despite these correlations, both samplers
+resolve the individual rate constants.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/8-corner.png}
+  \caption[Selected pairwise posteriors for the adsorption
+  reaction]{Selected pairwise marginal posteriors for the adsorption
+    reaction. NUTS (blue) and RWMH (orange) are overlaid; dashed lines
+  indicate the true parameter values.}
+  \label{fig:ads-corner}
+\end{figure}
+
+That both samplers recover the true parameters --- despite the
+inference being performed with the backward implicit linearisation
+rather than the Newton solver used to generate the data --- confirms
+that the approximation~\cref{eq:ads-britz} does not introduce a
+systematic bias at the noise level of the synthetic data.
+
+\Cref{fig:ads-current-fit} overlays the voltammogram simulated at the
+posterior mean with the voltammogram at the true parameters. The two
+curves are indistinguishable, confirming that the posterior mean
+provides an accurate reconstruction of the current response.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.7\textwidth]{figures/8-current-fit.png}
+  \caption[Current fit for the adsorption reaction]{Voltammogram
+    simulated at the posterior mean (solid blue) overlaid on the
+  voltammogram at the true parameters (dashed red).}
+  \label{fig:ads-current-fit}
+\end{figure}
+
+\subsection{Sampling Efficiency}\label{sec:ads-ess}
+
+\Cref{fig:ads-ess} compares the effective sample size (ESS) of NUTS and
+RWMH as a function of the sampling budget. NUTS accumulates independent
+samples at a higher rate than RWMH across all nine parameters. The gap
+is wider than in the seven-parameter heterogeneous case
+(\cref{sec:het-ess}): NUTS achieves roughly four to five times the ESS
+of RWMH at the end of the run, compared with three to four times in the
+heterogeneous case and approximately two times in the three-parameter
+electron-transfer case. This progression is consistent with the known
+scaling of random-walk Metropolis, whose optimal acceptance rate
+requires step sizes that shrink as $O(d^{-1/2})$, leading to mixing
+times that grow polynomially with dimension~$d$. NUTS avoids this
+degradation by using gradient information to make large, directed moves
+through the parameter space.
+
+\begin{table}[ht]
+  \centering
+  \begin{tabular}{lccccccccc}
+    \hline
+    & $\alpha^{\mathrm{sol}}$ & $K_0^{\mathrm{sol}}$ & $\theta_f^{\mathrm{sol}}$
+    & $\alpha^{\mathrm{ads}}$ & $K_0^{\mathrm{ads}}$
+    & $K_{\mathrm{ads}}^{\mathrm{A}}$
+    & $K_{\mathrm{des}}^{\mathrm{A}}$
+    & $K_{\mathrm{ads}}^{\mathrm{B}}$
+    & $K_{\mathrm{des}}^{\mathrm{B}}$ \\
+    \hline
+    NUTS & 3509.6 & 4405.3 & 2318.6 & 2255.7 & 2603.4 & 2355.6 &
+    3391.0 & 3628 .0 & 4381.1 & 3405.2 \\
+    RWMH & 1311.9 & 1139.9 & 1484.3 & 1405.7 & 1439.8 & 1493.0 &
+    1160.2 & 1185 .0 & 1214.6 & 1113.7 \\
+    \hline
+  \end{tabular}
+  \caption[Final ESS values for the adsorption reaction]{Effective
+  sample size for each parameter at equal computational budget.}
+  \label{tab:ads-ess}
+\end{table}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/8-ess.png}
+  \caption[ESS comparison for the adsorption reaction]{Effective
+    sample size as a function of sample proportion for each parameter.
+    NUTS (blue) accumulates independent samples at a higher rate than
+    RWMH (orange) across all nine parameters. The gap is the widest of
+  the three reaction mechanisms studied.}
+  \label{fig:ads-ess}
+\end{figure}

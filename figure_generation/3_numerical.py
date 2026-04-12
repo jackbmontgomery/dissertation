@@ -10,11 +10,24 @@ from src.voltammetry import CyclicDC
 sns.set_theme()
 sns.set_context("paper", font_scale=2.0)
 
-save = False
-
 # %% Analytical results
+
 voltammetry = CyclicDC()
 fd_solver = ElectronReactionFDSolver(voltammetry)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5), sharex=True, sharey=True)
+
+params = ElectronReactionParams(
+    alpha=jnp.array(0.5),
+    K0=jnp.array(1000.0),
+    thetaf=jnp.array(0.0),
+)
+
+current = fd_solver.solve(params)
+ax1.plot(fd_solver.applied_potentials, current)
+
+max_current = -0.446 * jnp.sqrt(voltammetry.sigma)
+ax1.axhline(y=max_current, c="C3", linestyle="--", label="Analytical")
 
 params = ElectronReactionParams(
     alpha=jnp.array(0.7),
@@ -24,28 +37,34 @@ params = ElectronReactionParams(
 
 current = fd_solver.solve(params)
 
+
+ax2.plot(fd_solver.applied_potentials, current, label="Numerical")
+
 max_current = -0.496 * jnp.sqrt(params.alpha) * jnp.sqrt(voltammetry.sigma)
-plt.axhline(y=max_current, c="C1", linestyle="--", label="Analytical")
+ax2.axhline(y=max_current, c="C3", linestyle="--", label="Analytical")
 max_current_position = (
     jnp.log(params.K0 / jnp.sqrt(params.alpha * voltammetry.sigma)) - 0.78
 ) / params.alpha
-plt.axvline(x=max_current_position, c="C1", linestyle="--")
+ax2.axvline(x=max_current_position, c="C3", linestyle="--")
 
-plt.plot(fd_solver.applied_potentials, current, label="Numerical")
-plt.ylabel(r"$J$")
-plt.xlabel(r"$\theta$")
+ax1.set_ylabel(r"$J$")
+ax1.set_xlabel(r"$\theta$")
+ax2.set_xlabel(r"$\theta$")
+
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
-plt.legend()
-plt.tight_layout()
-if save:
-    plt.savefig("./manuscript/figures/3-analytical.png", dpi=1000)
+
+handles, labels = ax2.get_legend_handles_labels()
+fig.legend(handles, labels, loc="lower center", ncol=2)
+
+plt.tight_layout(rect=(0, 0.1, 1, 1))
+plt.savefig("./manuscript/figures/3-analytical.png", dpi=1000)
 plt.show()
 
 # %% Effect of parameters using a baseline quasi-reversible reaction
 
 rev_params = ElectronReactionParams(
-    alpha=jnp.array(0.6), K0=jnp.array(10.0), thetaf=jnp.array(0.5)
+    alpha=jnp.array(0.6), K0=jnp.array(20.0), thetaf=jnp.array(0.5)
 )
 
 voltammetry = CyclicDC()
@@ -106,11 +125,12 @@ plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.tight_layout()
 
-if save:
-    plt.savefig("./manuscript/figures/3-parameter-effect-quasi.png", dpi=1000)
+plt.savefig("./manuscript/figures/3-parameter-effect-quasi.png", dpi=1000)
 plt.show()
 
 # %% Effect of parameters using a baseline reversible reaction
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), sharex=True)
 
 rev_params = ElectronReactionParams(
     alpha=jnp.array(0.6), K0=jnp.array(200.0), thetaf=jnp.array(0.5)
@@ -129,18 +149,35 @@ alpha_params = ElectronReactionParams(
 
 alpha_currents = vmap(fd_solver.solve)(alpha_params)
 for val, current in zip(alpha_range, alpha_currents):
-    plt.plot(fd_solver.applied_potentials, current, label=f"{val:.1f}")
+    ax1.plot(fd_solver.applied_potentials, current, label=f"{val:.1f}")
 
-plt.title(r"$\alpha$")
-plt.ylabel(r"$J$")
-plt.xlabel(r"$\theta$")
-plt.legend()
+ax1.xaxis.set_inverted(True)
+ax1.yaxis.set_inverted(True)
 
-plt.gca().invert_xaxis()
-plt.gca().invert_yaxis()
+ax1.set_title(r"$\alpha$")
+ax1.set_xlabel(r"$\theta$")
+ax1.legend()
+
+K0_range = jnp.array([200.0, 500.0, 1000.0])
+K0_params = ElectronReactionParams(
+    alpha=jnp.full_like(K0_range, rev_params.alpha),
+    K0=K0_range,
+    thetaf=jnp.full_like(K0_range, rev_params.thetaf),
+)
+
+K0_currents = vmap(fd_solver.solve)(K0_params)
+for val, current in zip(K0_range, K0_currents):
+    ax2.plot(fd_solver.applied_potentials, current, label=f"{val:.0f}")
+
+ax2.xaxis.set_inverted(True)
+ax2.yaxis.set_inverted(True)
+
+ax2.set_title(r"$K_0$")
+ax2.set_xlabel(r"$\theta$")
+ax2.legend()
+
 plt.tight_layout()
-if save:
-    plt.savefig("./manuscript/figures/3-alpha-effect-reversible.png", dpi=1000)
+plt.savefig("./manuscript/figures/3-alpha-K0-effect-reversible.png", dpi=1000)
 plt.show()
 
 
