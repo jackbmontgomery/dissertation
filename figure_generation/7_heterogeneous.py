@@ -4,6 +4,7 @@ from typing import Callable
 
 import blackjax
 import jax.numpy as jnp
+import jax.random as jr
 import jax.tree_util as jtu
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -11,10 +12,12 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from jax import jit, vmap
+from matplotlib.lines import Line2D
 
 from src.fdm import HeterogeneousReactionFDSolver
 from src.params import HeterogenousReactionParams
 from src.reaction import HeterogeneousReaction
+from src.utils import generate_noisy_samples
 from src.voltammetry import CyclicAC, CyclicDC
 
 sns.set_theme()
@@ -62,6 +65,7 @@ plt.plot(fd_solver.applied_potentials, current_1)
 plt.plot(fd_solver.applied_potentials, current_2)
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
+plt.tight_layout()
 plt.savefig("./manuscript/figures/7-analytical.png", dpi=1000)
 plt.show()
 
@@ -101,6 +105,9 @@ df = pd.concat([make_df(nuts, "NUTS"), make_df(rwmh, "RWMH")], ignore_index=True
 
 vars_list = list(params.keys())
 
+# Filter to NUTS-only for KDE
+df_nuts = df[df["Sampler"] == "NUTS"]
+
 g = sns.PairGrid(
     df,
     vars=vars_list,
@@ -110,7 +117,7 @@ g = sns.PairGrid(
     diag_sharey=False,
 )
 
-# Diagonal: histograms
+# Diagonal: both samplers
 g.map_diag(
     sns.histplot,
     stat="density",
@@ -122,16 +129,28 @@ g.map_diag(
     common_norm=False,
 )
 
-# Lower triangle: KDE
-g.map_lower(sns.kdeplot, levels=5, fill=False, linewidths=1.2, thresh=0.05)
+# Lower triangle: NUTS only
+for i in range(len(vars_list)):
+    for j in range(i):
+        ax = g.axes[i, j]
+        sns.kdeplot(
+            x=df_nuts[vars_list[j]],
+            y=df_nuts[vars_list[i]],
+            ax=ax,
+            levels=5,
+            fill=False,
+            linewidths=1.2,
+            thresh=0.05,
+            color="C0",
+        )
 
-# Add true value lines on diagonal
+# True value lines on diagonal
 for i, label in enumerate(vars_list):
     ax = g.axes[i, i]
     _, true_val = params[label]
     ax.axvline(x=true_val, linestyle="--", color="black", linewidth=1.0)
 
-# Add true value crosshairs on lower off-diagonal
+# True value crosshairs on lower off-diagonal
 for i in range(len(vars_list)):
     for j in range(i):
         ax = g.axes[i, j]
@@ -140,7 +159,11 @@ for i in range(len(vars_list)):
         ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
         ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
 
-g.add_legend()
+handles = [
+    Line2D([0], [0], color="C0", linewidth=1.2, label="NUTS"),
+    Line2D([0], [0], color="C1", linewidth=1.2, label="RWMH"),
+]
+g.figure.legend(handles=handles, title="Sampler", loc="upper right", frameon=True)
 g.figure.set_size_inches(10, 10)
 plt.tight_layout()
 plt.savefig("./manuscript/figures/7-corner.png", dpi=1000)
@@ -150,20 +173,76 @@ plt.show()
 
 cyclic_dc = CyclicDC()
 fd_solver = HeterogeneousReactionFDSolver(cyclic_dc)
+key = jr.key(0)
+key_data, key_samples = jr.split(key)
 
-true_current = fd_solver.solve(true_params)
-nuts_mean = jtu.tree_map(lambda x: jnp.mean(x), nuts)
-nuts_current = fd_solver.solve(nuts_mean)
+base_current = fd_solver.solve(HeterogeneousReaction().true_parameters)
 
-plt.plot(fd_solver.applied_potentials, nuts_current, label="NUTS")
+experimental_samples = generate_noisy_samples(
+    10,
+    base_current,
+    0.02,
+    key=key_data,
+)
+
+num_samples = 200
+
+sample_indexes = jr.choice(
+    key_samples, len(nuts.alpha_1.flatten()), shape=(num_samples,), replace=False
+)
+
+nuts_samples = jtu.tree_map(lambda x: x.flatten()[sample_indexes], nuts)
+
+currents = vmap(fd_solver.solve)(nuts_samples)
+
+mean_current = jnp.mean(currents, axis=0)
+lower = jnp.percentile(currents, 2.5, axis=0)
+upper = jnp.percentile(currents, 97.5, axis=0)
+
+
+plt.figure(figsize=(10, 8))
+
+for i, samples in enumerate(experimental_samples):
+    if i == 0:
+        label = "Noisy Data"
+    else:
+        label = None
+
+    plt.scatter(
+        fd_solver.applied_potentials,
+        samples,
+        s=5,
+        c="C3",
+        alpha=0.5,
+        label=label,
+    )
+
+
 plt.plot(
     fd_solver.applied_potentials,
-    true_current,
-    c="C3",
+    base_current,
     linestyle="--",
+    c="black",
+    linewidth=2.0,
     label="True Current",
 )
 
+plt.fill_between(
+    fd_solver.applied_potentials,
+    lower,
+    upper,
+    alpha=0.5,
+    label="95% credible interval",
+)
+plt.plot(fd_solver.applied_potentials, mean_current, label="Posterior mean")
+
+plt.gca().invert_xaxis()
+plt.gca().invert_yaxis()
+
+plt.ylabel("$J$")
+plt.xlabel(r"$\theta$")
+
+plt.legend(markerscale=5)
 plt.savefig("./manuscript/figures/7-current-fit.png", dpi=1000)
 plt.show()
 
@@ -251,6 +330,23 @@ fig.legend(handles, labels, loc="lower right", ncol=1)
 plt.savefig("./manuscript/figures/7-ess.png", dpi=1000)
 plt.show()
 
+# %% ESS Table
+
+ess: Callable = jit(blackjax.diagnostics.effective_sample_size)
+
+params = [
+    "alpha_1",
+    "K0_1",
+    "thetaf_1",
+    "alpha_2",
+    "K0_2",
+    "thetaf_2",
+    "K_het",
+]
+
+for name, data in [("NUTS", nuts), ("RWMH", rwmh)]:
+    vals = " & ".join(f"{ess(getattr(data, p)):.1f}" for p in params)
+    print(f"    {name} & {vals} \\\\")
 
 # %%
 

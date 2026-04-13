@@ -81,9 +81,10 @@ init_params = reaction.create_init_params(key_init, 1)
 
 rwmh = RWMHSampler(logdensity_fn, 1000, 1)
 
-rwmh_params = {"random_step": blackjax.mcmc.random_walk.normal(jnp.repeat(0.01, 3))}
+rwmh_params = {"random_step": blackjax.mcmc.random_walk.normal(jnp.repeat(0.02, 3))}
 
-samples, _ = rwmh.run(init_params, rwmh_params, key=key_sampling)
+samples, info = rwmh.run(init_params, rwmh_params, key=key_sampling)
+print(info)
 samples: ElectronReactionParams = samples
 
 # %% Hist plot with no burn in
@@ -113,13 +114,13 @@ plt.show()
 # %% Scatter plot for no burn-in
 
 idx = jnp.arange(len(samples.alpha.flatten()))
-plt.scatter(samples.alpha.flatten(), samples.K0.flatten(), c=idx, cmap="viridis", s=0.5)
+plt.scatter(samples.alpha.flatten(), samples.K0.flatten(), c=idx, cmap="viridis", s=1.0)
 plt.colorbar(label="Sample Index")
 plt.scatter(
     [true_params.alpha],
     [true_params.K0],
     marker="x",
-    s=75.0,
+    s=100.0,
     label="True Value",
     c="C3",
 )

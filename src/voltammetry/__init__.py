@@ -128,7 +128,7 @@ class CyclicAC(AbstractVoltammetryTechnique):
         theta_v: float = -10.0,
         sigma: float = 1000.0,
         amplitude: float = 0.5,
-        num_oscillations: int = 64,
+        num_oscillations: int = 128,
     ):
         self.theta_i = theta_i
         self.theta_v = theta_v

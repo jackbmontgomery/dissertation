@@ -19,13 +19,13 @@ def main(
         fd_solver = ElectronReactionFDSolver(voltammetry)
         reaction = ElectronReaction()
 
-        adam_params = {"learning_rate": 1e-1}
+        adam_params = {"learning_rate": 2e-1}
         cmaes_param = {"population_size": 4 + floor(3 * log(reaction.parameter_dim))}
 
         optimisation_experiment(
             reaction,
             fd_solver,
-            budget=200,
+            budget=210,
             num_params=32,
             noise_percentage=noise,
             cmaes_params=cmaes_param,

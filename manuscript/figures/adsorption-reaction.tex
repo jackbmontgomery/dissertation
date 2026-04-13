@@ -1,0 +1,57 @@
+\begin{tikzpicture}[>=stealth, thick]
+  % Electrode block
+  \fill[gray!25] (-1.2, -1) rectangle (0, 6);
+  \draw[thick] (0, -1) -- (0, 6);
+  \node[rotate=90, font=\large\bfseries] at (-0.6, 2.5) {Electrode};
+
+  % Species A row (top)
+  \node[font=\LARGE\bfseries] at (1.3, 5.2) {$A_{\scriptscriptstyle
+  \mathrm{ads}}$};
+  \node[font=\LARGE\bfseries] at (4.5, 5.2) {$A_{\scriptscriptstyle
+  \mathrm{sol}}$};
+  \node[font=\LARGE\bfseries] at (7.8, 5.2) {A};
+
+  % A: arrows
+  \draw[->, line width=2.5pt] (7.3, 5.4) -- (5.2, 5.4);
+  \draw[->, line width=2.5pt] (3.8, 5.4) -- (2.0, 5.4);
+  \node[font=\LARGE\bfseries] at (2.9, 6.0) {$\scriptstyle K_{\scriptscriptstyle
+  \mathrm{ads}}^{A}$};
+
+  \draw[->, line width=2.5pt] (2.0, 5.0) -- (3.8, 5.0);
+  \draw[->, line width=2.5pt] (5.2, 5.0) -- (7.3, 5.0);
+  \node[font=\LARGE\bfseries] at (2.9, 4.5) {$\scriptstyle K_{\scriptscriptstyle
+  \mathrm{des}}^{A}$};
+
+  % Species B row (bottom)
+  \node[font=\LARGE\bfseries] at (1.3, -0.2) {$B_{\scriptscriptstyle
+  \mathrm{ads}}$};
+  \node[font=\LARGE\bfseries] at (4.5, -0.2) {$B_{\scriptscriptstyle
+  \mathrm{sol}}$};
+  \node[font=\LARGE\bfseries] at (7.8, -0.2) {B};
+
+  % B: arrows
+  \draw[->, line width=2.5pt] (7.3, 0.0) -- (5.2, 0.0);
+  \draw[->, line width=2.5pt] (3.8, 0.0) -- (2.0, 0.0);
+  \node[font=\LARGE\bfseries] at (2.9, 0.6) {$\scriptstyle K_{\scriptscriptstyle
+  \mathrm{ads}}^{B}$};
+
+  \draw[->, line width=2.5pt] (2.0, -0.4) -- (3.8, -0.4);
+  \draw[->, line width=2.5pt] (5.2, -0.4) -- (7.3, -0.4);
+
+  \node[font=\LARGE\bfseries] at (2.9, -0.9) {$\scriptstyle
+    K_{\scriptscriptstyle
+  \mathrm{des}}^{B}$};
+
+  % Electron solution transfer arrows
+  \draw[->, line width=2.5pt] (4.3, 4.6) -- (4.3, 0.4);
+  \node[left, font=\large] at (6.0, 1.5) {\textcolor{red}{$-e^-$}};
+  \draw[->, line width=2.5pt] (4.7, 0.4) -- (4.7, 4.6);
+  \node[right, font=\large] at (3.1, 3.5) {\textcolor{red}{$+e^-$}};
+
+  % Electron adsorption transfer arrows
+  \draw[->, line width=2.5pt] (1.1, 4.6) -- (1.1, 0.4);
+  \node[left, font=\large] at (2.8, 1.5) {\textcolor{red}{$-e^-$}};
+  \draw[->, line width=2.5pt] (1.5, 0.4) -- (1.5, 4.6);
+  \node[right, font=\large] at (-0.1, 3.5) {\textcolor{red}{$+e^-$}};
+
+\end{tikzpicture}

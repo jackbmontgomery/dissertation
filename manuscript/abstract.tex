@@ -1,4 +1,17 @@
 \begin{abstract}
-  This is a project on the application of gradient computation to the
-  inverse problem in electrochemisty.
+  We develop a differentiable forward solver for voltammetric simulation
+  and integrate it with the No-U-Turn sampler to perform Bayesian
+  inference over electrochemical kinetic parameters.
+  A custom adjoint rule for the banded linear solve provides exact
+  gradients by solving one adjoint system per timestep at $O(n)$
+  cost, caching only the matrix diagonals and solution vector rather
+  than the full factorisation tape. This reduces the per-timestep
+  memory requirements and eliminates the runtime overhead of tape
+  traversal. The framework is applied to three reaction mechanisms of
+  increasing complexity: a single electron transfer, a heterogeneous
+  reaction, and an adsorption reaction. Under equal runtime budgets,
+  NUTS produces $1.5$--$4.3\times$ the effective sample size of
+  random-walk Metropolis--Hastings. Both samplers recover the true
+  parameters in all cases, with posteriors revealing correlations and
+  uncertainty that point estimates cannot capture.
 \end{abstract}

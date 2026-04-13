@@ -3,37 +3,28 @@
 Inverse problems -- recovering physical parameters from indirect
 measurements -- arise throughout the sciences whenever the quantities of
 interest cannot be observed directly. In electrochemistry, the
-parameters governing a reaction at an electrode surface (rate constants,
-transfer coefficients, formal potentials) are not measured but must be
-inferred from the current response to an applied potential. This
-inference is the electrochemical inverse problem, and it is the subject
-of this dissertation.
+parameters governing a reaction at an electrode surface cannot be
+measured and must be inferred from the current response to an applied
+potential. This inference is the electrochemical inverse problem, and
+it is the subject of this dissertation.
 
-The forward problem is well understood. In cyclic voltammetry, a
-time-varying potential is applied to an electrode immersed in a solution
-containing electroactive species, and the resulting current is recorded.
-The current response is governed by two coupled processes: electron
-transfer at the electrode surface, described by the Butler--Volmer
-kinetic model \cite{dickinson2020butler}, and diffusion of species
-through the solution, described by Fick's laws. Together these yield a
-diffusion PDE whose solution predicts the current for a given set of
-parameters \cite{compton2014understanding}. The inverse problem is to
+The forward problem -- predicting the current for a given set of
+parameters -- reduces to solving a diffusion PDE with kinetic boundary
+conditions \cite{compton2014understanding}. The inverse problem is to
 invert this map. The difficulty is threefold: the mapping from parameters
 to current is nonlinear, distinct parameter configurations can produce
-similar voltammograms, and in certain kinetic regimes some parameters
+similar voltammagrams, and in certain kinetic regimes some parameters
 cease to influence the current altogether.
 
-Point estimates -- for instance, a least-squares fit -- cannot capture
-these difficulties. They provide no account of uncertainty: they cannot
-distinguish a well-constrained parameter from one to which the data are
+Point estimates of the parameters cannot capture these difficulties.
+They provide no account of uncertainty: they cannot distinguish a
+well-constrained parameter from one to which the data are
 insensitive, nor reveal correlations between parameters that may
-compensate for one another. Bayesian inference addresses this by treating
-the parameters as random variables and computing their posterior
-distribution conditioned on the observed data
-\cite{gavaghan2018bayesian}. The posterior encodes what the data can and
-cannot tell us about the parameters: marginal widths quantify
-uncertainty, off-diagonal structure reveals correlations, and
-multimodality signals non-identifiability.
+compensate for one another. Bayesian inference addresses this by
+computing the posterior distribution of the parameters conditioned on
+the observed data \cite{gavaghan2018bayesian}. Marginal widths
+quantify uncertainty, off-diagonal structure reveals correlations,
+and multimodality signals non-identifiability.
 
 The standard tool for sampling such posteriors is Markov chain Monte
 Carlo. In this setting each likelihood evaluation requires a PDE solve,
@@ -43,7 +34,7 @@ explore the parameter space by undirected local proposals and
 consequently waste many of these solves on rejected candidates,
 particularly as the number of parameters grows. Gradient information
 helps in two ways: it can initialise the sampler near a posterior mode
-via optimisation, reducing burn-in; and it can inform the sampling itself
+via optimisation; and it can inform the sampling itself
 through Hamiltonian Monte Carlo (HMC), which uses the gradient to
 construct long-range, low-rejection proposals.
 
@@ -51,31 +42,27 @@ The challenge is obtaining these gradients cheaply. Finite differences
 require at least one additional forward solve per parameter and introduce
 truncation error. Reverse-mode automatic differentiation computes exact
 gradients at a cost bounded by a small multiple of the forward solve,
-independent of parameter dimension
-\cite{griewank2008evaluating}. Na\"ively taping an entire PDE solver,
-however, records every intermediate operation -- including every step of
-the linear system solve at each timestep -- incurring memory cost
-proportional to the product of the number of timesteps and spatial grid
-points. A more efficient approach is to derive a custom adjoint rule for
-the banded linear solve and register it with the automatic
-differentiation framework, so that gradient computation exploits the same
-structure as the forward solve. This is the approach we adopt: the
-adjoint of the tridiagonal (or pentadiagonal) solve is itself banded,
-costing $O(n)$ per timestep with only the system matrix and solution
-vector cached.
+independent of parameter dimension \cite{griewank2008evaluating}.
+Na\"ively taping an entire PDE solver, however, incurs memory cost
+proportional to the product of timesteps and spatial grid points. We
+instead derive a custom adjoint rule for the banded linear solve and
+register it with the automatic differentiation framework, \emph{JAX}
+\cite{jax2018github}, so that gradient computation uses only the matrix
+diagonals and solution vector, without recording the intermediates of the
+factorisation.
 
 This work sits within a broader shift toward differentiable scientific
 computing; Kitchin et~al.\ \cite{kitchin2025beyond} characterise
-differentiable programming as a fifth paradigm in chemical engineering.
-Concurrently, Chen et~al.\ \cite{chen2026differentiable} have developed
-differentiable electrochemical simulators for gradient-based parameter
-recovery. Our work is complementary: we adopt a Bayesian framework
-rather than optimisation alone, and we compute gradients via a custom
-adjoint rather than taping the full solver. The Bayesian approach to
-voltammetric inference via MCMC was established by Gavaghan et~al.\
-\cite{gavaghan2018bayesian}; we extend their framework by replacing the
-gradient-free sampler with gradient-informed alternatives enabled by the
-differentiable solver.
+differentiable programming as a fifth paradigm for modelling in chemical
+engineering. Concurrently, Chen et~al.\ \cite{chen2026differentiable}
+have developed differentiable electrochemical simulators for
+gradient-based parameter recovery. Our work is complementary: we
+adopt a Bayesian framework rather than optimisation alone, and we
+compute gradients via a custom adjoint rather than taping the full
+solver. The Bayesian approach to voltammetric inference via MCMC was
+established by Gavaghan et~al.\ \cite{gavaghan2018bayesian}; we
+extend their framework by replacing the gradient-free sampler with
+gradient-informed alternatives enabled by the differentiable solver.
 
 This dissertation makes three contributions. First, we develop a
 differentiable forward solver for voltammetric PDEs, in which a custom
@@ -90,19 +77,18 @@ that the advantage of NUTS over RWMH grows with the dimension of the
 parameter space.
 
 The methodology is developed through the single-electron-transfer
-reaction, which serves as the running example through which each tool is
-introduced and tested. Chapter~\ref{ch:electrochem} formulates the
-forward problem as a diffusion PDE with Butler--Volmer boundary
-conditions. Chapter~\ref{ch:numerical-methods} discretises this PDE and
-verifies the solver, then examines parameter sensitivities and kinetic
-regimes that motivate a probabilistic treatment.
-Chapter~\ref{ch:bayesian} frames the inverse problem as Bayesian
-inference and applies RWMH, demonstrating correct posterior recovery but
-highlighting computational waste. Chapter~\ref{ch:adjoint} derives the
-custom adjoint and demonstrates its value through gradient-based
-optimisation. Chapter~\ref{ch:hmc} introduces HMC and NUTS, and
-compares sampling efficiency against RWMH under equal computational
-budgets. Chapters~\ref{ch:heterogeneous} and~\ref{ch:adsorption} then
-extend the framework to the heterogeneous and adsorption reactions
-without, showing that the approach scales to higher-dimensional
-parameter spaces and chemically richer systems.
+reaction, which serves as a running example.
+Chapter~\ref{ch:electrochem} formulates the forward problem as a
+diffusion PDE with Butler--Volmer boundary conditions.
+Chapter~\ref{ch:numerical-methods} discretises and verifies the solver,
+then examines parameter sensitivities that motivate a probabilistic
+treatment. Chapter~\ref{ch:bayesian} frames inference via RWMH,
+demonstrating correct posterior recovery but highlighting computational
+waste. Chapter~\ref{ch:adjoint} derives the custom adjoint and
+demonstrates its value through gradient-based optimisation.
+Chapter~\ref{ch:hmc} introduces NUTS and compares sampling efficiency
+against RWMH under equal wall-clock time.
+Chapters~\ref{ch:heterogeneous} and~\ref{ch:adsorption} then apply
+the framework to the heterogeneous and adsorption reactions, showing
+that it scales to higher-dimensional parameter spaces and chemically
+richer systems.

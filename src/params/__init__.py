@@ -15,6 +15,7 @@ def param_property_names(params: Params) -> list[str]:
         for name, val in inspect.getmembers(
             type(params), lambda v: isinstance(v, property)
         )
+        if name != "thetaf_ads"
     ]
 
 

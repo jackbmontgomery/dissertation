@@ -9,7 +9,8 @@ import jax.tree_util as jtu
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from jax import jit, vmap
+from jax import grad, jit, vmap
+from matplotlib.lines import Line2D
 
 from src.diagnostics import ess_over_time
 from src.fdm import (
@@ -72,23 +73,26 @@ mono_analytical_flux = (
 plt.plot(
     fd_solver.applied_potentials,
     mono_analytical_flux,
-    c="black",
-    linestyle="--",
-    linewidth=2.0,
+    c="C3",
+    linestyle=":",
+    linewidth=2.5,
+    label="Analytical",
 )
 
 plt.plot(
     fd_solver.applied_potentials,
     -1 * mono_analytical_flux,
-    c="black",
-    linestyle="--",
-    linewidth=2.0,
+    c="C3",
+    linestyle=":",
+    linewidth=2.5,
 )
 
-plt.plot(fd_solver.applied_potentials, mono_current)
+plt.plot(fd_solver.applied_potentials, mono_current, label="Numerical")
+
 
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
+plt.legend()
 
 plt.savefig("./manuscript/figures/8-analytical.png", dpi=1000)
 plt.show()
@@ -119,12 +123,18 @@ plt.show()
 
 # %% Benchmarking the solvers
 
-newton_solver.solve(params)
+exp_grad = grad(lambda x: jnp.sum(explicit_solver.solve(x)))
+exp_grad(params)
+
+bwd_grad = grad(lambda x: jnp.sum(backward_solver.solve(x)))
+bwd_grad(params)
+
 explicit_solver.solve(params)
+exp_grad(params)
 backward_solver.solve(params)
+bwd_grad(params)
 
 # %% Sampling
-
 
 dir = "./data/sampling"
 file = "reaction=AdsorptionReaction,noise=0.02,seed=0.pkl.gz"
@@ -135,15 +145,15 @@ rwmh: AdsorptionReactionParams = data["rwmh"]
 true_params: AdsorptionReactionParams = AdsorptionReaction().true_parameters
 
 params = {
-    r"$\alpha_{\mathrm{sol}}$": ("alpha_sol", true_params.alpha_sol),
-    r"$K_{0,\mathrm{sol}}$": ("K0_sol", true_params.K0_sol),
-    r"$\theta_{f,\mathrm{sol}}$": ("thetaf_sol", true_params.thetaf_sol),
-    r"$\alpha_{\mathrm{ads}}$": ("alpha_ads", true_params.alpha_ads),
-    r"$K_{0,\mathrm{ads}}$": ("K0_ads", true_params.K0_ads),
-    r"$K_{A,\mathrm{ads}}$": ("K_A_ads", true_params.K_A_ads),
-    r"$K_{A,\mathrm{des}}$": ("K_A_des", true_params.K_A_des),
-    r"$K_{B,\mathrm{ads}}$": ("K_B_ads", true_params.K_B_ads),
-    r"$K_{B,\mathrm{des}}$": ("K_B_des", true_params.K_B_des),
+    r"$\alpha^{\mathrm{sol}}$": ("alpha_sol", true_params.alpha_sol),
+    r"$K_{0}^{\mathrm{sol}}$": ("K0_sol", true_params.K0_sol),
+    r"$\theta_{f}^{\mathrm{sol}}$": ("thetaf_sol", true_params.thetaf_sol),
+    r"$\alpha^{\mathrm{ads}}$": ("alpha_ads", true_params.alpha_ads),
+    r"$K_{0}^{\mathrm{ads}}$": ("K0_ads", true_params.K0_ads),
+    r"$K_{A}^{\mathrm{ads}}$": ("K_A_ads", true_params.K_A_ads),
+    r"$K_{A}^{\mathrm{des}}$": ("K_A_des", true_params.K_A_des),
+    r"$K_{B}^{\mathrm{ads}}$": ("K_B_ads", true_params.K_B_ads),
+    r"$K_{B}^{\mathrm{des}}$": ("K_B_des", true_params.K_B_des),
 }
 
 
@@ -157,6 +167,8 @@ def make_df(samples, sampler_name):
 
 df = pd.concat([make_df(nuts, "NUTS"), make_df(rwmh, "RWMH")], ignore_index=True)
 vars_list = list(params.keys())
+
+df_nuts = df[df["Sampler"] == "NUTS"]
 
 g = sns.PairGrid(
     df,
@@ -178,7 +190,19 @@ g.map_diag(
     common_norm=False,
 )
 
-g.map_lower(sns.kdeplot, thresh=0.05, fill=False, linewidths=1.2)
+# Lower triangle: NUTS only
+for i in range(len(vars_list)):
+    for j in range(i):
+        ax = g.axes[i, j]
+        sns.kdeplot(
+            x=df_nuts[vars_list[j]],
+            y=df_nuts[vars_list[i]],
+            ax=ax,
+            thresh=0.05,
+            fill=False,
+            linewidths=1.2,
+            color="C0",
+        )
 
 # True value lines on diagonal
 for i, label in enumerate(vars_list):
@@ -195,9 +219,26 @@ for i in range(len(vars_list)):
         ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
         ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
 
-g.add_legend(title="Sampler")
+
+handles = [
+    Line2D([0], [0], color="C0", linewidth=1.2, label="NUTS"),
+    Line2D([0], [0], color="C1", linewidth=1.2, label="RWMH"),
+]
+g.figure.legend(handles=handles, title="Sampler", loc="upper right", frameon=True)
+
 g.figure.set_size_inches(14, 14)
 plt.tight_layout()
+problem_labels = [r"$K_{0}^{\mathrm{sol}}$", r"$K_{0}^{\mathrm{ads}}$"]
+for idx, label in enumerate(vars_list):
+    if label in problem_labels:
+        for row in range(idx, len(vars_list)):
+            ax = g.axes[row, idx]
+            if ax is not None:
+                ax.xaxis.set_tick_params(labelsize=8)
+        for col in range(idx):
+            ax = g.axes[idx, col]
+            if ax is not None:
+                ax.yaxis.set_tick_params(labelsize=8)
 plt.savefig("./manuscript/figures/8-corner.png", dpi=1000)
 plt.show()
 
@@ -286,8 +327,21 @@ num_points = 20
 x = jnp.linspace(1 / num_points, 1, num_points)
 param_names = param_property_names(nuts)
 
+
+params_titles = {
+    "alpha_sol": r"$\alpha^{\mathrm{sol}}$",
+    "K0_sol": r"$K_{0}^{\mathrm{sol}}$",
+    "thetaf_sol": r"$\theta_{f}^{\mathrm{sol}}$",
+    "alpha_ads": r"$\alpha^{\mathrm{ads}}$",
+    "K0_ads": r"$K_{0}^{\mathrm{ads}}$",
+    "K_A_ads": r"$K_{A}^{\mathrm{ads}}$",
+    "K_A_des": r"$K_{A}^{\mathrm{des}}$",
+    "K_B_ads": r"$K_{B}^{\mathrm{ads}}$",
+    "K_B_des": r"$K_{B}^{\mathrm{des}}$",
+}
+
 for name, ax in zip(param_names, axs.flatten()):
-    ax.set_title(name)
+    ax.set_title(params_titles[name])
     nuts_ess = ess_over_time(getattr(nuts, name), num_points=num_points)
     ax.plot(x, nuts_ess, label="NUTS")
     rwmh_ess = ess_over_time(getattr(rwmh, name), num_points=num_points)

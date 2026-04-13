@@ -11,7 +11,6 @@ from typing import Literal
 
 from src.fdm import (
     AdsorptionReactionBackwardImplicitFDSolver,
-    AdsorptionReactionExplicitFDSolver,
     AdsorptionReactionNewtonFDSolver,
     ElectronReactionFDSolver,
     HeterogeneousReactionFDSolver,
@@ -76,7 +75,7 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             optim_learning_rate=2e-1,
             optim_steps=1000,
             num_rwmh_samples=40_000,
-            num_nuts_samples=2_000,
+            num_nuts_samples=2_400,
             seed=seed,
             save=save,
         )

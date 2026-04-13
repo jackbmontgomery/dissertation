@@ -1,0 +1,136 @@
+\begin{thebibliography}{10}
+
+\bibitem{betancourt2018hamiltonian}
+Michael Betancourt.
+\newblock A {Conceptual} {Introduction} to {Hamiltonian} {Monte} {Carlo}, July 2018.
+\newblock arXiv:1701.02434 [stat].
+
+\bibitem{jax2018github}
+James Bradbury, Roy Frostig, Peter Hawkins, Matthew~James Johnson, Chris Leary, Dougal Maclaurin, George Necula, Adam Paszke, Jake Vander{P}las, Skye Wanderman-{M}ilne, and Qiao Zhang.
+\newblock {JAX}: composable transformations of {P}ython+{N}um{P}y programs, 2018.
+
+\bibitem{britz2016digital}
+Dieter Britz and Jörg Strutwolf.
+\newblock {\em Digital simulation in electrochemistry}.
+\newblock Monographs in electrochemistry. Springer, Cham, 4th ed edition, 2016.
+
+\bibitem{cabezas2024blackjax}
+Alberto Cabezas, Adrien Corenflos, Junpeng Lao, and Rémi Louf.
+\newblock Blackjax: Composable {B}ayesian inference in {JAX}, 2024.
+
+\bibitem{chen2026differentiable}
+Haotian Chen, Chenyang Huang, Alexander Rodríguez, Aashutosh Mistry, and Venkatasubramanian Viswanathan.
+\newblock Differentiable electrochemistry: A paradigm characterizing physical laws in electrochemical systems.
+\newblock {\em ACS Energy Letters}, 11(2):2005--2018, 2026.
+
+\bibitem{compton2014understanding}
+Richard~G Compton, Enno K{\"a}telh{\"o}n, Kristopher~R Ward, and Eduardo Laborda.
+\newblock {\em Understanding voltammetry: simulation of electrode processes}.
+\newblock World Scientific, 2014.
+
+\bibitem{crank1979mathematics}
+John Crank.
+\newblock {\em The Mathematics of Diffusion}.
+\newblock Oxford University Press, Oxford, 2nd edition, 1979.
+
+\bibitem{deepmind2020jax}
+DeepMind, Igor Babuschkin, Kate Baumli, Alison Bell, Surya Bhupatiraju, Jake Bruce, Peter Buchlovsky, David Budden, Trevor Cai, Aidan Clark, Ivo Danihelka, Antoine Dedieu, Claudio Fantacci, Jonathan Godwin, Chris Jones, Ross Hemsley, Tom Hennigan, Matteo Hessel, Shaobo Hou, Steven Kapturowski, Thomas Keck, Iurii Kemaev, Michael King, Markus Kunesch, Lena Martens, Hamza Merzic, Vladimir Mikulik, Tamara Norman, George Papamakarios, John Quan, Roman Ring, Francisco Ruiz, Alvaro Sanchez, Laurent Sartran, Rosalia Schneider, Eren Sezener, Stephen Spencer, Srivatsan Srinivasan, Milo\v{s} Stanojevi\'{c}, Wojciech Stokowiec, Luyu Wang, Guangyao Zhou, and Fabio Viola.
+\newblock The {D}eep{M}ind {JAX} {E}cosystem, 2020.
+
+\bibitem{dickinson2020butler}
+Edmund~J.F. Dickinson and Andrew~J. Wain.
+\newblock The {Butler}-{Volmer} equation in electrochemical theory: {Origins} , value, and practical application.
+\newblock {\em Journal of Electroanalytical Chemistry}, 872:114145, September 2020.
+
+\bibitem{einstein1905brownian}
+A.~Einstein.
+\newblock Über die von der molekularkinetischen theorie der wärme geforderte bewegung von in ruhenden flüssigkeiten suspendierten teilchen.
+\newblock {\em Annalen der Physik}, 322(8):549--560, 1905.
+
+\bibitem{gavaghan2018bayesian}
+David~J. Gavaghan, Jonathan Cooper, Aidan~C. Daly, Christopher Gill, Kathryn Gillow, Martin Robinson, Alexandr~N. Simonov, Jie Zhang, and Alan~M. Bond.
+\newblock Use of bayesian inference for parameter recovery in dc and ac voltammetry.
+\newblock {\em ChemElectroChem}, 5(6):917--935, 2018.
+
+\bibitem{gelman2013bayesian}
+Andrew Gelman, John~B. Carlin, Hal~S. Stern, David~B. Dunson, Akti Vehtari, and Donald~B. Rubin.
+\newblock {\em Bayesian Data Analysis}.
+\newblock Chapman \& Hall/CRC Texts in Statistical Science Series. CRC, Boca Raton, Florida, third edition, 2013.
+
+\bibitem{gelman1997weak}
+Andrew Gelman, Walter~R Gilks, and Gareth~O Roberts.
+\newblock Weak convergence and optimal scaling of random walk metropolis algorithms.
+\newblock {\em The annals of applied probability}, 7(1):110--120, 1997.
+
+\bibitem{geyer2011introduction}
+Charles~J. Geyer.
+\newblock Introduction to {M}arkov chain {M}onte {C}arlo.
+\newblock In Steve Brooks, Andrew Gelman, Galin~L. Jones, and Xiao-Li Meng, editors, {\em Handbook of {M}arkov Chain {M}onte {C}arlo}, pages 3--48. CRC Press, Boca Raton, FL, 2011.
+
+\bibitem{griewank2008evaluating}
+Andreas Griewank and Andrea Walther.
+\newblock {\em Evaluating derivatives: principles and techniques of algorithmic differentiation}.
+\newblock SIAM, 2008.
+
+\bibitem{hansen2001completely}
+Nikolaus Hansen and Andreas Ostermeier.
+\newblock Completely derandomized self-adaptation in evolution strategies.
+\newblock {\em Evolutionary computation}, 9(2):159--195, 2001.
+
+\bibitem{hastings1970monte}
+W~Keith Hastings.
+\newblock Monte carlo sampling methods using markov chains and their applications.
+\newblock 1970.
+
+\bibitem{hoffman2014no}
+Matthew~D Hoffman, Andrew Gelman, et~al.
+\newblock The no-u-turn sampler: adaptively setting path lengths in hamiltonian monte carlo.
+\newblock {\em J. Mach. Learn. Res.}, 15(1):1593--1623, 2014.
+
+\bibitem{kidger2021neural}
+P~Kidger.
+\newblock {\em On neural differential equations}.
+\newblock {PhD} {Thesis}, University of Oxford, 2021.
+
+\bibitem{kingma2014adam}
+Diederik~P Kingma and Jimmy Ba.
+\newblock Adam: A method for stochastic optimization.
+\newblock {\em arXiv preprint arXiv:1412.6980}, 2014.
+
+\bibitem{kitchin2025beyond}
+John~R Kitchin, Victor Alves, and Carl~D Laird.
+\newblock Beyond the fourth paradigm of modeling in chemical engineering.
+\newblock {\em Nature Chemical Engineering}, 2(1):11--13, 2025.
+
+\bibitem{evosax2022github}
+Robert~Tjarko Lange.
+\newblock evosax: Jax-based evolution strategies.
+\newblock {\em arXiv preprint arXiv:2212.04180}, 2022.
+
+\bibitem{morris2013comparison}
+Graham~P Morris, Alexandr~N Simonov, Elena~A Mashkina, Rafel Bordas, Kathryn Gillow, Ruth~E Baker, David~J Gavaghan, and Alan~M Bond.
+\newblock A comparison of fully automated methods of data analysis and computer assisted heuristic methods in an electrode kinetic study of the pathologically variable [fe (cn) 6] 3--/4--process by ac voltammetry.
+\newblock {\em Analytical chemistry}, 85(24):11780--11787, 2013.
+
+\bibitem{neal2011mcmc}
+Radford~M. Neal.
+\newblock {\em {MCMC} using {Hamiltonian} dynamics}.
+\newblock May 2011.
+\newblock arXiv:1206.1901 [stat].
+
+\bibitem{prieto1997electrode}
+F.~Prieto, R.~D. Webster, J.~A. Alden, W.~J. Aixill, G.~A. Waller, R.~G. Compton, and M.~Rueda.
+\newblock Electrode processes with coupled chemistry. {Heterogeneous} or homogeneous chemical reaction? {The} reduction of nitromethane in basic aqueous solution.
+\newblock {\em Journal of Electroanalytical Chemistry}, 437(1):183--189, 1997.
+
+\bibitem{randles1947kinetics}
+John Edward~Brough Randles.
+\newblock Kinetics of rapid electrode reactions.
+\newblock {\em Discussions of the faraday society}, 1:11--19, 1947.
+
+\bibitem{sevcik1948oscillographic}
+A~{\v{S}}ev{\v{c}}{\'\i}k.
+\newblock Oscillographic polarography with periodical triangular voltage.
+\newblock {\em Collection of Czechoslovak Chemical Communications}, 13:349--377, 1948.
+
+\end{thebibliography}

@@ -60,23 +60,34 @@ plt.tight_layout(rect=(0, 0.1, 1, 1))
 plt.savefig("./manuscript/figures/6-hmc-hist.png", dpi=1000)
 plt.show()
 
-fig, axs = plt.subplots(1, 3, figsize=(10, 4), sharex=True, sharey=True)
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 4), sharex=True, sharey=True)
 num_points = 20
 x = jnp.linspace(1 / num_points, 1, num_points)
 param_names = param_property_names(nuts_quasi)
 headers = [r"$\alpha$", r"$K_0$", r"$\theta_f$"]
 
-for name, header, ax in zip(param_names, headers, axs):
-    ax.set_title(header)
-    nuts_ess = ess_over_time(getattr(nuts_quasi, name), num_points=num_points)
-    ax.plot(x, nuts_ess, label="NUTS")
-    rwmh_ess = ess_over_time(getattr(rwmh_quasi, name), num_points=num_points)
-    ax.plot(x, rwmh_ess, label="RWMH")
+ax1.set_title(r"$\alpha$")
+nuts_ess = ess_over_time(nuts_quasi.alpha, num_points=num_points)
+ax1.plot(x, nuts_ess, label="NUTS")
+rwmh_ess = ess_over_time(rwmh_quasi.alpha, num_points=num_points)
+ax1.plot(x, rwmh_ess, label="RWMH")
 
-axs[0].set_ylabel("ESS")
-axs[1].set_xlabel("Sample Proportion")
+ax2.set_title(r"$K_0$")
+nuts_ess = ess_over_time(nuts_quasi.K0, num_points=num_points)
+ax2.plot(x, nuts_ess, label="NUTS")
+rwmh_ess = ess_over_time(rwmh_quasi.K0, num_points=num_points)
+ax2.plot(x, rwmh_ess, label="RWMH")
 
-handles, labels = axs[0].get_legend_handles_labels()
+ax3.set_title(r"$\theta_f$")
+nuts_ess = ess_over_time(nuts_quasi.thetaf, num_points=num_points)
+ax3.plot(x, nuts_ess, label="NUTS")
+rwmh_ess = ess_over_time(rwmh_quasi.thetaf, num_points=num_points)
+ax3.plot(x, rwmh_ess, label="RWMH")
+
+ax1.set_ylabel("ESS")
+ax2.set_xlabel("Sample Proportion")
+
+handles, labels = ax1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2)
 plt.tight_layout(rect=(0, 0.1, 1, 1))
 plt.savefig("./manuscript/figures/6-ess.png", dpi=1000)
@@ -131,37 +142,6 @@ plt.tight_layout(rect=(0, 0.1, 1, 1))
 plt.savefig("./manuscript/figures/6-hmc-hist-rev.png", dpi=1000)
 plt.show()
 
-
-# %% Current fits
-
-cyclic_dc = CyclicDC()
-fd_solver = ElectronReactionFDSolver(cyclic_dc)
-
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4), sharex=True)
-
-true_quasi_current = fd_solver.solve(true_params_quasi)
-nuts_quasi_mean = jtu.tree_map(lambda x: jnp.mean(x), nuts_quasi)
-nuts_quasi_current = fd_solver.solve(nuts_quasi_mean)
-rwmh_quasi_mean = jtu.tree_map(lambda x: jnp.mean(x), rwmh_quasi)
-rwmh_quasi_current = fd_solver.solve(rwmh_quasi_mean)
-
-ax1.plot(fd_solver.applied_potentials, nuts_quasi_current)
-ax1.plot(fd_solver.applied_potentials, rwmh_quasi_current)
-ax1.plot(fd_solver.applied_potentials, true_quasi_current, linestyle="--")
-
-true_rev_current = fd_solver.solve(true_params_rev)
-nuts_rev_mean = jtu.tree_map(lambda x: jnp.mean(x), nuts_rev)
-nuts_rev_current = fd_solver.solve(nuts_rev_mean)
-rwmh_rev_mean = jtu.tree_map(lambda x: jnp.mean(x), rwmh_rev)
-rwmh_rev_current = fd_solver.solve(rwmh_rev_mean)
-
-ax2.plot(fd_solver.applied_potentials, nuts_rev_current)
-ax2.plot(fd_solver.applied_potentials, rwmh_rev_current)
-ax2.plot(fd_solver.applied_potentials, true_rev_current, linestyle="--")
-
-plt.savefig("./manuscript/figures/6-current-fit.png", dpi=1000)
-plt.show()
-
 # %% Current fits
 
 cyclic_dc = CyclicDC()
@@ -169,71 +149,74 @@ fd_solver = ElectronReactionFDSolver(cyclic_dc)
 key = jr.key(0)
 key_data, key_samples = jr.split(key)
 
-base_current = fd_solver.solve(ElectronReaction().true_parameters)
-
-experimental_samples = generate_noisy_samples(
-    10,
-    base_current,
-    0.02,
-    key=key_data,
-)
 
 num_samples = 200
 
-sample_indexes = jr.choice(
-    key_samples, len(nuts_quasi.alpha.flatten()), shape=(num_samples,), replace=False
-)
 
-nuts_quasi_samples = jtu.tree_map(lambda x: x.flatten()[sample_indexes], nuts_quasi)
+def gen_fig(ax, nuts, reaction):
+    base_current = fd_solver.solve(reaction.true_parameters)
 
-currents = vmap(fd_solver.solve)(nuts_quasi_samples)
-
-mean_current = jnp.mean(currents, axis=0)
-lower = jnp.percentile(currents, 2.5, axis=0)
-upper = jnp.percentile(currents, 97.5, axis=0)
-
-
-plt.figure(figsize=(10, 8))
-
-for i, samples in enumerate(experimental_samples):
-    if i == 0:
-        label = "Noisy Data"
-    else:
-        label = None
-
-    plt.scatter(
-        fd_solver.applied_potentials,
-        samples,
-        s=5,
-        c="C1",
-        alpha=0.3,
-        label=label,
+    experimental_samples = generate_noisy_samples(
+        10,
+        base_current,
+        0.02,
+        key=key_data,
     )
 
+    sample_indexes = jr.choice(
+        key_samples,
+        len(nuts.alpha.flatten()),
+        shape=(num_samples,),
+        replace=False,
+    )
+    nuts_samples = jtu.tree_map(lambda x: x.flatten()[sample_indexes], nuts)
 
-plt.plot(
-    fd_solver.applied_potentials,
-    base_current,
-    linestyle="--",
-    c="black",
-    linewidth=2.0,
-    label="True Current",
-)
+    currents = vmap(fd_solver.solve)(nuts_samples)
 
-plt.fill_between(
-    fd_solver.applied_potentials,
-    lower,
-    upper,
-    alpha=0.3,
-    label="95% credible interval",
-)
-plt.plot(fd_solver.applied_potentials, mean_current, label="Posterior mean")
+    mean_current = jnp.mean(currents, axis=0)
+    lower = jnp.percentile(currents, 2.5, axis=0)
+    upper = jnp.percentile(currents, 97.5, axis=0)
 
-plt.gca().invert_xaxis()
-plt.gca().invert_yaxis()
+    for i, samples in enumerate(experimental_samples):
+        if i == 0:
+            label = "Noisy Data"
+        else:
+            label = None
 
-plt.ylabel("$J$")
-plt.xlabel(r"$\theta$")
+        ax.scatter(
+            fd_solver.applied_potentials,
+            samples,
+            s=5,
+            c="C3",
+            alpha=0.3,
+            label=label,
+        )
 
-plt.legend(markerscale=5)
+    ax.plot(
+        fd_solver.applied_potentials,
+        base_current,
+        linestyle="--",
+        c="black",
+        linewidth=2.0,
+        label="True Current",
+    )
+
+    ax.fill_between(
+        fd_solver.applied_potentials,
+        lower,
+        upper,
+        alpha=0.3,
+        label="95% credible interval",
+    )
+    ax.plot(fd_solver.applied_potentials, mean_current, label="Posterior mean")
+
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 5))
+gen_fig(ax1, nuts_quasi, ElectronReaction())
+gen_fig(ax2, nuts_rev, ReversibleElectronReaction())
+
+handles, labels = ax1.get_legend_handles_labels()
+fig.legend(handles, labels, loc="lower center", ncol=2, markerscale=5)
+plt.tight_layout(rect=(0, 0.2, 1, 1))
+plt.savefig("./manuscript/figures/6-current-fit.png", dpi=1000)
 plt.show()

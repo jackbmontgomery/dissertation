@@ -42,15 +42,15 @@ for n, ax in zip(noise_levels, axs):
 
     ax.set_ylim(mode_ld * 5, -mode_ld)
 
-    ax.axhline(y=mode_ld * 2, linestyle="--", c="C3")
+    ax.axhline(y=mode_ld * 2.5, linestyle="--", c="black")
 
 
 handles, labels = axs[0].get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower center", ncol=2)
 
 axs[0].set_ylabel("Log Density")
-axs[0].set_xlabel("Iteration")
-axs[1].set_xlabel("Iteration")
+axs[0].set_xlabel("Proportion of run")
+axs[1].set_xlabel("Proportion of run")
 plt.tight_layout(rect=(0, 0.1, 1, 1))
 plt.savefig("./manuscript/figures/5-optim.png", dpi=1000)
 plt.show()

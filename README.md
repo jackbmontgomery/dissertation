@@ -23,11 +23,26 @@ the electron-transfer reaction, so results accumulate throughout. The final two
 chapters apply the complete framework to harder reactions concisely, without
 repeating exposition.
 
+## Word Count
+
+- 7500 Total (833.33 per chapter for the 9 chapters)
+- `texcount`: We use the "Words in text" field not the "Sum count"
+
 ## Notes
+
+- Mention how we determined the discritisation in space and time for the
+  numerics and then say we applied the same methodology throughout.
+- I speak about runtime, I think I should note somewhere that this is just a CPU
+  runtime.
+- I must make it clear that the custom adjoint method is not changing the
+  asympototic complexity class of the gradient computation. Only the memory cost
+  which significantly helps in the performance.
 
 ---
 
-## Chapter 1: Introduction
+## Abstract: (texcount: 129 -- aim for 100)
+
+## Chapter 1: Introduction (texcount: 695 -- aim for 750)
 
 **Purpose:** Frame the problem, motivate each methodological layer, state what
 was achieved. No numerical results -- each chapter presents its own.
@@ -52,10 +67,7 @@ complete.
 
 ---
 
-## Chapter 2: Electrochemical Systems
-
-**Status:** Happy with it, might be a tad long but given the examiners
-background it makes sense to spend time here
+## Chapter 2: Electrochemical Systems (texcount: 800 -- aim for 1000)
 
 **Job:** Teach the markers the electrochemistry. Only chapter that does this.
 
@@ -72,11 +84,7 @@ background it makes sense to spend time here
 
 ---
 
-## Chapter 3: Numerical Methods
-
-**Status:** Happy with the narrative, but it needs to be shorter. Given the
-assumptions about the examiners I think we can be must faster with the
-derivations of the finite difference scheme.
+## Chapter 3: Numerical Methods (texcount: 605 -- aim for 600)
 
 **Job:** Discretise the forward problem, verify it, then show why inference is
 hard.
@@ -102,17 +110,7 @@ correlated/degenerate -> Ch 4
 
 ---
 
-## Chapter 4: Bayesian Approach
-
-**Status:** Happy with all it covers, but again, I think we can be a bit faster
-in the exposition to save words and then I don't want to oversell the gradient
-based sampling. I think we can mention that there are methods that use it, but I
-still think we must state the caution with using these methods. We require
-gradient computations that are not cheep to give. So we are not guaranteed to
-have the gradient based methods be better than the gradient-free ones in this
-context. But I am not even sure this point belongs here. It might make more
-sense to include in the HMC chapter or the end of the diff chapter when we
-introduce it.
+## Chapter 4: Bayesian Approach (texcount: 419 -- aim for 600)
 
 **Job:** Frame the inverse problem probabilistically, run RWMH, show it works
 but wastes computation on burn-in.
@@ -139,12 +137,7 @@ Gilks (1997), Morris (2013)
 
 ---
 
-## Chapter 5: Differentiating Through the Forward Solver
-
-**Status:** Not happy with this. There is a lot of explanation about what we are
-doing that I don't think is necessary. And there is lots of repetition. This is
-probably the most important chapter in the dissertation and it is the worst
-right now.
+## Chapter 5: Differentiating Through the Forward Solver (texcount: 714 -- aim for 600)
 
 **Job:** Core technical contribution. Efficient grad(l) via adjoint of the
 tridiagonal solve.
@@ -168,14 +161,7 @@ demonstrate via optimisation -> Ch 6
 
 ---
 
-## Chapter 6: Hamiltonian Monte Carlo
-
-**Status:** Happy in general. But once again, just needs some refinement. The
-reader won't be familiar with this so it makes sense to motivate why this method
-should have higher acceptance, but less correlated points. There are also quite
-a few results to present here so I just need to make sure that each is given
-adaqute reference and that they are put in context of the discussions previously
-in the dissertation.
+## Chapter 6: Hamiltonian Monte Carlo (texcount: 773 -- aim for 600)
 
 **Job:** Introduce HMC/NUTS, describe the full inference workflow, show it
 outperforms RWMH.
@@ -205,11 +191,7 @@ Gelman Roberts & Gilks (1997)
 
 ---
 
-## Chapter 7: Heterogeneous Reaction
-
-**Status:** Happy in general. But this is getting very long and lots of results,
-need to ensure I mention something about the number of points in each
-oscillation because Kathryn always spoke about that.
+## Chapter 7: Heterogeneous Reaction (texcount: 862 -- aim for 1250)
 
 **Job:** First application to a harder system. Concise -- no re-exposition.
 
@@ -235,7 +217,7 @@ widens 3->7). Current fit. AC vs DC posterior comparison.
 
 ---
 
-## Chapter 8: Adsorption Reaction
+## Chapter 8: Adsorption Reaction (texcount: 1225 -- aim for 1250)
 
 **Job:** Most complex system. Novelty is nonlinear coupling and AD compatibility
 argument.
@@ -260,7 +242,7 @@ ESS (largest gap -- dimension story completes). Current fit.
 
 ---
 
-## Chapter 9: Conclusions
+## Chapter 9: Conclusions (texcoutn: 584 -- aim for 600)
 
 **Job:** Brief summary, substantive further work, connect back to introduction.
 

@@ -1,0 +1,64 @@
+This is BibTeX, Version 0.99d (TeX Live 2025)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: /Users/jackmontgomery/oxford/dissertation/manuscript/.texpadtmp/main.aux
+A level-1 auxiliary file: dedication.aux
+A level-1 auxiliary file: abstract.aux
+A level-1 auxiliary file: 1_introduction.aux
+A level-1 auxiliary file: 2_electrochem.aux
+A level-1 auxiliary file: 3_numerical.aux
+A level-1 auxiliary file: 4_bayesian.aux
+A level-1 auxiliary file: 5_differentiating.aux
+A level-1 auxiliary file: 6_hmc.aux
+A level-1 auxiliary file: 7_heterogeneous.aux
+A level-1 auxiliary file: 8_adsorption.aux
+A level-1 auxiliary file: 9_conclusions.aux
+The style file: plain.bst
+Database file #1: ../references.bib
+Warning--entry type for "jax2018github" isn't style-file defined
+--line 208 of file ../references.bib
+Warning--entry type for "deepmind2020jax" isn't style-file defined
+--line 453 of file ../references.bib
+Warning--empty journal in hastings1970monte
+Warning--empty publisher in neal2011mcmc
+You've used 27 entries,
+            2118 wiz_defined-function locations,
+            675 strings with 10149 characters,
+and the built_in function-call counts, 10125 in all, are:
+= -- 913
+> -- 715
+< -- 1
++ -- 289
+- -- 256
+* -- 816
+:= -- 1790
+add.period$ -- 82
+call.type$ -- 27
+change.case$ -- 203
+chr.to.int$ -- 0
+cite$ -- 29
+duplicate$ -- 291
+empty$ -- 647
+format.name$ -- 256
+if$ -- 1989
+int.to.chr$ -- 0
+int.to.str$ -- 27
+missing$ -- 28
+newline$ -- 136
+num.names$ -- 56
+pop$ -- 220
+preamble$ -- 1
+purify$ -- 179
+quote$ -- 0
+skip$ -- 194
+stack$ -- 0
+substring$ -- 453
+swap$ -- 31
+text.length$ -- 1
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 96
+warning$ -- 2
+while$ -- 78
+width$ -- 29
+write$ -- 290
+(There were 4 warnings)

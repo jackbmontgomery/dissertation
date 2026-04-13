@@ -1,2 +1,85 @@
 \chapter{Conclusion}\label{ch:conclusions}
-%TODO: Further work section here as well
+
+This dissertation developed a differentiable forward solver for
+voltammetric simulation and integrated it with gradient-based Bayesian
+inference to solve the electrochemical inverse problem. The work made
+three contributions. First, a custom adjoint rule for the banded linear
+solve yields exact gradients at $O(n)$ cost per timestep with minimal
+memory overhead, avoiding the $O(mn)$ storage of na\"ive taping
+(\cref{ch:adjoint}). Second, coupling this solver with NUTS produces
+full posterior distributions over the physical parameters, quantifying
+uncertainty, revealing correlations, and detecting non-identifiability
+--- information that point estimates cannot provide
+(\cref{ch:bayesian,ch:hmc}). Third, the framework was applied to three
+reaction mechanisms of increasing complexity: a single electron transfer
+(3~parameters), a heterogeneous reaction (7~parameters), and an
+adsorption reaction (9~parameters). Under equal runtime budgets,
+the NUTS/RWMH effective-sample-size ratio grew from
+$1.5$--$2.4\times$ in three dimensions (\cref{tab:electron-ess}) to
+$\sim\!3\times$ in seven (\cref{tab:het-ess}) and a median of
+$2.7\times$ in nine (\cref{tab:ads-ess}). Each forward solver was
+verified against analytical solutions before inference: the
+Randles--\v{S}ev\v{c}\'{\i}k peak current for electron transfer, the
+analytical voltammogram of \cref{ch:heterogeneous} for the heterogeneous
+case, and the monolayer limit for adsorption.
+
+The adsorption reaction also illustrated how the framework adapts to
+numerical constraints. The Langmuir coupling terms make the discrete
+system nonlinear, preventing a direct banded solve. A backward implicit
+linearisation provided an AD-compatible approximation two to three
+orders of magnitude more accurate than an explicit alternative, at a
+modest 33\% runtime overhead. Inference with this approximate solver
+introduced no detectable bias relative to the Newton reference at the
+noise levels considered.
+
+\section{Further Work}\label{sec:further-work}
+
+\paragraph{Experimental data.}
+All results in this dissertation use synthetic data generated from the
+forward model. Real voltammograms introduce model misspecification:
+capacitive charging current, ohmic drop through the solution resistance,
+and electrode surface roughness are absent from the simulations. Applying
+the framework to experimental data would test the robustness of the
+posterior distributions under model--data mismatch, and would likely
+require extending the forward model or introducing nuisance parameters.
+
+\paragraph{Alternative kinetic models.}
+The Butler--Volmer equation was used throughout as the constitutive
+kinetic law. Marcus--Hush--Chidsey
+theory~\cite{compton2014understanding} provides a more
+physically grounded model at the cost of a numerical integral in the
+rate expression. Bayesian model comparison between Butler--Volmer and
+Marcus--Hush--Chidsey --- using, for example, marginal likelihood
+ratios --- would allow the data to discriminate between kinetic
+models. Chen et~al.~\cite{chen2026differentiable} have begun this
+programme with gradient-based optimisation; extending it to full
+posterior inference is a natural next step.
+
+\paragraph{Neural operator surrogates.}
+The forward solver computes the full concentration field $C(X,T)$, but
+the likelihood depends only on the surface flux $J(T)$. A neural
+operator (e.g.\ DeepONet or Fourier neural operator) trained on solver
+output could emulate the parameter-to-current map at a fraction of the
+cost. Such surrogates are differentiable by construction and
+NUTS-compatible, and could reduce the per-sample cost by orders of
+magnitude, making inference over larger parameter spaces or more complex
+reaction networks practical.
+
+\paragraph{Alternative samplers.}
+NUTS is not the only gradient-based sampler. Microcanonical Langevin
+Monte Carlo (MCLMC) and other adaptive HMC variants may offer further
+efficiency gains, particularly in the high-dimensional,
+correlated posteriors encountered in the adsorption case, where the
+NUTS advantage over RWMH was reduced for the
+adsorption/desorption rate constants.
+
+\medskip
+
+The framework developed here is not specific to the three reactions
+studied. Any voltammetric forward model that can be expressed as a
+sequence of banded linear solves admits the same adjoint treatment, and
+the inference workflow applies without modification. As differentiable
+programming becomes standard infrastructure in the computational
+sciences~\cite{kitchin2025beyond}, coupling differentiable PDE solvers
+with gradient-based samplers offers a systematic route to full
+uncertainty quantification for electrochemical inverse problems.
