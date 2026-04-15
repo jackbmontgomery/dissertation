@@ -1,0 +1,76 @@
+\chapter{Custom vector Jacobian Product}\label{ch:appendix-adjoint}
+
+\begin{lstlisting}[language=Python, caption=Implementation of the custom vector Jacobian Product using JAX]
+import jax.numpy as jnp
+from chex import dataclass
+from jax import custom_vjp, jit
+from jax.lax import scan
+from jaxtyping import Scalar
+
+@dataclass
+class TriMod:
+    c: Scalar
+    d: Scalar
+
+@dataclass
+class TriRow:
+    a: Scalar
+    b: Scalar
+    c: Scalar
+    d: Scalar
+
+@custom_vjp
+def tridiagonal_solve(a, b, c, d):
+    return tridiagonal_solve_impl(a, b, c, d)
+
+def tridiagonal_solve_fwd(a, b, c, d):
+    x = tridiagonal_solve_impl(a, b, c, d)
+    return x, (a, b, c, x)
+
+def tridiagonal_solve_bwd(res, g):
+    a, b, c, x = res
+    lam = tridiagonal_solve_impl(c, b, a, g)
+    g_b = -lam * x
+    g_a = -lam[1:] * x[:-1]
+    g_c = -lam[:-1] * x[1:]
+    g_d = lam
+    return g_a, g_b, g_c, g_d
+
+tridiagonal_solve.defvjp(tridiagonal_solve_fwd, tridiagonal_solve_bwd)
+
+@jit
+def tridiagonal_solve_impl(
+    a: Scalar,
+    b: Scalar,
+    c: Scalar,
+    d: Scalar,
+) -> Scalar:
+    mod_1_denom = b[0]
+    c_mod_1 = c[0] / mod_1_denom
+    d_mod_1 = d[0] / mod_1_denom
+
+    def fwd(mod: TriMod, row: TriRow):
+        mod_denom = row.b - row.a * mod.c
+
+        c_mod = row.c / mod_denom
+        d_mod = (row.d - row.a * mod.d) / mod_denom
+
+        new_mod = TriMod(c=c_mod, d=d_mod)
+        return new_mod, mod
+
+    init_mod = TriMod(c=c_mod_1, d=d_mod_1)
+    xs = TriRow(a=a[1:], b=b[1:], c=c[1:], d=d[1:])
+
+    final_mod, mods = scan(fwd, init_mod, xs)
+
+    def bwd(x_p1: Scalar, mod: TriMod):
+        x = mod.d - mod.c * x_p1
+        return x, x
+
+    x_n = final_mod.d
+    _, x = scan(bwd, x_n, mods, reverse=True)
+
+    solution = jnp.concat([x, jnp.array([x_n])])
+
+    return solution
+\end{lstlisting}

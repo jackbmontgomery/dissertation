@@ -101,7 +101,7 @@ plt.show()
 
 cyclic_dc = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=10)
 
-newton_solver = AdsorptionReactionNewtonFDSolver(cyclic_dc)
+newton_solver = AdsorptionReactionNewtonFDSolver(cyclic_dc, atol=1e-12, rtol=1e-10)
 explicit_solver = AdsorptionReactionExplicitFDSolver(cyclic_dc)
 backward_solver = AdsorptionReactionBackwardImplicitFDSolver(cyclic_dc)
 
@@ -114,10 +114,25 @@ backward_current = backward_solver.solve(params)
 exp_diff = jnp.abs(explicit_current - newton_current) / jnp.abs(newton_current)
 bwd_diff = jnp.abs(backward_current - newton_current) / jnp.abs(newton_current)
 
-plt.plot(exp_diff, label="Explicit")
-plt.plot(bwd_diff, label="Backward Implicit")
-plt.yscale("log")
-plt.legend()
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 5), sharex=True)
+
+ax1.plot(newton_current, c="C0", label="Newton Reference")
+ax2.plot(exp_diff, c="C1", label="Explicit")
+ax2.plot(bwd_diff, c="C2", label="Backward Implicit")
+ax1.set_ylabel("$J$")
+ax2.set_yscale("log")
+ax2.set_xlabel("$T$")
+ax2.set_ylabel("Error")
+
+h1, l1 = ax1.get_legend_handles_labels()
+h2, l2 = ax2.get_legend_handles_labels()
+
+handles = h1 + h2
+labels = l1 + l2
+
+fig.legend(handles, labels, loc="lower center", ncol=3)
+
+plt.tight_layout(rect=(0.0, 0.06, 1.0, 1.0))
 plt.savefig("./manuscript/figures/8-solver-comparison.png", dpi=1000)
 plt.show()
 
@@ -147,7 +162,6 @@ true_params: AdsorptionReactionParams = AdsorptionReaction().true_parameters
 params = {
     r"$\alpha^{\mathrm{sol}}$": ("alpha_sol", true_params.alpha_sol),
     r"$K_{0}^{\mathrm{sol}}$": ("K0_sol", true_params.K0_sol),
-    r"$\theta_{f}^{\mathrm{sol}}$": ("thetaf_sol", true_params.thetaf_sol),
     r"$\alpha^{\mathrm{ads}}$": ("alpha_ads", true_params.alpha_ads),
     r"$K_{0}^{\mathrm{ads}}$": ("K0_ads", true_params.K0_ads),
     r"$K_{A}^{\mathrm{ads}}$": ("K_A_ads", true_params.K_A_ads),
@@ -372,3 +386,8 @@ params = [
 for name, data in [("NUTS", nuts), ("RWMH", rwmh)]:
     vals = " & ".join(f"{ess(getattr(data, p)):.1f}" for p in params)
     print(f"    {name} & {vals} \\\\")
+
+vals = " & ".join(
+    f"{ess(getattr(nuts, p)) / ess(getattr(rwmh, p)):.1f}" for p in params
+)
+print(f"    Ratio & {vals} \\\\")

@@ -281,47 +281,6 @@
   Carlo.pdf:application/pdf;Snapshot:/Users/jackmontgomery/Zotero/storage/2RU3AFUW/1701.html:text/html},
 }
 
-@inproceedings{hoffman2021adaptive,
-  title = {An {Adaptive}-{MCMC} {Scheme} for {Setting} {Trajectory}
-  {Lengths} in {Hamiltonian} {Monte} {Carlo}},
-  issn = {2640-3498},
-  url = {https://proceedings.mlr.press/v130/hoffman21a.html},
-  abstract = {Hamiltonian Monte Carlo (HMC) is a powerful MCMC
-    algorithm based on simulating Hamiltonian dynamics. Its performance
-    depends strongly on choosing appropriate values for two parameters:
-    the step size used in the simulation, and how long the simulation
-    runs for. The step-size parameter can be tuned using standard
-    adaptive-MCMC strategies, but it is less obvious how to tune the
-    simulation-length parameter. The no-U-turn sampler (NUTS)
-    eliminates this problematic simulation-length parameter, but NUTS’s
-    relatively complex control flow makes it difficult to efficiently
-    run many parallel chains on accelerators such as GPUs. NUTS also
-    spends some extra gradient evaluations relative to HMC in order to
-    decide how long to run each iteration without violating detailed
-    balance. We propose ChEES-HMC, a simple adaptive-MCMC scheme for
-    automatically tuning HMC’s simulation-length parameter, which
-    minimizes a proxy for the autocorrelation of the state’s second
-    moments. We evaluate ChEES-HMC and NUTS on many tasks, and find
-    that ChEES-HMC typically yields larger effective sample sizes per
-    gradient evaluation than NUTS does. When running many chains on a
-    GPU, ChEES-HMC can also run significantly more gradient evaluations
-    per second than NUTS, allowing it to quickly provide accurate
-  estimates of posterior expectations.},
-  language = {en},
-  urldate = {2026-02-19},
-  booktitle = {Proceedings of {The} 24th {International} {Conference}
-  on {Artificial} {Intelligence} and {Statistics}},
-  publisher = {PMLR},
-  author = {Hoffman, Matthew and Radul, Alexey and Sountsov, Pavel},
-  month = mar,
-  year = {2021},
-  pages = {3907--3915},
-  file = {Full Text
-    PDF:/Users/jackmontgomery/Zotero/storage/JAZ82Z6U/Hoffman et al. -
-    2021 - An Adaptive-MCMC Scheme for Setting Trajectory Lengths in
-  Hamiltonian Monte Carlo.pdf:application/pdf},
-}
-
 @article{hoffman2014no,
   title={The No-U-Turn sampler: adaptively setting path lengths in
   Hamiltonian Monte Carlo.},
@@ -483,4 +442,24 @@ doi={10.1162/106365601750190398}}
   month = feb,
   year = {2003},
   pages = {160--164},
+}
+
+@article{vehtari2021rank,
+  author = {Vehtari, Aki and Gelman, Andrew and Simpson, Daniel and
+  Carpenter, Bob and B{\"u}rkner, Paul-Christian},
+  title = {Rank-normalization, Folding, and Localization: An Improved
+  $\widehat{R}$ for Assessing Convergence of {MCMC} (with discussion)},
+  journal = {Bayesian Analysis},
+  year = {2021},
+  volume = {16},
+  number = {2},
+  pages = {667--718},
+  doi = {10.1214/20-BA1221}
+}
+
+@manual{stan2024reference,
+  author       = {{Stan Development Team}},
+  title        = {Stan Reference Manual, Version 2.35},
+  year         = {2024},
+  url          = {https://mc-stan.org/docs/reference-manual/}
 }

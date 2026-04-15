@@ -69,7 +69,7 @@ giving high acceptance rates even for distant proposals.
 The efficiency of HMC depends on the trajectory length~$L$: too short
 and the sampler reverts to near-random-walk behaviour; too long and the
 trajectory doubles back, wasting gradient evaluations. The \emph{No-U-Turn
-Sampler} (NUTS)~\cite{hoffman2014no,cabezas2024blackjax} eliminates
+Sampler} (NUTS)~\cite{cabezas2024blackjax,hoffman2014no} eliminates
 $L$ as a tuning parameter
 by doubling the trajectory in both directions until the endpoints begin
 to converge (a U-turn), then drawing a sample uniformly from the valid
@@ -98,29 +98,30 @@ The following four-step pipeline is used for all reactions in this
 dissertation.
 
 \paragraph{Step~1: Diverse initialisation.}
-$N_{\mathrm{init}}$ starting points are drawn in the transformed space
-via Latin hypercube sampling to ensure broad prior coverage.
+$N_{\mathrm{init}} = 8$ starting points (matching the available CPU
+cores) are drawn in the transformed space via Latin hypercube sampling
+to ensure broad prior coverage.
 
 \paragraph{Step~2: Gradient-based optimisation.}
-Each start is optimised with ADAM under a fixed forward-solve budget
-(\cref{sec:init-results}). The run achieving the highest log-posterior is
-selected as the initial state for both samplers.
+Each start is optimised independently with ADAM for a fixed number of
+steps to move them to high density areas in the posterior space.
 
 \paragraph{Step~3: Window adaptation.}
-From the optimised point, a NUTS warm-up of $N_{\mathrm{adapt}}$
-iterations tunes $\varepsilon$ via dual averaging~\cite{hoffman2014no}
-and estimates $M$ from the warm-up sample covariance. The same covariance
-sets the RWMH proposal $\Sigma$, scaled to achieve~$\approx 23\%$
-acceptance~\cite{gelman1997weak}.
+A NUTS warmup is then run from point with the highest likelihood.
+This consists of $N_{\mathrm{adapt}}$ iterations tunes $\varepsilon$
+via dual averaging~\cite{hoffman2014no} and estimates $M$ from the
+warm-up sample covariance. The same covariance sets the RWMH proposal
+$\Sigma$, scaled to achieve~$\approx 23\%$ acceptance~\cite{gelman1997weak}.
 
 \paragraph{Step~4: Equal-budget sampling.}
 Chains of NUTS and RWMH are run from the same initial (optimised)
 states. Since each NUTS iteration requires $L$ leapfrog steps while
-each RWMH iteration costs one forward solve, the number of RWMH
-iterations is scaled so that both samplers consume equal
-forward-solve equivalents. For the electron-transfer reaction this
-gives $2{,}400$ NUTS samples and $24{,}000$ RWMH samples, each
-requiring approximately $20$~seconds of sampling time.
+each RWMH iteration costs one forward solve. Because NUTS selects its
+trajectory length adaptively, the total budget is measured after
+sampling and the RWMH chain length set to match. For the
+electron-transfer reaction this gives $2{,}400$ NUTS samples and
+$24{,}000$ RWMH samples, each requiring approximately $20$~seconds of
+sampling time.
 
 All runtimes in this dissertation were measured on an Apple M1 with
 eight cores; no GPU acceleration was used.
@@ -129,52 +130,63 @@ eight cores; no GPU acceleration was used.
 
 \subsection{Posterior Distributions}
 
-\Cref{fig:electron-posteriors} overlays the marginal posteriors from NUTS
-and RWMH for the quasi-reversible electron-transfer reaction with
-$\phi^* = (0.6,\, 10.0,\, 0.5)$ at $\sigma = 1000$
+\Cref{fig:electron-posteriors} shows the joint and marginal posteriors
+from NUTS and RWMH for the quasi-reversible electron-transfer reaction
+with $\phi^* = (0.6,\, 10.0,\, 0.5)$ at $\sigma = 1000$
 ($\Lambda = K_0 / \sqrt{\sigma} \approx 0.32$). Both samplers recover
-the true values, with tight marginals in close agreement.
+the true values, with tight marginals in close agreement. The
+off-diagonal panels show weak pairwise dependence between all three
+parameters, with a mild positive correlation between $K_0$
+and~$\theta_f$.
 
 \begin{figure}[ht]
   \begin{center}
-    \includegraphics[width=0.95\textwidth]{figures/6-hmc-hist.png}
+    \includegraphics[width=0.95\textwidth]{figures/6-corner-quasi.png}
   \end{center}
-  \caption[Marginal posteriors for the quasi-reversible
-  electron-transfer reaction]{Marginal posterior distributions from NUTS
+  \caption[Joint and marginal posteriors for the quasi-reversible
+  electron-transfer reaction]{Corner plot of the posterior from NUTS
     (blue) and RWMH (orange) under equal computational budgets for the
     quasi-reversible case ($\phi^* = (0.6,\, 10.0,\, 0.5)$,
-  $\sigma = 1000$). Dashed lines indicate the true values.}
+    $\sigma = 1000$). Diagonal: marginal histograms for both samplers.
+    Lower triangle: NUTS joint density contours. Dashed lines indicate
+  the true values.}
   \label{fig:electron-posteriors}
 \end{figure}
 
 We repeat the experiment in the reversible regime with $\phi^* =
 (0.6,\, 500.0,\, 0.5)$, giving $\Lambda \approx 15.8 \gg 1$.
-\Cref{fig:electron-posteriors-rev} shows that the posteriors for
-$\alpha$ and $K_0$ are now far wider, consistent with the
-non-identifiability predicted in \cref{sec:bv-effects}: when electron
-transfer is fast relative to diffusion, the voltammogram is insensitive
-to these parameters. Both samplers nonetheless remain centred on the true
-values.
+\Cref{fig:electron-posteriors-rev} shows that the $\alpha$ and $K_0$
+marginals are now wide, consistent with the insensitivity
+predicted in \cref{sec:bv-effects}: when electron transfer is fast
+relative to diffusion, the voltammogram is insensitive to these
+parameters. The off-diagonal panels confirm that this width arises from
+diffuse marginals rather than a tight correlated ridge; $\theta_f$
+remains tightly identified and largely independent of the other two
+parameters. Both samplers remain centred on the true values.
 
 \begin{figure}[ht]
   \begin{center}
-    \includegraphics[width=0.95\textwidth]{figures/6-hmc-hist-rev.png}
+    \includegraphics[width=0.95\textwidth]{figures/6-corner-rev.png}
   \end{center}
-  \caption[Marginal posteriors in the reversible regime]{Marginal
-    posteriors in the reversible regime ($\phi^* = (0.6,\, 500.0,\,
-    0.5)$, $\Lambda \approx 15.8$). The $\alpha$ and $K_0$ marginals
-    are wider than in \cref{fig:electron-posteriors}, reflecting the
-  non-identifiability discussed in \cref{sec:bv-effects}.}
+  \caption[Joint and marginal posteriors in the reversible
+  regime]{Corner plot in the reversible regime ($\phi^* = (0.6,\,
+    500.0,\, 0.5)$, $\Lambda \approx 15.8$). The $\alpha$ and $K_0$
+    marginals are wider than in \cref{fig:electron-posteriors},
+    reflecting the insensitivity discussed in
+    \cref{sec:bv-effects}. The formal potential $\theta_f$ remains
+  tightly constrained.}
   \label{fig:electron-posteriors-rev}
 \end{figure}
 
 \Cref{fig:electron-current-fit} shows the posterior-mean voltammogram
 and 95\% credible interval for both regimes. Despite the wide parameter
 posteriors in the reversible case, the credible interval on the current
-remains tight. This is the non-identifiability manifesting in
-observable space: many parameter combinations map to nearly the same
-voltammogram, so the forward map is locally insensitive even though the
-marginal parameter uncertainty is large.
+remains tight. This is consistent with \cref{fig:alpha-k0-parameter-effect-rev}:
+a wide range of $\alpha$ and $K_0$ values produce similar voltammograms
+in this regime, so the data cannot distinguish between them. An
+optimisation-based approach would return one viable configuration but
+would not reveal the range of parameter values consistent with the
+observed current. The posterior makes this ambiguity explicit.
 
 \begin{figure}[ht]
   \begin{center}
@@ -190,24 +202,44 @@ marginal parameter uncertainty is large.
 \end{figure}
 
 \subsection{Effective Sample Size}
-Any MCMC sampler produces serially correlated samples, so successive
-draws carry less information than independent ones. The \emph{effective
-sample size} (ESS)~\cite{gelman2013bayesian,geyer2011introduction}
-quantifies the number of independent draws equivalent to the correlated
-chain:
+Successive MCMC draws are generally correlated. Positive
+autocorrelation, which is typical of random-walk proposals, means that
+each draw carries less information than an independent sample. The
+\emph{effective sample size}
+(ESS)~\cite{gelman2013bayesian,geyer2011introduction} quantifies the
+number of independent draws equivalent to the correlated chain:
 \begin{equation}
   \mathrm{ESS} = \frac{T}{1 + 2\sum_{k=1}^{\infty} \rho_k},
   \label{eq:ess}
 \end{equation}
-where $T$ is the chain length and $\rho_k$ the autocorrelation at lag~$k$.
+where $T$ is the chain length and $\rho_k$ the autocorrelation at
+lag~$k$. When the autocorrelations are predominantly positive,
+$\mathrm{ESS} < T$. However, a sampler can also produce
+\emph{antithetic} (negatively autocorrelated) draws, in which case the
+denominator falls below one and $\mathrm{ESS}$ exceeds~$T$: the
+anticorrelated draws reduce the variance of posterior mean estimates
+below what independent sampling would
+achieve~\cite{stan2024reference,vehtari2021rank}. NUTS can exhibit this
+behaviour for parameters whose marginal posterior is close to Gaussian
+with weak dependence on other
+parameters~\cite{stan2024reference}.
 
 \Cref{fig:electron-ess} compares ESS growth over the sampling budget for
 NUTS and RWMH on a normalised sampling axis. NUTS accumulates
 effective samples at a higher rate across all three parameters.
 \Cref{tab:electron-ess} reports the final values: NUTS achieves
-$1.5$--$2.5\times$ the ESS of RWMH for all parameters. This
-advantage grows with parameter dimensionality, as we demonstrate in
-the following chapters.
+$1.5$--$2.4\times$ the ESS of RWMH for all parameters. For~$K_0$, the
+NUTS ESS exceeds the chain length ($2986.7 > 2400$), consistent with the
+antithetic behaviour described above; in the transformed space,
+$\log K_0$ has an approximately Gaussian marginal with weak dependence on
+the remaining parameters, as visible in
+\cref{fig:electron-posteriors}. As the dimension grows, a random
+proposal of fixed covariance is increasingly likely to land in a region
+of low posterior density. The proposal covariance must therefore shrink
+to maintain a reasonable acceptance rate, and each accepted proposal
+covers less of the parameter space. HMC avoids this by using the
+gradient to follow the contours of the posterior rather than stepping
+blindly. We quantify this scaling in the following chapters.
 
 \begin{table}[ht]
   \centering
@@ -221,7 +253,7 @@ the following chapters.
     \hline
   \end{tabular}
   \caption[ESS for the electron-transfer reaction]{Effective
-    sample size for each parameter at for 24000 RWMH samples and 2400
+    sample size for each parameter for 24000 RWMH samples and 2400
     NUTS samples, with
   NUTS/RWMH ratio.}
   \label{tab:electron-ess}

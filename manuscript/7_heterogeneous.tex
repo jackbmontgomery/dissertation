@@ -7,8 +7,8 @@ a first test of how the relative efficiency of NUTS and RWMH scales with
 dimension. Because the methodology has been established, we focus on
 what is new: the reaction scheme, the coupled PDE system, the reordering
 that yields a pentadiagonal linear system, and the inference results. A
-more detailed treatment of surface processes --- including explicit
-surface concentrations and adsorption/desorption kinetics --- is deferred
+more detailed treatment of surface processes -- including explicit
+surface concentrations and adsorption/desorption kinetics -- is deferred
 to \cref{ch:adsorption}.
 
 \section{Reaction Scheme}\label{sec:het-scheme}
@@ -56,8 +56,8 @@ constant $K_{\mathrm{het}}$, the parameter vector is
 Under the equal-diffusion assumption ($d_j = 1$), each species satisfies
 the dimensionless diffusion equation~\cref{eq:nd_diffusion}. Unlike the
 single-electron case, the heterogeneous step breaks stoichiometric
-conservation at the surface --- $\mathrm{B}$ is consumed both by
-oxidation to~$\mathrm{A}$ and by conversion to~$\mathrm{C}$ --- so the
+conservation at the surface -- $\mathrm{B}$ is consumed both by
+oxidation to~$\mathrm{A}$ and by conversion to~$\mathrm{C}$ -- so the
 system cannot be reduced to a single PDE and all four equations must be
 solved.
 
@@ -147,7 +147,7 @@ $K_0^{(i)} \mapsto \log K_0^{(i)}$, $K_{\mathrm{het}} \mapsto \log
 K_{\mathrm{het}}$, with $\theta_f^{(i)}$ untransformed. Synthetic data
 are generated at $\phi^* = (0.5,\, 15.0,\, 0.2,\, 0.5,\, 6.0,\, 0.4,\,
 25.0)$ with $\sigma = 1000$ and $\eta = 0.02$. Under equal runtime
-budgets this gives $2{,}000$ NUTS samples and $32{,}000$ RWMH samples.
+budgets this gives $2{,}800$ NUTS samples and $40{,}000$ RWMH samples.
 
 \section{Results}\label{sec:het-results}
 
@@ -191,12 +191,21 @@ the rate of the first electron transfer can be offset by a decrease in
 the second, since both contribute additively to the measured current
 in~\cref{eq:het-current}.
 
+The $K_{\mathrm{het}}$ marginal has a width comparable to that of
+$K_0^{(2)}$ (approximately $0.5$ units), despite its larger value
+($K_{\mathrm{het}} = 25$ vs $K_0^{(2)} = 6$). By contrast, $K_0^{(1)}$
+has a width of approximately $5$ units around its true value of $15$.
+The heterogeneous rate constant thus remains identifiable even at large
+values, reflecting the distinct signature of the chemical step in the
+current.
+
 \begin{figure}[ht]
   \centering
   \includegraphics[width=0.95\textwidth]{figures/7-corner.png}
   \caption[Selected pairwise posteriors for the heterogeneous
-  reaction]{Selected pairwise marginal posteriors. Diagonal: NUTS (blue)
-    and RWMH (orange) marginal histograms. Off-diagonal: NUTS KDE
+  reaction]{Selected pairwise marginal posteriors. Diagonal:
+    Hisograms of NUTS (blue) with $2{,}800$ samples
+    and RWMH (orange) with $40{,}000$ samples. Off-diagonal: NUTS KDE
     contours. Dashed lines indicate true values. Formal potentials
   omitted for clarity.}
   \label{fig:het-corner}
@@ -206,9 +215,12 @@ in~\cref{eq:het-current}.
 
 \Cref{fig:het-ess} compares ESS growth for NUTS and RWMH on a normalised
 cost axis. \Cref{tab:het-ess} reports the final values: NUTS achieves
-roughly $3\times$ the ESS of RWMH across all seven parameters. Compared
-with the three-parameter case (\cref{sec:hmc-results}), the NUTS
-advantage has grown, consistent with the dimension story.
+$2.7$--$3.6\times$ the ESS of RWMH across all seven parameters,
+up from $1.5$--$2.4\times$ in the three-parameter case. The widening
+gap is consistent with the scaling discussed in
+\cref{sec:hmc-results}: in seven dimensions the RWMH proposal must
+shrink further to maintain its acceptance rate, while NUTS continues
+to take gradient-informed steps of comparable length.
 
 \begin{table}[ht]
   \centering
@@ -224,7 +236,7 @@ advantage has grown, consistent with the dimension story.
     \hline
   \end{tabular}
   \caption[ESS for the heterogeneous reaction]{Effective sample size for
-  each parameter at equal computational budget, with NUTS/RWMH ratio.}
+  each parameter at equal runtime budget, with NUTS/RWMH ratio.}
   \label{tab:het-ess}
 \end{table}
 
@@ -279,9 +291,14 @@ where the Butler--Volmer kinetics are most sensitive to potential changes.
 
 \Cref{fig:ac-dc-comparison} overlays the marginal posteriors from DC and
 AC data using NUTS. The AC posteriors are narrower for all parameters,
-consistent with Gavaghan et~al.~\cite{gavaghan2018bayesian}: the
-oscillatory current carries kinetic information absent from the DC
-waveform.
+with modes more closely aligned with the true values, consistent with
+Gavaghan et~al.~\cite{gavaghan2018bayesian}. The oscillatory
+perturbation probes the electrode kinetics at the frequency~$f$, a
+timescale independent of the DC sweep rate~$\sigma$, providing
+additional constraint on the rate constants and transfer coefficients.
+The DC posteriors are adequate for describing the current, as the
+results of \cref{sec:het-posteriors} confirm, but the AC data
+tighten them further.
 
 \begin{figure}[ht]
   \centering

@@ -45,7 +45,7 @@ def main(
         optimisation_experiment(
             reaction,
             fd_solver,
-            budget=400,
+            budget=450,
             num_params=32,
             noise_percentage=noise,
             cmaes_params=cmaes_param,
@@ -65,7 +65,7 @@ def main(
         optimisation_experiment(
             reaction,
             fd_solver,
-            budget=400,
+            budget=500,
             num_params=32,
             noise_percentage=noise,
             cmaes_params=cmaes_param,

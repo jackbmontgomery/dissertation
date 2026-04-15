@@ -1,6 +1,6 @@
 \chapter{Bayesian Approach to the Inverse Problem}\label{ch:bayesian}
 
-The parameter correlations and non-identifiability discussed in
+The parameter correlations and negligible impact of parameters discussed in
 \cref{sec:bv-effects} make the inverse problem ill-posed: a unique,
 stable solution may not exist. We therefore take a Bayesian approach and
 seek probability distributions over the parameters rather than point
@@ -122,7 +122,7 @@ of the parameter space.
 \end{figure}
 
 The histograms exhibit extended tails whose origin is visible in
-\cref{fig:rwmh-burn-in}: the chain was initialised far from the
+\cref{fig:rwmh-burn-in}. This is because the chain was initialised far from the
 high-density region and spends many iterations traversing low-probability
 areas before settling near the true values. Typically, these initial samples are
 discarded as \emph{burn-in}. But since each likelihood evaluation requires a
@@ -131,7 +131,7 @@ computation.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.8\textwidth]{figures/4-rwmh-scatter.png}
+  \includegraphics[width=0.7\textwidth]{figures/4-rwmh-scatter.png}
   \caption[RWMH chain burn-in in the $(\alpha, K_0)$ plane]{Scatter
     plot of the RWMH chain projected onto the
     $(\alpha,\, K_0)$ plane. Points are coloured by sample index: early
@@ -141,9 +141,9 @@ computation.
   \label{fig:rwmh-burn-in}
 \end{figure}
 
-A gradient-based optimiser could locate the posterior mode and initialise
-the chain there, eliminating burn-in. Beyond initialisation, gradient
-information can also be incorporated into the MCMC proposal itself,
-yielding samplers that explore the posterior more efficiently than the
+A natural remedy is to locate the posterior mode by
+optimisation before sampling begins. More ambitiously, gradient
+information can be incorporated into the MCMC proposal itself, yielding
+samplers that explore the posterior geometry more efficiently than the
 random walk. Both ideas require differentiating through the forward
 map~$\mathcal{P}$, which we develop in the following chapter.

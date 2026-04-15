@@ -19,9 +19,15 @@ in~\cref{eq:kred_kox}.
 
 \section{Discretisation}\label{sec:discretisation}
 
-Time is discretised uniformly into $m$ steps of size $\Delta T =
-T_{\max}/m$, with $T_{\max} = 2|\theta_v - \theta_i|/\sigma$ for a
-cyclic voltammogram sweeping from $\theta_i$ to $\theta_v$ and back.
+Time is discretised uniformly into $m$ steps of size $\Delta T$.
+Rather than specifying $\Delta T$ directly, we fix the potential
+increment $\Delta\theta$ per timestep. Since $\theta = \sigma T$, this
+gives $\Delta T = \Delta\theta / \sigma$ and a total of
+$m = 2|\theta_v - \theta_i|/\Delta\theta$ timesteps for a cyclic
+voltammetry experiment.
+Parametrising by $\Delta\theta$ keeps $m$ independent of the scan rate,
+so the temporal accuracy of the simulation is
+preserved when $\sigma$ is varied~\cite{compton2014understanding}.
 
 The concentration gradient is steep near the electrode and negligible in
 the bulk, so we use an exponentially expanding spatial mesh with initial
@@ -36,7 +42,7 @@ $\{X_0, \ldots, X_{n-1}\}$ are defined by
   \label{eq:spatial_grid}
 \end{equation}
 with $X_0 = 0$ at the electrode surface and local spacings $\Delta X_+ =
-X_{i+1} - X_i$, $\Delta X_- = X_i - X_{i-1}$.
+X_{i+1} - X_i$, $\Delta X_- = X_i - X_{i-1}$. We fix $\omega = 1.1$ throughout.
 
 The discretisation parameters were selected by refinement against a
 reference solution computed on a fine mesh ($h_0 = 10^{-10}$,
@@ -48,8 +54,7 @@ Euler scheme and becomes significant for $\Delta\theta > 0.05$. We adopt
 $h_0 = 10^{-6}$ and $\Delta\theta = 0.01$ throughout, which places the
 solution well within the converged regime at acceptable runtime. The same
 methodology was applied to determine the discretisation for the
-heterogeneous (\cref{ch:heterogeneous}) and adsorption
-(\cref{ch:adsorption}) solvers, with comparable results.
+heterogeneous and adsorption solvers, with comparable results.
 
 \section{Finite Difference Scheme}\label{sec:fd-scheme}
 
@@ -168,8 +173,8 @@ which is characterised by the dimensionless ratio
   \Lambda = \frac{K_0}{\sqrt{\sigma}}.
   \label{eq:lambda_regime}
 \end{equation}
-When $\Lambda \gg 1$ the reaction is reversible (electron transfer is
-fast relative to diffusion); when $\Lambda \ll 1$ it is irreversible.
+When $\Lambda \gg 1$ the reaction is reversible and the electron transfer is
+fast relative to diffusion; when $\Lambda \ll 1$ it is irreversible.
 The intermediate quasi-reversible regime, where both kinetics and
 diffusion influence the voltammogram, is the most informative for
 parameter estimation.
@@ -205,20 +210,17 @@ The problem is compounded in the reversible regime.
 \Cref{fig:alpha-k0-parameter-effect-rev} shows that at $K_0 = 200$
 the voltammograms for $\alpha = 0.3, \, 0.5, \, 0.7$ are nearly
 indistinguishable, and similarly for $K_0 = 200, \, 500, \, 1000$.
-Both $\alpha$ and $K_0$ become practically non-identifiable once
-electron transfer is no longer rate-limiting. The combination of
-parameter correlations in the quasi-reversible regime and
-non-identifiability in the reversible regime motivates a
+The combination of parameter correlations in the quasi-reversible
+regime and negligible impact in the reversible regime motivates a
 probabilistic treatment that can quantify these uncertainties and
 reveal the correlation structure. We develop this in the next chapter.
-
 \begin{figure}[ht]
   \begin{center}
     \includegraphics[width=0.8\textwidth]{figures/3-alpha-K0-effect-reversible.png}
   \end{center}
-  \caption[Non-identifiability of the transfer coefficient and rate
-    constant in the
-  reversible regime]{Left: effect of $\alpha$ in the reversible regime
+  \caption[Negligible impact of the transfer coefficient and rate
+  constant in the reversible regime]{Left: effect of $\alpha$ in the
+    reversible regime
     ($K_0 = 200$); the three curves are nearly indistinguishable.
     Right: effect of $K_0$ for values well into the reversible regime;
   again the voltammograms overlap.}

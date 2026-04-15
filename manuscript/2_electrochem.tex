@@ -34,7 +34,7 @@ corresponds to net reduction (cathodic current).
 
 Voltammetry is the class of techniques in which the potential applied to
 the working electrode is varied and the resulting current recorded. The
-current--potential curve -- called a \emph{voltammogram} -- encodes
+current--potential curve, called a \emph{voltammogram}, encodes
 information about both the reaction kinetics and the transport of species
 in solution.
 
@@ -52,11 +52,11 @@ sweep the driving force for reduction is small and negligible current
 flows. As the potential moves to more negative values the current
 increases: the system is under \emph{kinetic control}, with the rate of
 electron transfer as the limiting step. Eventually species $\mathrm{A}$ near the
-electrode is depleted and the current peaks. Beyond this point the current
-decays -- despite the applied potential still increasing  -- as the system
-passes into \emph{diffusional control}: diffusive
-transport of fresh $\mathrm{A}$ to the surface becomes the limiting
-factor.
+electrode is depleted and the current peaks. Beyond this point the
+current decreases despite the applied potential increasing.
+This is due to the system passing into \emph{diffusional control}:
+diffusive transport of fresh $\mathrm{A}$ to the surface becomes the
+limiting factor.
 
 \begin{figure}
   \begin{center}
@@ -64,7 +64,7 @@ factor.
   \end{center}
   \caption[Applied potential and voltammogram]{Left: the triangular
     potential waveform applied in a cyclic voltammetry experiment. Right:
-    the resulting voltammogram for a reversible reaction, showing the cathodic
+    the resulting voltammogram, showing the cathodic
     (reduction) peak on the forward sweep and the anodic
   (oxidation) peak on the reverse sweep.}
   \label{fig:potential-voltammogram}
@@ -83,10 +83,11 @@ each choice is given when the mechanism is introduced.
 
 \section{Mathematical Description}
 
-We consider a planar disc electrode of radius~$r_e$ much larger than the
-diffusion length on the experimental timescale. Edge effects are then
-negligible and the problem reduces to one spatial dimension
-(\cref{fig:electrode-reaction}).
+We consider a planar disc electrode of radius~$r_e$: much larger than the
+diffusion length on the experimental timescale. This is the
+``macro-electrode'' assumption and it allows us to only model the
+diffusion perpendicular to the surface of the electrode. This reduces
+the problem to one spacial dimension. (\cref{fig:electrode-reaction}).
 
 \begin{figure}
   \centering
@@ -97,13 +98,13 @@ negligible and the problem reduces to one spatial dimension
     surface, where it is reduced ($+e^-$) to form species $\mathrm{B}$.
     The reverse oxidation ($-e^-$) converts $\mathrm{B}$ back to
     $\mathrm{A}$. Species $\mathrm{B}$ diffuses away from the electrode
-  into the bulk.}
+  into the bulk. Each processes also happens in reverse.}
   \label{fig:electrode-reaction}
 \end{figure}
 
 \subsection{Diffusion}\label{sec:diffusion}
 
-Transport in quiescent solution is governed by Fick's second
+Transport in unstirred solution is governed by Fick's second
 law~\cite{crank1979mathematics}:
 \begin{equation}
   \frac{\partial c_j}{\partial t}
@@ -140,9 +141,9 @@ absolute temperature. The overpotential $E(t) - E^0_f$ measures the
 deviation of the applied potential from the formal potential: a negative
 overpotential enhances the reduction (first) term, a positive one enhances
 the oxidation (second) term. When $k_0$ is large the surface
-concentrations are forced towards thermodynamic equilibrium (reversible
-behaviour); when $k_0$ is small the flux is proportional to $k_0$
-(irreversible behaviour).
+concentrations are forced towards thermodynamic equilibrium; when
+$k_0$ is small the flux is proportional to $k_0$. These are two
+different kinetic reigimes which are discussed further in \cref{sec:bv-effects}.
 
 Combining \cref{eq:ficks-first,eq:butler-volmer} at $x = 0$ gives a
 Neumann boundary condition:

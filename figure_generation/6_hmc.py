@@ -7,8 +7,10 @@ import jax.numpy as jnp
 import jax.random as jr
 import jax.tree_util as jtu
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 from jax import jit, vmap
+from matplotlib.lines import Line2D
 
 from src.diagnostics import ess_over_time
 from src.fdm import ElectronReactionFDSolver
@@ -24,41 +26,90 @@ sns.set_context("paper", font_scale=2.0)
 
 dir = "./data/sampling/"
 file = "reaction=ElectronReaction,noise=0.02,seed=0.pkl.gz"
-
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
-
 nuts_quasi: ElectronReactionParams = data["nuts"]
 rwmh_quasi: ElectronReactionParams = data["rwmh"]
-
 true_params_quasi = ElectronReaction().true_parameters
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 4))
-options = {"bins": 50, "density": True, "histtype": "step", "linewidth": 1}
+params = {
+    r"$\alpha$": ("alpha", true_params_quasi.alpha),
+    r"$K_0$": ("K0", true_params_quasi.K0),
+    r"$\theta_f$": ("thetaf", true_params_quasi.thetaf),
+}
 
-ax1.set_title(r"$\alpha$")
-ax1.hist(nuts_quasi.alpha.flatten(), label="NUTS", **options)
-ax1.hist(rwmh_quasi.alpha.flatten(), label="RWMH", **options)
-ax1.axvline(
-    x=true_params_quasi.alpha, linestyle="--", color="black", label="True Value"
+
+def make_df(samples, sampler_name):
+    d = {}
+    for label, (attr, _) in params.items():
+        d[label] = getattr(samples, attr).flatten()
+    d["Sampler"] = sampler_name
+    return pd.DataFrame(d)
+
+
+df = pd.concat(
+    [make_df(nuts_quasi, "NUTS"), make_df(rwmh_quasi, "RWMH")], ignore_index=True
 )
-ax1.set_ylabel("Density")
+vars_list = list(params.keys())
+df_nuts = df[df["Sampler"] == "NUTS"]
 
-ax2.set_title(r"$K_0$")
-ax2.hist(nuts_quasi.K0.flatten(), **options)
-ax2.hist(rwmh_quasi.K0.flatten(), **options)
-ax2.axvline(x=true_params_quasi.K0, linestyle="--", color="black")
+g = sns.PairGrid(
+    df,
+    vars=vars_list,
+    hue="Sampler",
+    palette={"NUTS": "C0", "RWMH": "C1"},
+    corner=True,
+    diag_sharey=False,
+)
+g.map_diag(
+    sns.histplot,
+    stat="density",
+    bins=50,
+    alpha=0.8,
+    element="step",
+    fill=False,
+    linewidth=1.2,
+    common_norm=False,
+)
 
-ax3.set_title(r"$\theta_f$")
-ax3.hist(nuts_quasi.thetaf.flatten(), **options)
-ax3.hist(rwmh_quasi.thetaf.flatten(), **options)
-ax3.axvline(x=true_params_quasi.thetaf, linestyle="--", color="black")
+for i in range(len(vars_list)):
+    for j in range(i):
+        ax = g.axes[i, j]
+        sns.kdeplot(
+            x=df_nuts[vars_list[j]],
+            y=df_nuts[vars_list[i]],
+            ax=ax,
+            thresh=0.05,
+            fill=False,
+            linewidths=1.2,
+            color="C0",
+        )
 
-handles, labels = ax1.get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower center", ncol=3)
-plt.tight_layout(rect=(0, 0.1, 1, 1))
-plt.savefig("./manuscript/figures/6-hmc-hist.png", dpi=1000)
+for i, label in enumerate(vars_list):
+    ax = g.axes[i, i]
+    _, true_val = params[label]
+    ax.axvline(x=true_val, linestyle="--", color="black", linewidth=1.0)
+
+for i in range(len(vars_list)):
+    for j in range(i):
+        ax = g.axes[i, j]
+        _, true_y = params[vars_list[i]]
+        _, true_x = params[vars_list[j]]
+        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
+        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
+
+handles = [
+    Line2D([0], [0], color="C0", linewidth=1.2, label="NUTS"),
+    Line2D([0], [0], color="C1", linewidth=1.2, label="RWMH"),
+]
+
+g.figure.legend(handles=handles, title="Sampler", loc="upper right", frameon=True)
+g.figure.set_size_inches(8, 8)
+plt.tight_layout()
+plt.savefig("./manuscript/figures/6-corner-quasi.png", dpi=1000)
 plt.show()
+
+# %%
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 4), sharex=True, sharey=True)
 num_points = 20
@@ -108,38 +159,86 @@ print(
 
 dir = "./data/sampling/"
 file = "reaction=ElectronReaction,noise=0.02,seed=1.pkl.gz"
-
 with gzip.open(f"{dir}/{file}", "rb") as f:
     data = pickle.load(f)
-
 nuts_rev: ElectronReactionParams = data["nuts"]
 rwmh_rev: ElectronReactionParams = data["rwmh"]
-
 true_params_rev = ReversibleElectronReaction().true_parameters
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 4))
-options = {"bins": 50, "density": True, "histtype": "step", "linewidth": 1}
+params = {
+    r"$\alpha$": ("alpha", true_params_rev.alpha),
+    r"$K_0$": ("K0", true_params_rev.K0),
+    r"$\theta_f$": ("thetaf", true_params_rev.thetaf),
+}
 
-ax1.set_title(r"$\alpha$")
-ax1.hist(nuts_rev.alpha.flatten(), label="NUTS", **options)
-ax1.hist(rwmh_rev.alpha.flatten(), label="RWMH", **options)
-ax1.axvline(x=true_params_rev.alpha, linestyle="--", color="black", label="True Value")
-ax1.set_ylabel("Density")
 
-ax2.set_title(r"$K_0$")
-ax2.hist(nuts_rev.K0.flatten(), **options)
-ax2.hist(rwmh_rev.K0.flatten(), **options)
-ax2.axvline(x=true_params_rev.K0, linestyle="--", color="black")
+def make_df(samples, sampler_name):
+    d = {}
+    for label, (attr, _) in params.items():
+        d[label] = getattr(samples, attr).flatten()
+    d["Sampler"] = sampler_name
+    return pd.DataFrame(d)
 
-ax3.set_title(r"$\theta_f$")
-ax3.hist(nuts_rev.thetaf.flatten(), **options)
-ax3.hist(rwmh_rev.thetaf.flatten(), **options)
-ax3.axvline(x=true_params_rev.thetaf, linestyle="--", color="black")
 
-handles, labels = ax1.get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower center", ncol=3)
-plt.tight_layout(rect=(0, 0.1, 1, 1))
-plt.savefig("./manuscript/figures/6-hmc-hist-rev.png", dpi=1000)
+df = pd.concat(
+    [make_df(nuts_rev, "NUTS"), make_df(rwmh_rev, "RWMH")], ignore_index=True
+)
+vars_list = list(params.keys())
+df_nuts = df[df["Sampler"] == "NUTS"]
+
+g = sns.PairGrid(
+    df,
+    vars=vars_list,
+    hue="Sampler",
+    palette={"NUTS": "C0", "RWMH": "C1"},
+    corner=True,
+    diag_sharey=False,
+)
+g.map_diag(
+    sns.histplot,
+    stat="density",
+    bins=50,
+    alpha=0.8,
+    element="step",
+    fill=False,
+    linewidth=1.2,
+    common_norm=False,
+)
+
+for i in range(len(vars_list)):
+    for j in range(i):
+        ax = g.axes[i, j]
+        sns.kdeplot(
+            x=df_nuts[vars_list[j]],
+            y=df_nuts[vars_list[i]],
+            ax=ax,
+            thresh=0.05,
+            fill=False,
+            linewidths=1.2,
+            color="C0",
+        )
+
+for i, label in enumerate(vars_list):
+    ax = g.axes[i, i]
+    _, true_val = params[label]
+    ax.axvline(x=true_val, linestyle="--", color="black", linewidth=1.0)
+
+for i in range(len(vars_list)):
+    for j in range(i):
+        ax = g.axes[i, j]
+        _, true_y = params[vars_list[i]]
+        _, true_x = params[vars_list[j]]
+        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
+        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
+
+handles = [
+    Line2D([0], [0], color="C0", linewidth=1.2, label="NUTS"),
+    Line2D([0], [0], color="C1", linewidth=1.2, label="RWMH"),
+]
+g.figure.legend(handles=handles, title="Sampler", loc="upper right", frameon=True)
+g.figure.set_size_inches(8, 8)
+plt.tight_layout()
+plt.savefig("./manuscript/figures/6-corner-rev.png", dpi=1000)
 plt.show()
 
 # %% Current fits

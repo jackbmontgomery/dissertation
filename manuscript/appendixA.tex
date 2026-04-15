@@ -1,0 +1,35 @@
+\chapter{Optimisation Results}\label{ch:appendix-optim}
+
+\begin{figure}[ht]
+  \begin{center}
+    \includegraphics[width=0.5\textwidth]{figures/7-optim.png}
+  \end{center}
+  \caption[ADAM vs CMA-ES for the heterogeneous reaction]{Log-posterior
+    density during optimisation for ADAM and CMA-ES (population
+    size~$9$) on the seven-parameter heterogeneous reaction at noise
+    level $\eta = 0.02$. Each algorithm is run from $32$~randomly drawn
+    initial conditions; solid lines show the mean and shaded regions
+    indicate $\pm 1$ standard deviation across runs. The black dashed
+    line marks two times the log-density evaluated at the true
+    parameters~$\phi^*$. Both algorithms are given equal total
+    computational budgets measured in forward-solve equivalents. 225
+  steps for ADAM and 50 iterations for CMA-ES.}
+  \label{fig:het-optim}
+\end{figure}
+
+\begin{figure}[ht]
+  \begin{center}
+    \includegraphics[width=0.5\textwidth]{figures/8-optim.png}
+  \end{center}
+  \caption[ADAM vs CMA-ES for the adsorption reaction]{Log-posterior
+    density during optimisation for ADAM and CMA-ES (population
+    size~$10$) on the nine-parameter adsorption reaction at noise level
+    $\eta = 0.02$. Each algorithm is run from $32$~randomly drawn
+    initial conditions; solid lines show the mean and shaded regions
+    indicate $\pm 1$ standard deviation across runs. The black dashed
+    line marks two times the log-density evaluated at the true
+    parameters~$\phi^*$. Both algorithms are given equal total
+    computational budgets measured in forward-solve equivalents. 250
+  steps for ADAM and 50 iterations for CMA-ES.}
+  \label{fig:ads-optim}
+\end{figure}

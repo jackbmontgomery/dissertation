@@ -1,3 +1,5 @@
+import math
+
 main = 2
 dedication = 16
 abstract = 129
@@ -26,3 +28,8 @@ sum = (
     + conclusion
 )
 print(sum)
+
+K0 = 500.0
+sigma = 1000.0
+
+print(K0 / math.sqrt(sigma))

@@ -30,22 +30,27 @@ computation is $f = f_L \circ \cdots \circ f_1$, the chain rule gives
   = J_{f_L}\, J_{f_{L-1}} \cdots J_{f_1},
   \label{eq:chain-rule}
 \end{equation}
-which reverse mode evaluates from left to right, multiplying the adjoint
-(cotangent) vector by each Jacobian in turn without forming the
-intermediate matrices explicitly. The dominant primitives in
+which reverse mode evaluates from left to right, multiplying the
+cotangent vector by each Jacobian in turn without forming the
+intermediate matrices explicitly. The dominant operation in
 $\mathcal{P}$ are the $m$ tridiagonal solves, so the central question is
 how to implement the VJP of a single solve $Ax = b$.
 
 A generic AD framework will tape every intermediate scalar of the Thomas
 algorithm -- elimination multipliers, modified diagonals, partial sums
--- and replay them in reverse. Since the tape must be retained across
-all $m$ timesteps, the total memory scales as $O(mn)$ with a large
-per-timestep constant, and the overhead of maintaining and traversing
-the tape degrades runtime even when memory is not the binding constraint.
+-- and replay them in reverse. The overhead of maintaining and
+traversing the tape within the linear solve can degrade runtime
+performance significantly.
 
 \section{Adjoint of the Tridiagonal Solve}\label{sec:adjoint-solve}
 
-We avoid taping by exploiting the structure of the linear solve.
+We avoid taping by exploiting the structure of the linear solve. Given
+the forward system $Ax = b$ and a scalar loss $\ell$, the
+task is to express the adjoints $\bar{b} = \partial \ell / \partial b$
+and $\bar{A} = \partial \ell / \partial A$ in terms of the incoming
+cotangent $\bar{x} = \partial \ell / \partial x$, without accessing the
+internals of the factorisation.
+
 Suppose the forward pass solves $Ax = b$ and the backward pass receives
 the adjoint $\bar{x} = \partial \ell / \partial x$. The adjoint with
 respect to $b$ is
@@ -80,12 +85,16 @@ system~\cref{eq:adjoint-system} is solved by the Thomas algorithm at the
 same $O(n)$ cost as the forward solve. Only the matrix $A$ diagonals and the
 forward solution $x$ need to be cached per timestep -- four arrays of
 length $n$, rather than the full tape of Thomas algorithm intermediates.
+The asymptotic complexity of the backward pass is unchanged: both
+na\"ive taping and the adjoint require $O(mn)$ work, since each of the
+$m$ timesteps needs one $O(n)$ backward solve. The gain is in the memory
+constant and in eliminating tape-traversal overhead.
 
 In practice we define a custom VJP rule in
 JAX~\cite{jax2018github}: the forward pass solves $Ax = b$ and caches
 $A$ and $x$; the backward pass solves $A^T \lambda = \bar{x}$ and
-returns $\bar{b} = \lambda^T$ and $\bar{A} = -\lambda\, x^T$. No taping
-of the Thomas algorithm's internal operations is required.
+returns $\bar{b} = \lambda^T$ and $\bar{A} = -\lambda\, x^T$. An
+implementation of this is included in \cref{ch:appendix-adjoint}.
 
 \subsection{Full Backward Pass}\label{sec:full-backward}
 
@@ -106,27 +115,30 @@ per timestep.
 \section{Extension to Pentadiagonal Systems}\label{sec:pentadiagonal}
 
 The adjoint generalises directly to pentadiagonal systems: the transpose
-of a pentadiagonal matrix is again pentadiagonal, so the adjoint system
+of such a matrix retains the same band structure, so the adjoint system
 is solved at the same $O(n)$ cost per timestep. The saving over na\"ive
-taping grows with bandwidth, since a pentadiagonal factorisation produces
-more intermediates. We exploit this in
+taping grows with bandwidth, since a wider factorisation produces more
+intermediates. We exploit this in
 \cref{ch:heterogeneous,ch:adsorption}, where coupled multi-species
-reactions lead to pentadiagonal structure.
+reactions lead to pentadiagonal structure. Without the custom adjoint,
+the memory and runtime overhead of taping the larger factorisation would
+make gradient-based inference on these systems impractical.
 
 \section{Optimisation Results}\label{sec:init-results}
 
-We now use the adjoint gradient to locate the posterior mode before
-sampling, eliminating the burn-in waste observed in
-\cref{sec:sampling-results}. We compare the gradient-based ADAM
-optimiser~\cite{kingma2014adam,deepmind2020jax} against
+We now use the adjoint gradient to locate the posterior mode and
+compare the gradient-based ADAM
+optimiser~\cite{deepmind2020jax,kingma2014adam} against
 CMA-ES~\cite{hansen2001evolution,evosax2022github},
 a gradient-free evolutionary strategy that adapts a population covariance
-over generations. A single ADAM step (one forward and one adjoint solve)
-costs approximately two forward-solve equivalents; one CMA-ES generation
-costs $\lambda = 4 + \lfloor 3 \times \ln d\rfloor = 7$
-\cite{hansen2001evolution}
-forward solves. We equalise the total budget in forward-solve
-equivalents so that both algorithms consume the same runtime.
+over generations used in Gavaghan et~al.~~\cite{gavaghan2018bayesian}.
+A single ADAM step requires one forward and one adjoint
+solve, costing approximately two forward-solve equivalents. We use
+the recommended CMA-ES population size of $\lambda = 4 + \lfloor 3
+\ln d\rfloor = 7$~\cite{hansen2001evolution}, requiring $\lambda$
+forward solves per generation. We equalise the total budget in
+forward-solve equivalents so that both methods consume the same
+runtime.
 
 \Cref{fig:electron-optim} shows the log-posterior density over the
 course of optimisation at two noise levels ($\eta = 0.01$ and
@@ -137,12 +149,10 @@ forward-solve equivalents and with lower variance across initialisations:
 at $\eta = 0.02$, all $32$ runs are within $5\%$ of the modal
 log-density by iteration $100$. Once ADAM reaches the mode it remains
 stable, making it a suitable initialisation strategy for the MCMC
-samplers. The difference between the performance of these
-optimisation methods is not important in this problem -- we could use
-CMA-ES to initialise the chains and obtain similar results -- but
-this is not true when we increase the complexity of the problems. As
-we will see in \cref{ch:heterogeneous,ch:adsorption}, the gradient
-based optimisation becomes crucial to finding posterior modes efficiently.
+samplers. In three dimensions both methods locate the mode reliably, so
+the gradient advantage is marginal: CMA-ES with $\lambda = 7$ could
+initialise the chains with comparable results. The distinction becomes
+important in higher dimensions as shown in \cref{ch:appendix-optim}.
 
 \begin{figure}[ht]
   \begin{center}

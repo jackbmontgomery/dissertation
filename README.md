@@ -30,25 +30,17 @@ repeating exposition.
 
 ## Notes
 
-- Mention how we determined the discritisation in space and time for the
-  numerics and then say we applied the same methodology throughout.
-- I speak about runtime, I think I should note somewhere that this is just a CPU
-  runtime.
-- I must make it clear that the custom adjoint method is not changing the
-  asympototic complexity class of the gradient computation. Only the memory cost
-  which significantly helps in the performance.
+- No parameter was non-identifiability so we need to remove that everywhere
 
 ---
 
-## Abstract: (texcount: 129 -- aim for 100)
-
-## Chapter 1: Introduction (texcount: 695 -- aim for 750)
+## Chapter 1: Introduction
 
 **Purpose:** Frame the problem, motivate each methodological layer, state what
 was achieved. No numerical results -- each chapter presents its own.
 
 **Arc:** Inverse problem (recover parameters from noisy current) -> forward
-problem well understood, inverse is ill-posed (correlations, non-identifiability
+problem well understood, inverse is ill-posed (correlations, small influences
 depending on scan rate/kinetic regime) -> point estimates insufficient, need
 full posterior -> MCMC expensive, gradients via adjoint accelerate both
 initialisation and sampling -> demonstrated on electron transfer (3 params),
@@ -67,7 +59,7 @@ complete.
 
 ---
 
-## Chapter 2: Electrochemical Systems (texcount: 800 -- aim for 1000)
+## Chapter 2: Electrochemical Systems
 
 **Job:** Teach the markers the electrochemistry. Only chapter that does this.
 
@@ -84,7 +76,7 @@ complete.
 
 ---
 
-## Chapter 3: Numerical Methods (texcount: 605 -- aim for 600)
+## Chapter 3: Numerical Methods
 
 **Job:** Discretise the forward problem, verify it, then show why inference is
 hard.
@@ -110,7 +102,7 @@ correlated/degenerate -> Ch 4
 
 ---
 
-## Chapter 4: Bayesian Approach (texcount: 419 -- aim for 600)
+## Chapter 4: Bayesian Approach
 
 **Job:** Frame the inverse problem probabilistically, run RWMH, show it works
 but wastes computation on burn-in.
@@ -137,7 +129,7 @@ Gilks (1997), Morris (2013)
 
 ---
 
-## Chapter 5: Differentiating Through the Forward Solver (texcount: 714 -- aim for 600)
+## Chapter 5: Differentiating Through the Forward Solver
 
 **Job:** Core technical contribution. Efficient grad(l) via adjoint of the
 tridiagonal solve.
@@ -161,7 +153,7 @@ demonstrate via optimisation -> Ch 6
 
 ---
 
-## Chapter 6: Hamiltonian Monte Carlo (texcount: 773 -- aim for 600)
+## Chapter 6: Hamiltonian Monte Carlo
 
 **Job:** Introduce HMC/NUTS, describe the full inference workflow, show it
 outperforms RWMH.
@@ -180,7 +172,7 @@ outperforms RWMH.
 - **Results:** posteriors overlaid with RWMH. Simulated current from posterior
   means. ESS -- NUTS wins.
 
-**Note:** Non-identifiability of alpha in reversible regime (from Ch 3) -- show
+**Note:** Neglidible influence of alpha in reversible regime (from Ch 3) -- show
 how the posterior handles this if space permits, otherwise note as further work.
 
 **Arc:** HMC theory -> transformation -> workflow -> results -> NUTS wins ->
@@ -191,7 +183,7 @@ Gelman Roberts & Gilks (1997)
 
 ---
 
-## Chapter 7: Heterogeneous Reaction (texcount: 862 -- aim for 1250)
+## Chapter 7: Heterogeneous Reaction
 
 **Job:** First application to a harder system. Concise -- no re-exposition.
 
@@ -217,7 +209,7 @@ widens 3->7). Current fit. AC vs DC posterior comparison.
 
 ---
 
-## Chapter 8: Adsorption Reaction (texcount: 1225 -- aim for 1250)
+## Chapter 8: Adsorption Reaction
 
 **Job:** Most complex system. Novelty is nonlinear coupling and AD compatibility
 argument.
@@ -242,7 +234,7 @@ ESS (largest gap -- dimension story completes). Current fit.
 
 ---
 
-## Chapter 9: Conclusions (texcoutn: 584 -- aim for 600)
+## Chapter 9: Conclusions
 
 **Job:** Brief summary, substantive further work, connect back to introduction.
 

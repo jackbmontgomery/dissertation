@@ -49,7 +49,7 @@ params_2 = HeterogenousReactionParams(
 
 max_current = -0.496 * jnp.sqrt(params_1.alpha_1) * jnp.sqrt(voltammetry.sigma)
 plt.axhline(y=max_current, c="C3", linestyle="--", label="Analytical")
-plt.axhline(y=2 * max_current, c="C3", linestyle="--", label="Analytical")
+plt.axhline(y=2 * max_current, c="C3", linestyle="--")
 
 max_current_position = (
     jnp.log(params_1.K0_1 / jnp.sqrt(params_1.alpha_1 * voltammetry.sigma)) - 0.78
@@ -61,11 +61,12 @@ current_2 = fd_solver.solve(params_2)
 
 plt.xlabel(r"$\theta$")
 plt.ylabel(r"$J$")
-plt.plot(fd_solver.applied_potentials, current_1)
-plt.plot(fd_solver.applied_potentials, current_2)
+plt.plot(fd_solver.applied_potentials, current_1, label="Single electron")
+plt.plot(fd_solver.applied_potentials, current_2, label="Double electron")
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.tight_layout()
+plt.legend()
 plt.savefig("./manuscript/figures/7-analytical.png", dpi=1000)
 plt.show()
 

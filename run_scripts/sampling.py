@@ -1,8 +1,6 @@
 import multiprocessing
 import os
 
-from src.reaction._electron import ReversibleElectronReaction
-
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
     multiprocessing.cpu_count()
 )
@@ -15,7 +13,12 @@ from src.fdm import (
     ElectronReactionFDSolver,
     HeterogeneousReactionFDSolver,
 )
-from src.reaction import AdsorptionReaction, ElectronReaction, HeterogeneousReaction
+from src.reaction import (
+    AdsorptionReaction,
+    ElectronReaction,
+    HeterogeneousReaction,
+    ReversibleElectronReaction,
+)
 from src.sampling_experiment import sampling_experiment
 from src.voltammetry import CyclicAC, CyclicDC
 
@@ -75,7 +78,7 @@ def main(name: Literal["e", "h", "a"], seed: int = 0, save: bool = True):
             optim_learning_rate=2e-1,
             optim_steps=1000,
             num_rwmh_samples=40_000,
-            num_nuts_samples=2_400,
+            num_nuts_samples=2_800,
             seed=seed,
             save=save,
         )

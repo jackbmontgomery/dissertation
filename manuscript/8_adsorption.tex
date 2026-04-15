@@ -9,11 +9,11 @@ equations coupled to the diffusion PDE through the boundary conditions.
 The Langmuir adsorption terms contain products of surface coverages and
 surface concentrations, making the discrete system nonlinear and
 preventing a direct banded solve. We compare three discretisation
-strategies --- Newton--Raphson, explicit linearisation, and backward
-implicit linearisation --- and adopt the one that is both
-AD-compatible and accurate. Such systems arise experimentally when an
+strategies -- Newton--Raphson, explicit linearisation, and backward
+implicit linearisation. Such systems arise experimentally when an
 electrode is modified with a redox-active film (for example, a
-self-assembled monolayer of ferrocene-terminated thiols on gold) and the
+  self-assembled monolayer of ferrocene-terminated thiols on
+gold~\cite{compton2014understanding}) and the
 voltammetry is performed in a blank electrolyte. The parameter space
 grows to nine dimensions, completing the sequence $3 \to 7 \to 9$ that
 structures the NUTS--RWMH comparison.
@@ -60,7 +60,7 @@ parameters to be inferred are
     K_{\mathrm{ads}}^{\mathrm{B}},\, K_{\mathrm{des}}^{\mathrm{B}}
   \bigr) \in \mathbb{R}^9.
 \end{equation}
-The saturation parameter $\beta = c_\mathrm{A}^*\,\epsilon /
+The saturation parameter $\beta = c_\mathrm{A}^*\,r_e/
 \Gamma_{\mathrm{max}}$ is treated as known and fixed at $\beta = 1$.
 
 \section{Mathematical Description}\label{sec:ads-maths}
@@ -150,8 +150,8 @@ The dimensionless rate constants follow the Butler--Volmer form:
     \theta_f^{\mathrm{ads}}\bigr)\bigr],
   \end{aligned}
 \end{equation}
-where $K_0^{\mathrm{sol}} = k_0^{\mathrm{sol}}\,\epsilon / D_\mathrm{A}$
-and $K_0^{\mathrm{ads}} = k_0^{\mathrm{ads}}\,\epsilon^2 / D_\mathrm{A}$.
+where $K_0^{\mathrm{sol}} = k_0^{\mathrm{sol}}\,r_e/ D_\mathrm{A}$
+and $K_0^{\mathrm{ads}} = k_0^{\mathrm{ads}}\,r_e^2 / D_\mathrm{A}$.
 The formal potentials of the two couples are related by thermodynamic
 consistency \cite{compton2014understanding}:
 \begin{equation}\label{eq:ads-thetaf-relation}
@@ -163,15 +163,15 @@ consistency \cite{compton2014understanding}:
 \end{equation}
 This is not an additional free parameter: $\theta_f^{\mathrm{ads}}$ is
 determined by $\theta_f^{\mathrm{sol}}$ and the four
-adsorption/desorption rate constants already in~$\phi$.
-The adsorption/desorption rate constants are
+adsorption/desorption dimensionless rate constants already in~$\phi$
+which are of the form
 \begin{equation}\label{eq:ads-kads-kdes}
   K_{\mathrm{ads}}^{j}
-  = \frac{k_{\mathrm{ads}}^{j}\,\Gamma_{\mathrm{max}}\,\epsilon}
+  = \frac{k_{\mathrm{ads}}^{j}\,\Gamma_{\mathrm{max}}\,r_e}
   {D_\mathrm{A}},
   \qquad
   K_{\mathrm{des}}^{j}
-  = \frac{k_{\mathrm{des}}^{j}\,\Gamma_{\mathrm{max}}\,\epsilon}
+  = \frac{k_{\mathrm{des}}^{j}\,\Gamma_{\mathrm{max}}\,r_e}
   {c_\mathrm{A}^*\,D_\mathrm{A}}.
 \end{equation}
 
@@ -195,12 +195,14 @@ The initial surface coverages are set by the Langmuir equilibrium:
   K_{\mathrm{des}}^{\mathrm{B}}}.
 \end{equation}
 
+We set $C_\mathrm{B}^* = 0$ and thus $\xi_\mathrm{B}(0) = 0$.
+
 \subsection{Current}
 
 The measured current has contributions from both the solution-phase and
 adsorbed electron transfers:
 \begin{equation}\label{eq:ads-current}
-  \frac{I}{\pi\epsilon F D_\mathrm{A} c_\mathrm{A}^*}
+  \frac{I}{\pi r_e F D_\mathrm{A} c_\mathrm{A}^*}
   = -\left\{
     \left(\frac{\partial C_\mathrm{A}}{\partial X}\right)_{X=0}
     - \frac{1}{\beta}
@@ -217,7 +219,7 @@ The Langmuir terms in \cref{eq:ads-coverage-ode,eq:ads-bc} contain
 products of the unknown surface concentrations $C_{0,j}$ and surface
 coverages $\xi_j$ at the current timestep. After backward Euler
 discretisation these become products of unknowns at timestep~$k$,
-making the algebraic system nonlinear --- in contrast to
+making the algebraic system nonlinear -- in contrast to
 \cref{ch:heterogeneous}, where all coupling was linear and the system
 could be solved directly.
 
@@ -227,14 +229,16 @@ We order the unknowns as $\mathbf{x} = (\xi_\mathrm{A}^k,\,
   \xi_\mathrm{B}^k,\, C_{0,\mathrm{A}}^k,\, C_{0,\mathrm{B}}^k,\,
 \ldots,\, C_{n-1,\mathrm{A}}^k,\, C_{n-1,\mathrm{B}}^k)^T$ and solve
 the nonlinear residual $\mathbf{F}(\mathbf{x}) = 0$ by Newton--Raphson
-iteration. After a preliminary row elimination to decouple the surface
-coverage from the far-field equations
-\cite{compton2014understanding}, the Jacobian reduces to pentadiagonal
-form, and two to four iterations suffice per timestep. This solver
-serves as the ground-truth reference, but the variable iteration count
-(a data-dependent \texttt{while} loop) prevents JAX from tracing
-through it. We therefore require a linearised alternative for
-inference.
+iteration, using the previous timestep's solution as the initial guess.
+After a preliminary row elimination to decouple the surface coverage
+from the far-field equations~\cite{compton2014understanding}, the
+Jacobian reduces to pentadiagonal form. We solve to tight tolerances
+($r_{\mathrm{tol}} = 10^{-10}$, $a_{\mathrm{tol}} = 10^{-12}$) so
+that this solver serves as the ground-truth reference. One could fix
+the iteration count to make the solver traceable by reverse-mode AD,
+but this neither guarantees convergence nor avoids the cost of
+differentiating through every Newton step. We therefore require a
+linearised alternative for inference.
 
 \subsection{Alternative Solvers}\label{sec:ads-alt-solvers}
 
@@ -264,26 +268,26 @@ first order about the previous-timestep values:
 \end{equation}
 This retains linear coupling to both unknowns at timestep~$k$, also
 first-order in $\Delta T$ but with more implicit coupling than the
-explicit scheme. Both alternatives produce a pentadiagonal system (after
-row elimination) compatible with the adjoint framework of
+explicit scheme. Both alternatives produce a pentadiagonal system after
+row elimination which is compatible with the adjoint framework of
 \cref{ch:adjoint}.
 
 \subsection{Solver Comparison}\label{sec:ads-solver-comparison}
 
 \Cref{fig:ads-solver-comparison} compares the two AD-compatible solvers
-against the Newton reference. The backward implicit scheme is two to
-three orders of magnitude more accurate than the explicit scheme across
-most of the sweep. The difference is largest near the current peaks,
-where surface coverage changes rapidly and the explicit approximation
---- which evaluates $\xi_j$ at the previous timestep --- lags behind.
+against the Newton reference. The backward implicit scheme achieves
+errors of order $10^{-7}$ across most of the sweep, compared with
+$10^{-3}$ for the explicit scheme. For both solvers, the error
+increases when we have a fast change in the gradient of the current.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.7\textwidth]{figures/8-solver-comparison.png}
-  \caption[Solver comparison for the adsorption reaction]{Absolute
-    relative error of the explicit (blue) and backward implicit (orange)
+  \includegraphics[width=0.95\textwidth]{figures/8-solver-comparison.png}
+  \caption[Solver comparison for the adsorption reaction]{Top:
+    Reference Newton current against time. Bottom: Absolute
+    relative error of the explicit (orange) and backward implicit (green)
     solvers against the Newton reference at each timestep. The backward
-    implicit scheme is two to three orders of magnitude more accurate
+    implicit scheme is three to four orders of magnitude more accurate
   across most of the sweep.}
   \label{fig:ads-solver-comparison}
 \end{figure}
@@ -305,7 +309,7 @@ parameter values
   4.5,\; 1.0,\; 1.0,\; 1.0),
 \end{equation}
 with dimensionless scan rate $\sigma = 10$ and noise level
-$\eta = 0.02$. The scan rate is an order of magnitude lower than the
+$\eta = 0.02$. The scan rate is two orders of magnitude lower than the
 $\sigma = 1000$ used in the preceding chapters: adsorption and
 desorption operate on a slower timescale than electron transfer, and at
 high scan rates the potential sweeps too fast for adsorption to respond,
@@ -316,7 +320,7 @@ rendering the voltammogram insensitive to the adsorption rate constants.
 \subsection{Solver Verification}\label{sec:ads-verification}
 
 We verify the forward solver against the analytical solution for a pure
-monolayer --- a system in which all electroactive material is
+monolayer -- a system in which all electroactive material is
 pre-adsorbed and no solution-phase electron transfer occurs. For a
 fully reversible adsorbed redox couple the dimensionless current is
 \cite{chen2026differentiable}
@@ -324,11 +328,7 @@ fully reversible adsorbed redox couple the dimensionless current is
   J = \mp\,\frac{\exp(-\theta)}{(1 + \exp(-\theta))^2},
 \end{equation}
 where the upper sign refers to the cathodic scan and the lower to the
-anodic scan. The peak flux is $J_p = \mp\,\sigma/\beta$, which scales
-linearly with scan rate --- in contrast to the $\sqrt{\sigma}$
-dependence of the solution-phase Randles--\v{S}ev\v{c}\'{\i}k result,
-since the adsorbed material is finite and does not require diffusive
-replenishment. \Cref{fig:ads-verification} confirms that the numerical
+anodic scan. \Cref{fig:ads-verification} confirms that the numerical
 solution reproduces the full analytical trajectory.
 
 \begin{figure}[ht]
@@ -344,20 +344,29 @@ solution reproduces the full analytical trajectory.
 \subsection{Posterior Distributions}\label{sec:ads-posteriors}
 
 \Cref{fig:ads-corner} shows pairwise marginal posteriors from NUTS
-(2\,400 samples) and RWMH (40\,000 samples) under equal computational
-budgets. Both samplers recover the true parameter values, with
-$\hat{R} < 1.01$ for all parameters.
+(2\,800 samples) and RWMH (40\,000 samples) under equal computational
+budgets. Both samplers recover the true parameter values.
+$\theta_f^{\mathrm{sol}}$ omitted for brevity.
 
 The off-diagonal panels reveal the correlation structure.
 $\alpha^{\mathrm{sol}}$ and $K_0^{\mathrm{sol}}$ are correlated due to
 the kinetic trade-off in the Butler--Volmer equation, as in the
 lower-dimensional cases; the same holds for $\alpha^{\mathrm{ads}}$ and
 $K_0^{\mathrm{ads}}$. The adsorption and desorption rate constants for
-each species are also correlated: the voltammogram depends on adsorption
+each species are also correlated: the Langmuir terms
+in~\cref{eq:ads-coverage-ode,eq:ads-bc} depend on these constants
 primarily through the equilibrium ratio
-$K_{\mathrm{ads}}^{j}/K_{\mathrm{des}}^{j}$, so an increase in one can
-be partially compensated by the other. Despite these correlations, both
-samplers resolve the individual rate constants.
+$K_{\mathrm{ads}}^{j}/K_{\mathrm{des}}^{j}$, which sets the surface
+coverage at steady state. Increasing both constants by the same factor
+leaves this ratio nearly unchanged, producing a similar voltammogram.
+The posterior is therefore elongated along the direction in which the
+ratio is constant -- visible in the corner plot as diagonal contours
+in the $K_{\mathrm{ads}}^{j}$ vs $K_{\mathrm{des}}^{j}$ panels. This
+geometry makes sampling harder: moving along the ridge is easy, but
+resolving the narrow cross-section requires precise steps, reducing
+efficiency for both samplers as we quantify in \cref{sec:ads-ess}.
+Despite these correlations, both samplers resolve the individual rate
+constants.
 
 \begin{figure}[ht]
   \centering
@@ -365,13 +374,14 @@ samplers resolve the individual rate constants.
   \caption[Pairwise posteriors for the adsorption
   reaction]{Pairwise marginal posteriors for the adsorption
     reaction. NUTS (blue) and RWMH (orange) are overlaid; dashed lines
-  indicate the true parameter values.}
+    indicate the true parameter values. $\theta_f^{\mathrm{sol}}$
+  omitted for brevity}
   \label{fig:ads-corner}
 \end{figure}
 
-That both samplers recover the true parameters --- despite inference
+That both samplers recover the true parameters -- despite inference
 using the backward implicit linearisation rather than the Newton solver
-that generated the data --- confirms that the
+that generated the data -- confirms that the
 approximation~\cref{eq:ads-britz} does not introduce systematic bias at
 this noise level.
 
@@ -392,17 +402,18 @@ the sweep.
 
 \Cref{fig:ads-ess} compares ESS growth for NUTS and RWMH on a
 normalised cost axis. \Cref{tab:ads-ess} reports the final values with
-NUTS/RWMH ratios. The solution-phase parameters ($\alpha^{\mathrm{sol}}$,
-$K_0^{\mathrm{sol}}$, $\theta_f^{\mathrm{sol}}$) show ratios of
-$2.9$--$3.9\times$, comparable to the heterogeneous case. The
-adsorption/desorption rate constants show ratios of $1.6$--$1.8\times$:
-the equilibrium-ratio correlations between $K_{\mathrm{ads}}^{j}$ and
-$K_{\mathrm{des}}^{j}$ create narrow ridges in the posterior that both
-samplers traverse with difficulty, reducing the relative advantage of
-gradient-based proposals. The median ratio across all nine parameters is
-$2.7\times$, compared with $3.0\times$ in the seven-parameter case
-(\cref{sec:het-ess}) and $1.5$--$2.4\times$ in the three-parameter case
-(\cref{sec:hmc-results}).
+NUTS/RWMH ratios. The results split into two groups. For the
+solution-phase and adsorbed electron-transfer parameters
+($\alpha^{\mathrm{sol}}$, $K_0^{\mathrm{sol}}$,
+  $\theta_f^{\mathrm{sol}}$, $\alpha^{\mathrm{ads}}$,
+$K_0^{\mathrm{ads}}$), the ratios are $4.0$--$4.8\times$, continuing
+the upward trend from $1.5$--$2.4\times$ in three dimensions
+(\cref{sec:hmc-results}) and $2.7$--$3.6\times$ in seven
+(\cref{sec:het-ess}). For the adsorption/desorption rate constants the
+ratios are lower, $2.3$--$2.6\times$: the elongated posterior geometry
+described in \cref{sec:ads-posteriors} reduces the advantage of
+gradient-based proposals, since both samplers struggle to resolve the
+narrow cross-section of the ridge.
 
 \begin{table}[ht]
   \centering
@@ -415,14 +426,18 @@ $2.7\times$, compared with $3.0\times$ in the seven-parameter case
     & $K_{\mathrm{ads}}^{\mathrm{B}}$
     & $K_{\mathrm{des}}^{\mathrm{B}}$ \\
     \hline
-    NUTS & 3938 & 5270 & 3708 & 3771 & 4489 & 2956 & 2803 & 3146 & 2892 \\
-    RWMH & 1185 & 1139 & 1113 & 1160 & 1311 & 1484 & 1405 & 1439 & 1493 \\
-    Ratio & 3.3 & 4.6 & 3.2 & 3.2 & 3.4 & 2.0 & 1.9 & 2.2 & 1.9
+    NUTS & 4860.8 & 5527.5 & 4402.0 & 4707.2 & 5334.7 & 3451.7 &
+    3319.6 & 3807.2 & 3501.9
+    \\
+    RWMH & 1185.0 & 1139.9 & 1113.7 & 1160.2 & 1311.9 & 1484.3 &
+    1405.7 & 1439.8 & 1493.0
+    \\
+    Ratio & 4.1 & 4.8 & 4.0 & 4.1 & 4.1 & 2.3 & 2.4 & 2.6 & 2.3 \\
     \\
     \hline
   \end{tabular}
   \caption[ESS for the adsorption reaction]{Effective sample size for
-    each parameter for 40\,000 RWMH samples and 2\,400 NUTS samples at
+    each parameter for 40\,000 RWMH samples and 2\,800 NUTS samples at
   equal sampling runtime, with NUTS/RWMH ratio.}
   \label{tab:ads-ess}
 \end{table}
