@@ -48,21 +48,21 @@ params_2 = HeterogenousReactionParams(
 )
 
 max_current = -0.496 * jnp.sqrt(params_1.alpha_1) * jnp.sqrt(voltammetry.sigma)
-plt.axhline(y=max_current, c="C3", linestyle="--", label="Analytical")
-plt.axhline(y=2 * max_current, c="C3", linestyle="--")
+plt.axhline(y=max_current, c="black", linestyle="--", label="Analytical")
+plt.axhline(y=2 * max_current, c="black", linestyle="--")
 
 max_current_position = (
     jnp.log(params_1.K0_1 / jnp.sqrt(params_1.alpha_1 * voltammetry.sigma)) - 0.78
 ) / params_1.alpha_1
-plt.axvline(x=max_current_position, c="C3", linestyle="--")
+plt.axvline(x=max_current_position, c="black", linestyle="--")
 
 current_1 = fd_solver.solve(params_1)
 current_2 = fd_solver.solve(params_2)
 
 plt.xlabel(r"$\theta$")
 plt.ylabel(r"$J$")
-plt.plot(fd_solver.applied_potentials, current_1, label="Single electron")
-plt.plot(fd_solver.applied_potentials, current_2, label="Double electron")
+plt.plot(fd_solver.applied_potentials, current_1, label="One-electron")
+plt.plot(fd_solver.applied_potentials, current_2, label="Two-electron")
 plt.gca().invert_xaxis()
 plt.gca().invert_yaxis()
 plt.tight_layout()
@@ -157,8 +157,8 @@ for i in range(len(vars_list)):
         ax = g.axes[i, j]
         _, true_y = params[vars_list[i]]
         _, true_x = params[vars_list[j]]
-        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
-        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
+        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=1.0, alpha=0.5)
+        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=1.0, alpha=0.5)
 
 handles = [
     Line2D([0], [0], color="C0", linewidth=1.2, label="NUTS"),
@@ -170,7 +170,7 @@ plt.tight_layout()
 plt.savefig("./manuscript/figures/7-corner.png", dpi=1000)
 plt.show()
 
-# %% Current Fit
+# % Current Fit
 
 cyclic_dc = CyclicDC()
 fd_solver = HeterogeneousReactionFDSolver(cyclic_dc)
@@ -247,9 +247,9 @@ plt.legend(markerscale=5)
 plt.savefig("./manuscript/figures/7-current-fit.png", dpi=1000)
 plt.show()
 
-# %% ESS
+# %% GR
 
-num_points = 20
+num_points = 50
 
 nuts_chain_len = nuts.alpha_1.shape[1]
 rwmh_chain_len = rwmh.alpha_1.shape[1]
@@ -262,29 +262,29 @@ rwmh_end_idx = jnp.linspace(
     rwmh_chain_len / num_points, rwmh_chain_len, num_points, dtype=jnp.int32
 )
 
-nuts_ess = np.zeros(shape=(7, num_points))
-rwmh_ess = np.zeros(shape=(7, num_points))
+nuts_gr = np.zeros(shape=(7, num_points))
+rwmh_gr = np.zeros(shape=(7, num_points))
 
-ess_single: Callable = jit(blackjax.diagnostics.effective_sample_size)
+gr_single: Callable = jit(blackjax.diagnostics.potential_scale_reduction)
 
 for i, (h_ei, r_ei) in enumerate(zip(nuts_end_idx, rwmh_end_idx)):
-    nuts_ess[0, i] = ess_single(nuts.alpha_1[:, :h_ei])
-    nuts_ess[1, i] = ess_single(nuts.K0_1[:, :h_ei])
-    nuts_ess[2, i] = ess_single(nuts.thetaf_1[:, :h_ei])
-    nuts_ess[3, i] = ess_single(nuts.alpha_2[:, :h_ei])
-    nuts_ess[4, i] = ess_single(nuts.K0_2[:, :h_ei])
-    nuts_ess[5, i] = ess_single(nuts.thetaf_2[:, :h_ei])
-    nuts_ess[6, i] = ess_single(nuts.K_het[:, :h_ei])
+    nuts_gr[0, i] = gr_single(nuts.alpha_1[:, :h_ei])
+    nuts_gr[1, i] = gr_single(nuts.K0_1[:, :h_ei])
+    nuts_gr[2, i] = gr_single(nuts.thetaf_1[:, :h_ei])
+    nuts_gr[3, i] = gr_single(nuts.alpha_2[:, :h_ei])
+    nuts_gr[4, i] = gr_single(nuts.K0_2[:, :h_ei])
+    nuts_gr[5, i] = gr_single(nuts.thetaf_2[:, :h_ei])
+    nuts_gr[6, i] = gr_single(nuts.K_het[:, :h_ei])
 
-    rwmh_ess[0, i] = ess_single(rwmh.alpha_1[:, :r_ei])
-    rwmh_ess[1, i] = ess_single(rwmh.K0_1[:, :r_ei])
-    rwmh_ess[2, i] = ess_single(rwmh.thetaf_1[:, :r_ei])
-    rwmh_ess[3, i] = ess_single(rwmh.alpha_2[:, :r_ei])
-    rwmh_ess[4, i] = ess_single(rwmh.K0_2[:, :r_ei])
-    rwmh_ess[5, i] = ess_single(rwmh.thetaf_2[:, :r_ei])
-    rwmh_ess[6, i] = ess_single(rwmh.K_het[:, :r_ei])
+    rwmh_gr[0, i] = gr_single(rwmh.alpha_1[:, :r_ei])
+    rwmh_gr[1, i] = gr_single(rwmh.K0_1[:, :r_ei])
+    rwmh_gr[2, i] = gr_single(rwmh.thetaf_1[:, :r_ei])
+    rwmh_gr[3, i] = gr_single(rwmh.alpha_2[:, :r_ei])
+    rwmh_gr[4, i] = gr_single(rwmh.K0_2[:, :r_ei])
+    rwmh_gr[5, i] = gr_single(rwmh.thetaf_2[:, :r_ei])
+    rwmh_gr[6, i] = gr_single(rwmh.K_het[:, :r_ei])
 
-# %%  Plot ESS
+# %%  Plot GR
 
 fig = plt.figure(figsize=(15, 6))
 
@@ -292,43 +292,50 @@ gs = gridspec.GridSpec(2, 4, figure=fig, hspace=0.4, wspace=0.3)
 
 ax_a1 = fig.add_subplot(gs[0, 0])
 ax_a1.set_title(r"$\alpha^{(1)}$")
-ax_a1.set_ylabel("ESS")
+ax_a1.set_ylabel(r"$\hat{R}$")
+ax_a1.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 ax_K1 = fig.add_subplot(gs[0, 1])
 ax_K1.set_title(r"$K_0^{(1)}$")
+ax_K1.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 ax_thetaf1 = fig.add_subplot(gs[0, 2])
 ax_thetaf1.set_title(r"$\theta_f^{(1)}$")
+ax_thetaf1.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 ax_a2 = fig.add_subplot(gs[1, 0])
 ax_a2.set_title(r"$\alpha^{(2)}$")
 ax_a2.set_xlabel("Sample Proportion")
-ax_a2.set_ylabel("ESS")
+ax_a2.set_ylabel(r"$\hat{R}$")
+ax_a2.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 ax_K2 = fig.add_subplot(gs[1, 1])
 ax_K2.set_title(r"$K_0^{(2)}$")
 ax_K2.set_xlabel("Sample Proportion")
+ax_K2.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 ax_thetaf2 = fig.add_subplot(gs[1, 2])
 ax_thetaf2.set_title(r"$\theta_f^{(2)}$")
 ax_thetaf2.set_xlabel("Sample Proportion")
+ax_thetaf2.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 gs_right = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=gs[:, 3], hspace=0)
 ax_Khet = fig.add_subplot(gs_right[1, 0])
 ax_Khet.set_title(r"$K_{\text{het}}$")
 ax_Khet.set_xlabel("Sample Proportion")
+ax_Khet.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 axs = [ax_a1, ax_K1, ax_thetaf1, ax_a2, ax_K2, ax_thetaf2, ax_Khet]
 
 idx = jnp.linspace(1 / num_points, 1, num_points)
 
 for i, ax in enumerate(axs):
-    ax.plot(idx, nuts_ess[i, :], label="NUTS")
-    ax.plot(idx, rwmh_ess[i, :], label="RWMH")
+    ax.plot(idx, nuts_gr[i, :], label="NUTS")
+    ax.plot(idx, rwmh_gr[i, :], label="RWMH")
 
 handles, labels = ax_a1.get_legend_handles_labels()
 fig.legend(handles, labels, loc="lower right", ncol=1)
-plt.savefig("./manuscript/figures/7-ess.png", dpi=1000)
+plt.savefig("./manuscript/figures/7-gr.png", dpi=1000)
 plt.show()
 
 # %% ESS Table
@@ -348,6 +355,11 @@ params = [
 for name, data in [("NUTS", nuts), ("RWMH", rwmh)]:
     vals = " & ".join(f"{ess(getattr(data, p)):.1f}" for p in params)
     print(f"    {name} & {vals} \\\\")
+
+vals = " & ".join(
+    f"{ess(getattr(nuts, p)) / ess(getattr(rwmh, p)):.1f}" for p in params
+)
+print(f"    Ratio & {vals} \\\\")
 
 # %%
 

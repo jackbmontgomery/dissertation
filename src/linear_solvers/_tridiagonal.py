@@ -1,7 +1,19 @@
-import jax.numpy as jnp
+import ctypes
+import os
+
+import jax
+import jax.ffi
 from jax import custom_vjp, jit
-from jax.lax import linalg
-from jaxtyping import Scalar
+
+_lib_path = os.path.join(os.path.dirname(__file__), "ffi", "tri_ffi.so")
+_lib = ctypes.CDLL(_lib_path)
+
+jax.ffi.register_ffi_target(
+    "tri_solve_f64",
+    jax.ffi.pycapsule(_lib.TriSolveF64FFI),
+    platform="cpu",
+)
+jax.ffi.register_ffi_target_as_batch_partitionable("tri_solve_f64")
 
 
 @custom_vjp
@@ -24,15 +36,13 @@ def tridiagonal_solve_bwd(res, g):
     return g_a, g_b, g_c, g_d
 
 
-# NOTE: The performance of the custom_vjp for the tridiagonal_solve is not anything major
-# This is done to align with the description in the dissertation. custom_vjp is
-# very important for the pentadiagonal_solve
-
 tridiagonal_solve.defvjp(tridiagonal_solve_fwd, tridiagonal_solve_bwd)
 
 
 @jit
-def tridiagonal_solve_impl(a: Scalar, b: Scalar, c: Scalar, d: Scalar) -> Scalar:
-    return linalg.tridiagonal_solve(
-        jnp.concat([jnp.zeros(1), a]), b, jnp.concat([c, jnp.zeros(1)]), d[:, None]
-    ).flatten()
+def tridiagonal_solve_impl(a, b, c, d):
+    return jax.ffi.ffi_call(
+        "tri_solve_f64",
+        jax.ShapeDtypeStruct(d.shape, d.dtype),
+        vmap_method="sequential",
+    )(a, b, c, d)

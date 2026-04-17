@@ -3,7 +3,6 @@ from typing import Dict, Tuple
 import blackjax
 import jax.numpy as jnp
 import jax.random as jr
-import optax
 from blackjax.mcmc.dynamic_hmc import DynamicHMCState
 from jax import jit
 from jaxtyping import PRNGKeyArray, Scalar

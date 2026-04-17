@@ -160,7 +160,7 @@ We repeat the experiment in the reversible regime with $\phi^* =
 (0.6,\, 500.0,\, 0.5)$, giving $\Lambda \approx 15.8 \gg 1$.
 \Cref{fig:electron-posteriors-rev} shows that the $\alpha$ and $K_0$
 marginals are now wide. The $(\alpha, K_0)$ joint density is wide
-compared to the quasi-reversible reigimes. While the formal potential
+compared to the quasi-reversible regimes. While the formal potential
 $\theta_f$ remains tightly constrained and largely independent of the
 other two. Both samplers remain centred very close to the true values.
 
@@ -277,14 +277,13 @@ $\hat{R} \to 1$. The convention
 $\hat{R} < 1.01$~\cite{vehtari2021rank} is adopted as the threshold
 below which between-chain disagreement is not distinguishable from
 within-chain Monte Carlo variation. While $\hat{R} > 1.01$, reported
-moments are biased toward the chains' starting positions and thus the
-not reliable.
+moments are biased toward the chains' starting positions and thus not reliable.
 
 \Cref{fig:gr-k0} shows this link for~$K_0$: the NUTS chains
 agree from the first checkpoint with $\hat{R} < 1.01$ throughout,
 while the RWMH inter-chain initial band is wide associated with $\hat{R}$
 at~$1.2$. The chains then tighten their bands over the samples with
-$\hat{R}$ crossing the threshold at rougtly $0.3$.
+$\hat{R}$ crossing the threshold at roughly $0.3$ of the sample proportion.
 
 \begin{figure}[ht]
   \begin{center}

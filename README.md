@@ -16,21 +16,74 @@ posterior distributions, (3) extension to chemically complex reactions in higher
 parameter dimensions.
 
 **Key result:** Both NUTS and RWMH recover true parameters well. The advantage
-of NUTS over RWMH grows with dimensionality (3 -> 7 -> 9 parameters).
+of NUTS is clear when we consider the information in the posterior samples, this
+is greater at higher dimensions though not linearly since we see the advantage
+reduce when there are high correlations in the parameters. Further, we see
+better convergence in the GR statistic for NUTS which means we obtain stable
+posterior estimates throughout the sampling process.
 
 **Narrative arc:** Each chapter introduces a tool and immediately applies it to
 the electron-transfer reaction, so results accumulate throughout. The final two
 chapters apply the complete framework to harder reactions concisely, without
 repeating exposition.
 
-## Word Count
+## Constraints
 
-- 7500 Total (833.33 per chapter for the 9 chapters)
 - `texcount`: We use the "Words in text" field not the "Sum count"
 
-## Notes
+## What I can still add
 
-- No parameter was non-identifiability so we need to remove that everywhere
+- Some specific measures for the speed up of the adjoint vs tape
+
+  - Custom VJP
+
+  ```
+  In [19]: %timeit ele_fwd(ele_params)
+  3.38 ms ± 4.53 μs per loop (mean ± std. dev.
+  of 7 runs, 100 loops each)
+
+  In [20]: %timeit ele_grad(ele_params)
+  7.25 ms ± 64.3 μs per loop (mean ± std. dev.
+  of 7 runs, 100 loops each)
+
+  In [21]: %timeit het_fwd(het_params)
+  18 ms ± 37.9 μs per loop (mean ± std. dev. of
+   7 runs, 100 loops each)
+
+  In [22]: %timeit het_grad(het_params)
+  43.7 ms ± 668 μs per loop (mean ± std. dev. o
+  f 7 runs, 10 loops each)
+  ```
+
+  - Standard AD
+
+  ```
+  In [19]: %timeit ele_fwd(ele_params)
+  3.38 ms ± 38.3 μs per loop (mean ± std. dev.
+  of 7 runs, 100 loops each)
+
+  In [20]: %timeit ele_grad(ele_params)
+  15.8 ms ± 209 μs per loop (mean ± std. dev. o
+  f 7 runs, 100 loops each)
+
+  In [21]: %timeit het_fwd(het_params)
+  18 ms ± 84.6 μs per loop (mean ± std. dev. of
+   7 runs, 100 loops each)
+
+  In [22]: %timeit het_grad(het_params)
+  481 ms ± 2.09 ms per loop (mean ± std. dev. o
+  f 7 runs, 10 loops each)
+  ```
+
+- Need to include that the implementation used a Thomas algorithm written in C++
+  for efficiency, but this was only possible because of the custom VJP we have
+  derived since we cannot tape over a foreign function.
+- Explaining the choice of discritisation more rigorously (but where to put
+  this? Because am I going to verify the discritisation before introducing the
+  solver)
+- Some explanation for the second order current used
+- Better explanation for the Rhat being below 1
+- Reference the 1.01 threshold in the Rhat figures
 
 ---
 
@@ -167,8 +220,8 @@ outperforms RWMH.
 - **Canonical transformation:** alpha -> logit, K0 -> log, theta_f
   unconstrained. Window adaptation tunes mass matrix and step size.
 - **Workflow:** (1) LHS -> diverse starts, (2) optimise with fixed budget ->
-  mode, (3) best chain -> window adapt -> mass matrix (NUTS) and proposal
-  covariance (RWMH, 23%), (4) sample NUTS and RWMH for equal wall-time
+  high density, (3) best chain -> window adapt -> mass matrix (NUTS) and
+  proposal covariance (RWMH, 23%), (4) sample NUTS and RWMH for equal wall-time
 - **Results:** posteriors overlaid with RWMH. Simulated current from posterior
   means. ESS -- NUTS wins.
 
@@ -248,11 +301,15 @@ RWMH grows with dimensionality.
 - _Alternative kinetic models:_ BV -> MHC extension. Bayesian model comparison
   BV vs MHC. Connects to Ch 2 note and Chen et al.
 - _Neural operator emulator:_ Solver computes full C(X,T) but inference uses
-  only surface flux J(T). Train DeepONet/FNO on forward solver. Differentiable
-  by construction, orders of magnitude faster, NUTS-compatible.
+  only surface flux J(T). Train neural operator on forward solver.
+  Differentiable by construction, orders of magnitude faster, NUTS-compatible.
 - _Alternative samplers:_ MCLMC, other adaptive HMC variants.
 
 **Closing (~1-2 sentences):** Callback to Kitchin "fifth paradigm." Framework is
 not specific to the reactions studied.
 
 **Core references:** Kitchin et al. (2025), Chen et al. (2026)
+
+```
+
+```

@@ -12,7 +12,7 @@ import seaborn as sns
 from jax import grad, jit, vmap
 from matplotlib.lines import Line2D
 
-from src.diagnostics import ess_over_time
+from src.diagnostics import potential_scale_reduction_over_time
 from src.fdm import (
     AdsorptionReactionBackwardImplicitFDSolver,
     AdsorptionReactionExplicitFDSolver,
@@ -102,6 +102,13 @@ plt.show()
 cyclic_dc = CyclicDC(theta_i=25.0, theta_v=-25.0, sigma=10)
 
 newton_solver = AdsorptionReactionNewtonFDSolver(cyclic_dc, atol=1e-12, rtol=1e-10)
+
+T = jnp.linspace(
+    cyclic_dc.t_min,
+    cyclic_dc.t_max,
+    int((cyclic_dc.t_max - cyclic_dc.t_min) / newton_solver.dt),
+)
+
 explicit_solver = AdsorptionReactionExplicitFDSolver(cyclic_dc)
 backward_solver = AdsorptionReactionBackwardImplicitFDSolver(cyclic_dc)
 
@@ -116,9 +123,10 @@ bwd_diff = jnp.abs(backward_current - newton_current) / jnp.abs(newton_current)
 
 fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 5), sharex=True)
 
-ax1.plot(newton_current, c="C0", label="Newton Reference")
-ax2.plot(exp_diff, c="C1", label="Explicit")
-ax2.plot(bwd_diff, c="C2", label="Backward Implicit")
+ax1.plot(T, newton_current, c="C0", label="Newton Reference")
+ax2.plot(T, exp_diff, c="C1", label="Explicit")
+ax2.plot(T, bwd_diff, c="C2", label="Backward Implicit")
+
 ax1.set_ylabel("$J$")
 ax2.set_yscale("log")
 ax2.set_xlabel("$T$")
@@ -158,7 +166,6 @@ with gzip.open(f"{dir}/{file}", "rb") as f:
 nuts: AdsorptionReactionParams = data["nuts"]
 rwmh: AdsorptionReactionParams = data["rwmh"]
 true_params: AdsorptionReactionParams = AdsorptionReaction().true_parameters
-
 params = {
     r"$\alpha^{\mathrm{sol}}$": ("alpha_sol", true_params.alpha_sol),
     r"$K_{0}^{\mathrm{sol}}$": ("K0_sol", true_params.K0_sol),
@@ -181,9 +188,7 @@ def make_df(samples, sampler_name):
 
 df = pd.concat([make_df(nuts, "NUTS"), make_df(rwmh, "RWMH")], ignore_index=True)
 vars_list = list(params.keys())
-
 df_nuts = df[df["Sampler"] == "NUTS"]
-
 g = sns.PairGrid(
     df,
     vars=vars_list,
@@ -192,7 +197,6 @@ g = sns.PairGrid(
     corner=True,
     diag_sharey=False,
 )
-
 g.map_diag(
     sns.histplot,
     stat="density",
@@ -203,7 +207,6 @@ g.map_diag(
     linewidth=1.2,
     common_norm=False,
 )
-
 # Lower triangle: NUTS only
 for i in range(len(vars_list)):
     for j in range(i):
@@ -217,42 +220,40 @@ for i in range(len(vars_list)):
             linewidths=1.2,
             color="C0",
         )
-
 # True value lines on diagonal
 for i, label in enumerate(vars_list):
     ax = g.axes[i, i]
     _, true_val = params[label]
     ax.axvline(x=true_val, linestyle="--", color="black", linewidth=1.0)
-
 # True value crosshairs on lower off-diagonal
 for i in range(len(vars_list)):
     for j in range(i):
         ax = g.axes[i, j]
         _, true_y = params[vars_list[i]]
         _, true_x = params[vars_list[j]]
-        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
-        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
-
-
+        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=1.0, alpha=0.5)
+        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=1.0, alpha=0.5)
 handles = [
     Line2D([0], [0], color="C0", linewidth=1.2, label="NUTS"),
     Line2D([0], [0], color="C1", linewidth=1.2, label="RWMH"),
 ]
 g.figure.legend(handles=handles, title="Sampler", loc="upper right", frameon=True)
-
 g.figure.set_size_inches(14, 14)
 plt.tight_layout()
-problem_labels = [r"$K_{0}^{\mathrm{sol}}$", r"$K_{0}^{\mathrm{ads}}$"]
+problem_labels = [
+    r"$K_{0}^{\mathrm{sol}}$",
+    r"$K_{0}^{\mathrm{ads}}$",
+    r"$\alpha^{\mathrm{ads}}$",
+    r"$\alpha^{\mathrm{sol}}$",
+    r"$K_{B}^{\mathrm{ads}}$",
+    r"$K_{B}^{\mathrm{des}}$",
+]
 for idx, label in enumerate(vars_list):
     if label in problem_labels:
         for row in range(idx, len(vars_list)):
             ax = g.axes[row, idx]
             if ax is not None:
-                ax.xaxis.set_tick_params(labelsize=8)
-        for col in range(idx):
-            ax = g.axes[idx, col]
-            if ax is not None:
-                ax.yaxis.set_tick_params(labelsize=8)
+                ax.xaxis.set_tick_params(labelsize=6)
 plt.savefig("./manuscript/figures/8-corner.png", dpi=1000)
 plt.show()
 
@@ -334,10 +335,10 @@ plt.legend(markerscale=5)
 plt.savefig("./manuscript/figures/8-current-fit.png", dpi=1000)
 plt.show()
 
-# %% ESS
+# %% GR over sampling
 
 fig, axs = plt.subplots(3, 3, figsize=(10, 6), sharex=True, sharey=True)
-num_points = 20
+num_points = 50
 x = jnp.linspace(1 / num_points, 1, num_points)
 param_names = param_property_names(nuts)
 
@@ -356,15 +357,20 @@ params_titles = {
 
 for name, ax in zip(param_names, axs.flatten()):
     ax.set_title(params_titles[name])
-    nuts_ess = ess_over_time(getattr(nuts, name), num_points=num_points)
+    nuts_ess = potential_scale_reduction_over_time(
+        getattr(nuts, name), num_points=num_points
+    )
     ax.plot(x, nuts_ess, label="NUTS")
-    rwmh_ess = ess_over_time(getattr(rwmh, name), num_points=num_points)
+    rwmh_ess = potential_scale_reduction_over_time(
+        getattr(rwmh, name), num_points=num_points
+    )
     ax.plot(x, rwmh_ess, label="RWMH")
+    ax.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 handles, labels = axs[0, 0].get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower center", ncol=2)
+fig.legend(handles, labels, loc="lower center", ncol=3)
 plt.tight_layout(rect=(0, 0.05, 1, 1))
-plt.savefig("./manuscript/figures/8-ess.png", dpi=1000)
+plt.savefig("./manuscript/figures/8-gr.png", dpi=1000)
 plt.show()
 
 # %% ESS Table

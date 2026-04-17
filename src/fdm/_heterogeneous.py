@@ -156,10 +156,15 @@ class HeterogeneousReactionFDSolver(AbstractFDSolver):
             du = self._du_template.at[2 * N - 2].set(x.A0_B_coef)
             du = du.at[2 * N].set(x.C0_D_coef)
 
-            rhs = c_prev.at[0].set(1.0)
-            rhs = rhs.at[1].set(0.0)
-            rhs = rhs.at[2 * N - 2 : 2 * N + 2].set(jnp.zeros(4))
-            rhs = rhs.at[-2:].set(jnp.zeros(2))
+            rhs = jnp.concat(
+                [
+                    jnp.array([1.0, 0.0]),
+                    c_prev[2 : 2 * N - 2],
+                    jnp.zeros(4),
+                    c_prev[2 * N + 2 : -2],
+                    jnp.zeros(2),
+                ]
+            )
 
             c = pentadiagonal_solve(self.d2l, dl, d, du, self.d2u, rhs)
 

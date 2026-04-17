@@ -70,8 +70,12 @@ class ElectronReactionFDSolver(AbstractFDSolver):
     ]:
         def stepper(c_prev: Scalar, x: ScanInputSequence):
             d = self._d_template.at[0].set(x.beta0)
-            rhs = c_prev.at[0].set(x.delta0).at[-1].set(1.0)
+
+            rhs = c_prev.at[0].set(x.delta0)
+            rhs = rhs.at[-1].set(1.0)
+
             c = tridiagonal_solve(self.dl, d, self.du, rhs)
+
             return c, c[:3]
 
         return stepper

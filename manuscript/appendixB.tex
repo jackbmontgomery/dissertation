@@ -59,7 +59,8 @@ def tridiagonal_solve_impl(
         return new_mod, mod
 
     init_mod = TriMod(c=c_mod_1, d=d_mod_1)
-    xs = TriRow(a=a[1:], b=b[1:], c=c[1:], d=d[1:])
+
+    xs = TriRow(a=a, b=b[1:], c=jnp.concat([c[1:], jnp.zeros(1)]), d=d[1:])
 
     final_mod, mods = scan(fwd, init_mod, xs)
 

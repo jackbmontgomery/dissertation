@@ -12,7 +12,7 @@ import seaborn as sns
 from jax import jit, vmap
 from matplotlib.lines import Line2D
 
-from src.diagnostics import ess_over_time
+from src.diagnostics import potential_scale_reduction_over_time
 from src.fdm import ElectronReactionFDSolver
 from src.params import ElectronReactionParams, param_property_names
 from src.reaction import ElectronReaction, ReversibleElectronReaction
@@ -95,8 +95,8 @@ for i in range(len(vars_list)):
         ax = g.axes[i, j]
         _, true_y = params[vars_list[i]]
         _, true_x = params[vars_list[j]]
-        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
-        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
+        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=1.0, alpha=0.5)
+        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=1.0, alpha=0.5)
 
 handles = [
     Line2D([0], [0], color="C0", linewidth=1.2, label="NUTS"),
@@ -109,39 +109,123 @@ plt.tight_layout()
 plt.savefig("./manuscript/figures/6-corner-quasi.png", dpi=1000)
 plt.show()
 
+# %% GR against the estimates
+
+
+def running_mean_over_time(samples, num_points):
+    chain_len = samples.shape[1]
+    end_indices = jnp.linspace(
+        chain_len / num_points, chain_len, num_points, dtype=jnp.int32
+    )
+    means = jnp.array([samples[:, :idx].mean() for idx in end_indices])
+    return means
+
+
+def running_mean_band_over_time(samples, num_points):
+    chain_len = samples.shape[1]
+    end_indices = jnp.linspace(
+        chain_len / num_points, chain_len, num_points, dtype=jnp.int32
+    )
+    per_chain = jnp.array([samples[:, :idx].mean(axis=1) for idx in end_indices])
+    return per_chain  # shape (num_points, num_chains)
+
+
+num_points = 50
+x = jnp.linspace(1 / num_points, 1, num_points)
+param = "K0"
+true_value = true_params_quasi.K0
+
+nuts_samples = getattr(nuts_quasi, param)
+rwmh_samples = getattr(rwmh_quasi, param)
+
+nuts_pooled = running_mean_over_time(nuts_samples, num_points)
+rwmh_pooled = running_mean_over_time(rwmh_samples, num_points)
+
+nuts_per_chain = running_mean_band_over_time(nuts_samples, num_points)
+rwmh_per_chain = running_mean_band_over_time(rwmh_samples, num_points)
+
+nuts_rhat = potential_scale_reduction_over_time(nuts_samples, num_points)
+rwmh_rhat = potential_scale_reduction_over_time(rwmh_samples, num_points)
+
+fig, (ax_top, ax_bot) = plt.subplots(
+    2,
+    1,
+    figsize=(7, 4),
+    sharex=True,
+    gridspec_kw={"height_ratios": [2, 1]},
+)
+
+# Top: running mean with inter-chain band
+ax_top.fill_between(
+    x,
+    nuts_per_chain.min(axis=1),
+    nuts_per_chain.max(axis=1),
+    alpha=0.25,
+    color="C0",
+    label="NUTS (inter-chain range)",
+)
+ax_top.plot(x, nuts_pooled, color="C0", lw=1.5, label="NUTS (pooled mean)")
+ax_top.fill_between(
+    x,
+    rwmh_per_chain.min(axis=1),
+    rwmh_per_chain.max(axis=1),
+    alpha=0.25,
+    color="C1",
+    label="RWMH (inter-chain range)",
+)
+ax_top.plot(x, rwmh_pooled, color="C1", lw=1.5, label="RWMH (pooled mean)")
+ax_top.axhline(true_value, color="k", ls="--", lw=0.8, label=r"true $K_0$")
+ax_top.set_ylabel(r"$\mathbb{E}[K_0]$")
+ax_top.legend(fontsize=8, loc="best")
+
+# Bottom: Rhat
+ax_bot.plot(x, nuts_rhat, color="C0", lw=1.5, label="NUTS")
+ax_bot.plot(x, rwmh_rhat, color="C1", lw=1.5, label="RWMH")
+ax_bot.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$\hat{R}=1.01$")
+ax_bot.set_ylabel(r"$\hat{R}$")
+ax_bot.set_xlabel("Sample Proportion")
+ax_bot.legend(fontsize=8, loc="best")
+
+plt.tight_layout()
+plt.savefig("./manuscript/figures/6-k0-gr.png", dpi=1000)
+plt.show()
+
 # %%
 
 fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(10, 4), sharex=True, sharey=True)
-num_points = 20
+num_points = 50
 x = jnp.linspace(1 / num_points, 1, num_points)
 param_names = param_property_names(nuts_quasi)
 headers = [r"$\alpha$", r"$K_0$", r"$\theta_f$"]
 
 ax1.set_title(r"$\alpha$")
-nuts_ess = ess_over_time(nuts_quasi.alpha, num_points=num_points)
+nuts_ess = potential_scale_reduction_over_time(nuts_quasi.alpha, num_points=num_points)
 ax1.plot(x, nuts_ess, label="NUTS")
-rwmh_ess = ess_over_time(rwmh_quasi.alpha, num_points=num_points)
+rwmh_ess = potential_scale_reduction_over_time(rwmh_quasi.alpha, num_points=num_points)
 ax1.plot(x, rwmh_ess, label="RWMH")
+ax1.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 ax2.set_title(r"$K_0$")
-nuts_ess = ess_over_time(nuts_quasi.K0, num_points=num_points)
+nuts_ess = potential_scale_reduction_over_time(nuts_quasi.K0, num_points=num_points)
 ax2.plot(x, nuts_ess, label="NUTS")
-rwmh_ess = ess_over_time(rwmh_quasi.K0, num_points=num_points)
+rwmh_ess = potential_scale_reduction_over_time(rwmh_quasi.K0, num_points=num_points)
 ax2.plot(x, rwmh_ess, label="RWMH")
+ax2.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
 ax3.set_title(r"$\theta_f$")
-nuts_ess = ess_over_time(nuts_quasi.thetaf, num_points=num_points)
+nuts_ess = potential_scale_reduction_over_time(nuts_quasi.thetaf, num_points=num_points)
 ax3.plot(x, nuts_ess, label="NUTS")
-rwmh_ess = ess_over_time(rwmh_quasi.thetaf, num_points=num_points)
+rwmh_ess = potential_scale_reduction_over_time(rwmh_quasi.thetaf, num_points=num_points)
 ax3.plot(x, rwmh_ess, label="RWMH")
+ax3.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$1.01$")
 
-ax1.set_ylabel("ESS")
+ax1.set_ylabel(r"$\hat{R}$")
 ax2.set_xlabel("Sample Proportion")
 
 handles, labels = ax1.get_legend_handles_labels()
-fig.legend(handles, labels, loc="lower center", ncol=2)
+fig.legend(handles, labels, loc="lower center", ncol=3)
 plt.tight_layout(rect=(0, 0.1, 1, 1))
-plt.savefig("./manuscript/figures/6-ess.png", dpi=1000)
+plt.savefig("./manuscript/figures/6-gr.png", dpi=1000)
 plt.show()
 
 # %% ESS
@@ -153,6 +237,11 @@ print(
 )
 print(
     f"RWMH & {ess(rwmh_quasi.alpha):.1f} & {ess(rwmh_quasi.K0):.1f} & {ess(rwmh_quasi.thetaf):.1f}"
+)
+
+
+print(
+    f"Ratio & {ess(nuts_quasi.alpha) / ess(rwmh_quasi.alpha):.1f} & {ess(nuts_quasi.K0) / ess(rwmh_quasi.K0):.1f} & {ess(nuts_quasi.thetaf) / ess(rwmh_quasi.thetaf):.1f}"
 )
 
 # %% Reversible
@@ -228,8 +317,8 @@ for i in range(len(vars_list)):
         ax = g.axes[i, j]
         _, true_y = params[vars_list[i]]
         _, true_x = params[vars_list[j]]
-        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
-        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=0.5, alpha=0.5)
+        ax.axvline(x=true_x, linestyle="--", color="black", linewidth=1.0, alpha=0.5)
+        ax.axhline(y=true_y, linestyle="--", color="black", linewidth=1.0, alpha=0.5)
 
 handles = [
     Line2D([0], [0], color="C0", linewidth=1.2, label="NUTS"),

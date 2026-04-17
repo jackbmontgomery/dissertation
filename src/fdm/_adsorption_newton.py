@@ -2,7 +2,7 @@ from typing import Callable, Tuple
 
 import jax.numpy as jnp
 from chex import dataclass
-from jax import vmap
+from jax import jit, vmap
 from jax.lax import scan, while_loop
 from jaxtyping import Array, Scalar
 
@@ -308,6 +308,7 @@ class AdsorptionReactionNewtonFDSolver(AbstractFDSolver):
 
         return stepper
 
+    @jit(static_argnums=(0,))
     def solve(self, params: AdsorptionReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 

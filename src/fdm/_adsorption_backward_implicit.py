@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Callable
 
 import jax.numpy as jnp
@@ -177,7 +176,7 @@ class AdsorptionReactionBackwardImplicitFDSolver(AbstractFDSolver):
 
         return stepper
 
-    @partial(jit, static_argnums=(0,))
+    @jit(static_argnums=(0,))
     def solve(self, params: AdsorptionReactionParams) -> Scalar:
         stepper = self.create_stepper(params)
 
