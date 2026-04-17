@@ -1,6 +1,6 @@
 \chapter{Numerical Methods}\label{ch:numerical-methods}
 
-We now discretise the initial-boundary value problem from the previous
+We now solve the initial-boundary value problem from the previous
 chapter. We focus on the aspects specific to the electrochemical
 setting: the exponentially expanding spatial mesh and the
 incorporation of the Butler--Volmer boundary condition into the
@@ -19,15 +19,21 @@ in~\cref{eq:kred_kox}.
 
 \section{Discretisation}\label{sec:discretisation}
 
-Time is discretised uniformly into $m$ steps of size $\Delta T$.
-Rather than specifying $\Delta T$ directly, we fix the potential
-increment $\Delta\theta$ per timestep. Since $\theta = \sigma T$, this
-gives $\Delta T = \Delta\theta / \sigma$ and a total of
-$m = 2|\theta_v - \theta_i|/\Delta\theta$ timesteps for a cyclic
-voltammetry experiment.
-Parametrising by $\Delta\theta$ keeps $m$ independent of the scan rate,
-so the temporal accuracy of the simulation is
-preserved when $\sigma$ is varied~\cite{compton2014understanding}.
+Time is discretised uniformly into $m$ steps
+
+\begin{equation}
+  m = \frac{T_{\mathrm{max}}}{\Delta T} = \frac{2(\theta_v -
+  \theta_i)}{\sigma \Delta T}
+  \label{eq:temporal_discritisation}
+\end{equation}
+
+Instead of defining $\Delta T$ directly, since this would mean any
+change in $\sigma$ would also change the number of
+temporal steps we use and thus the accuracy of the simulation. We instead
+define the change in
+potential per timestep $\Delta \theta = \sigma \Delta T$. This fixes
+the number of timesteps per solve independent of the scan
+rate~\cite{compton2014understanding}.
 
 The concentration gradient is steep near the electrode and negligible in
 the bulk, so we use an exponentially expanding spatial mesh with initial
@@ -77,8 +83,6 @@ where $C_i^k \approx C(T^k, X_i)$ and the coefficients are
   \end{aligned}
   \label{eq:interior_coeffs}
 \end{equation}
-These coefficients depend only on the mesh and the timestep, so they are
-precomputed once.
 
 At the electrode surface ($i = 0$) a two-point forward difference
 approximation to~\cref{eq:num_bc} gives
@@ -95,11 +99,8 @@ which rearranges to $\beta_0\, C_0^k + \gamma_0\, C_1^k = b_0$ with
   b_0      = h_0\, K_{\mathrm{ox}}^k.
   \label{eq:electrode_coeffs}
 \end{equation}
-This row is an algebraic constraint from the boundary condition, not a
-time-stepping equation; it contains no $\Delta T$ and must be reassembled
-at each timestep as the applied potential changes. The far-field node
-imposes $C_{n-1}^k = 1$ directly. The resulting tridiagonal system is
-solved in $O(n)$ operations by the Thomas algorithm.
+The far-field node imposes $C_{n-1}^k = 1$. The resulting
+tridiagonal system is solved in $O(n)$ operations by the Thomas algorithm.
 
 \section{The Forward Map}\label{sec:forward-map}
 
@@ -153,7 +154,7 @@ electron-transfer experiments in subsequent chapters.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.8\textwidth]{figures/3-analytical.png}
+  \includegraphics[width=0.95\textwidth]{figures/3-analytical.png}
   \caption[Verification of the forward solver against analytical
   peak-current expressions]{Verification of the forward solver with
     $\sigma = 1000$.
@@ -187,8 +188,8 @@ the formal potential $\theta_f$ translates the voltammogram along the
 potential axis without altering peak shapes. Because changes in one
 parameter can partially mimic changes in another -- for instance, a
 smaller $K_0$ broadens and separates the peaks, which an adjustment in
-$\theta_f$ can partially compensate -- the parameters are correlated,
-and a point estimate alone may not capture the full uncertainty.
+$\theta_f$ can partially compensate -- the parameters are correlated and
+therefore more difficult to identify.
 
 \begin{figure}[ht]
   \begin{center}
@@ -211,12 +212,12 @@ The problem is compounded in the reversible regime.
 the voltammograms for $\alpha = 0.3, \, 0.5, \, 0.7$ are nearly
 indistinguishable, and similarly for $K_0 = 200, \, 500, \, 1000$.
 The combination of parameter correlations in the quasi-reversible
-regime and negligible impact in the reversible regime motivates a
+regime and negligible differences in the reversible regime motivates a
 probabilistic treatment that can quantify these uncertainties and
 reveal the correlation structure. We develop this in the next chapter.
 \begin{figure}[ht]
   \begin{center}
-    \includegraphics[width=0.8\textwidth]{figures/3-alpha-K0-effect-reversible.png}
+    \includegraphics[width=0.95\textwidth]{figures/3-alpha-K0-effect-reversible.png}
   \end{center}
   \caption[Negligible impact of the transfer coefficient and rate
   constant in the reversible regime]{Left: effect of $\alpha$ in the

@@ -15,7 +15,7 @@ electrical circuit.
     potentiostat controls the potential difference between the working
     and reference electrodes whilst driving current (red) through the
     circuit formed by the working and counter electrodes via the
-  analyte solution.}
+  electrolyte solution.}
   \label{fig:electrochemical-cell}
 \end{figure}
 
@@ -26,9 +26,7 @@ undergoes a single-electron redox reaction:
   \mathrm{A} + \mathrm{e}^{-} \rightleftharpoons \mathrm{B},
 \end{equation}
 where $\mathrm{A}$ gains one electron (reduction) to form $\mathrm{B}$;
-the reverse is oxidation. Throughout this chapter we restrict attention to
-this process and adopt the convention that a \emph{positive} current
-corresponds to net reduction (cathodic current).
+and $\mathrm{B}$ loses an electron (oxidation) to form $\mathrm{A}$.
 
 \section{Voltammetry}
 
@@ -40,13 +38,16 @@ in solution.
 
 In a cyclic voltammetry (CV) experiment the potential is swept linearly
 from a starting value~$E_i$, where no reaction occurs, to a vertex
-potential~$E_v$ beyond the formal potential of the redox couple, and then
-back to~$E_i$. The current $I$ is recorded throughout. The triangular
-waveform and the resulting voltammogram are shown in
+potential~$E_v$ where conversion between species occurs, and then
+back to~$E_i$. The current $I$ is recorded throughout. An example of
+the triangular waveform and the resulting voltammogram are shown in
 \cref{fig:potential-voltammogram}.
 
 The forward sweep produces a reduction (cathodic) peak; the return sweep
-produces an oxidation (anodic) peak. The peak shape arises from
+produces an oxidation (anodic) peak~\footnote{Following IUPAC
+  recommendations for sign conventions of
+  electrochemical data, positive values will be assigned to anodic currents.
+}. The peak shape arises from
 competition between two rate-limiting processes. Early in the forward
 sweep the driving force for reduction is small and negligible current
 flows. As the potential moves to more negative values the current
@@ -60,7 +61,7 @@ limiting factor.
 
 \begin{figure}
   \begin{center}
-    \includegraphics[width=0.8\textwidth]{figures/2-voltammogram.png}
+    \includegraphics[width=0.95\textwidth]{figures/2-voltammogram.png}
   \end{center}
   \caption[Applied potential and voltammogram]{Left: the triangular
     potential waveform applied in a cyclic voltammetry experiment. Right:
@@ -70,11 +71,9 @@ limiting factor.
   \label{fig:potential-voltammogram}
 \end{figure}
 
-The peak positions are related to the formal potential $E^{\circ}_f$, and
-the separation between cathodic and anodic peaks carries information about
-the electrode kinetics, as discussed in \cref{sec:electrode-kinetics}.
-
-The \emph{scan rate} $\nu$ $(\mathrm{V\,s^{-1}})$ controls the timescale
+The peak positions and separation between anodic and cathodic peaks
+carry information about the electrode kinetics. The \emph{scan rate} $\nu$
+$(\mathrm{V\,s^{-1}})$ controls the timescale
 of the experiment: faster scans probe faster kinetic processes, while
 slower scans allow more time for diffusion and can reveal coupled chemical
 reactions. The scan rate is chosen for each reaction mechanism so that the
@@ -83,11 +82,11 @@ each choice is given when the mechanism is introduced.
 
 \section{Mathematical Description}
 
-We consider a planar disc electrode of radius~$r_e$: much larger than the
-diffusion length on the experimental timescale. This is the
-``macro-electrode'' assumption and it allows us to only model the
-diffusion perpendicular to the surface of the electrode. This reduces
-the problem to one spacial dimension. (\cref{fig:electrode-reaction}).
+We consider a planar disc electrode of radius~$r_e$ which is much
+larger than the diffusion length on the timescale of the experiment. This
+assumption allows us to model only the diffusion perpendicular to the
+surface of the electrode reducing reduces the problem to one spacial
+dimension. (\cref{fig:electrode-reaction}).
 
 \begin{figure}
   \centering
@@ -137,13 +136,7 @@ by the Butler--Volmer equation~\cite{dickinson2020butler}:
 where $k_0$ $(\mathrm{m\,s^{-1}})$ is the standard rate constant, $\alpha
 \in (0,1)$ is the transfer coefficient, $F$ is Faraday's constant,
 $\mathcal{R}$ is the universal gas constant, and $\mathcal{T}$ is the
-absolute temperature. The overpotential $E(t) - E^0_f$ measures the
-deviation of the applied potential from the formal potential: a negative
-overpotential enhances the reduction (first) term, a positive one enhances
-the oxidation (second) term. When $k_0$ is large the surface
-concentrations are forced towards thermodynamic equilibrium; when
-$k_0$ is small the flux is proportional to $k_0$. These are two
-different kinetic reigimes which are discussed further in \cref{sec:bv-effects}.
+absolute temperature.
 
 Combining \cref{eq:ficks-first,eq:butler-volmer} at $x = 0$ gives a
 Neumann boundary condition:
@@ -184,9 +177,7 @@ The measured current is
   \label{eq:current}
 \end{equation}
 where $A_{\mathrm{el}} = \pi r_e^2$ is the electrode area and $j_{0,A}$
-is the surface flux of $\mathrm{A}$ from \cref{eq:ficks-first}. Under our
-sign convention a positive $j_{0,A}$ corresponds to reduction and hence
-positive current.
+is the surface flux of $\mathrm{A}$ from \cref{eq:ficks-first}.
 
 \section{Non-Dimensionalisation}\label{sec:nondim}
 
@@ -199,23 +190,21 @@ $r_e$, and potentials by the thermal voltage $\mathcal{R}\mathcal{T}/F$.
 
 \begin{table}[ht]
   \centering
-  \begin{tabular}{ll}
+  \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}llll@{}}
     \hline
-    Parameter & Normalisation \\
+    Parameter & Normalisation & Parameter & Normalisation \\
     \hline
-    concentration & $C_j = c_j / c_{\mathrm{A}}^*$ \\
-    diffusion coefficient & $d_j = D_j / D_{\mathrm{A}}$ \\
-    spatial coordinate & $X = x / r_e$ \\
-    time & $T = D_{\mathrm{A}} t / r_e^2$ \\
-    applied potential & $\theta = (F / \mathcal{R}\mathcal{T})\,E$ \\
-    formal potential & $\theta_f = (F /
-    \mathcal{R}\mathcal{T})\,E_{\mathrm{f}}^0$ \\
-    rate constant & $K_0 = k_0\,r_e / D_{\mathrm{A}}$ \\
-    scan rate & $\sigma = (r_e^2 / D_{\mathrm{A}})(F /
-    \mathcal{R}\mathcal{T})\,\nu$ \\
-    current & $J = I / (\pi r_e F D_{\mathrm{A}} c_{\mathrm{A}}^*)$ \\
+    concentration & $C_j = c_j / c_{\mathrm{A}}^*$ & formal potential
+    & $\theta_f = (F / \mathcal{R}\mathcal{T})\,E_{\mathrm{f}}^0$ \\
+    diffusion coefficient & $d_j = D_j / D_{\mathrm{A}}$ & rate
+    constant & $K_0 = k_0\,r_e / D_{\mathrm{A}}$ \\
+    spatial coordinate & $X = x / r_e$ & scan rate & $\sigma = (r_e^2
+    / D_{\mathrm{A}})(F / \mathcal{R}\mathcal{T})\,\nu$ \\
+    time & $T = D_{\mathrm{A}} t / r_e^2$ & current & $J = I / (\pi
+    r_e F D_{\mathrm{A}} c_{\mathrm{A}}^* )$ \\
+    applied potential & $\theta = (F / \mathcal{R}\mathcal{T})\,E$ & & \\
     \hline
-  \end{tabular}
+  \end{tabular*}
   \caption[Dimensionless normalisation of variables]{Dimensionless
   normalisation of variables.}
   \label{tab:normalisation}
@@ -226,11 +215,13 @@ Under these scalings the governing equations become
   \frac{\partial C_j}{\partial T} = d_j \frac{\partial^2 C_j}{\partial X^2},
   \label{eq:nd_diffusion}
 \end{equation}
-with initial conditions $C_A(0, X) = 1$, $C_B(0, X) = C_B^*$. The
+with initial conditions $C_A(0, X) = 1$, $C_B(0, X) = C_B^*$.
+The
 semi-infinite domain is truncated at $X_{\max} =
-6\sqrt{T_{\mathrm{sim}}}$, chosen so that
+6\sqrt{T_{\mathrm{max}}}$ and $T_{\mathrm{max}} = 2(\theta_v -
+\theta_i)/\sigma$. This truncation is  chosen so that
 $X_{\max}$ exceeds the diffusion length
-$\sqrt{2T_{\mathrm{sim}}}$~\cite{einstein1905brownian} by a wide
+$\sqrt{2T_{\mathrm{max}}}$~\cite{einstein1905brownian} by a wide
 margin~\cite{svir2003solution},
 and the far-field conditions $C_A = 1$, $C_B = C_B^*$ are imposed there.
 

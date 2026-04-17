@@ -3,29 +3,26 @@
 This dissertation developed a differentiable forward solver for
 voltammetric simulation and integrated it with gradient-based Bayesian
 inference to solve the electrochemical inverse problem. The work made
-three contributions. First, a custom adjoint rule for the banded linear
-solve yields exact gradients, reducing the per-timestep memory
+three contributions. First, a custom adjoint rule for the banded
+linear solve yields exact gradients, reducing the per-timestep memory
 from the full factorisation tape to four arrays of length~$n$
 (\cref{ch:adjoint}). Second, coupling this solver with NUTS produces
-full posterior distributions over the physical parameters,
-quantifying uncertainty and revealing correlations that point estimates
-cannot provide (\cref{ch:bayesian,ch:hmc}). In kinetic regimes where
-certain parameters have negligible impact on the current, the posterior
-makes this insensitivity explicit through wide marginals. Third, the
-framework was applied to three reaction mechanisms of increasing
-complexity: a single electron transfer (3~parameters), a heterogeneous
-reaction (7~parameters), and an adsorption reaction (9~parameters).
-Under equal runtime budgets, the NUTS/RWMH effective-sample-size ratio
-grew from $1.5$--$2.4\times$ in three dimensions
-(\cref{tab:electron-ess}) to $2.7$--$3.6\times$ in seven
-(\cref{tab:het-ess}). In nine dimensions the ratio continued to
-increase for the electron-transfer parameters
-($4.0$--$4.8\times$), but was lower for the adsorption/desorption rate
-constants ($2.3$--$2.6\times$; \cref{tab:ads-ess}). Each forward
-solver was verified against analytical solutions before inference: the
-Randles--\v{S}ev\v{c}\'{\i}k peak current for electron transfer, the
-analytical voltammogram of \cref{ch:heterogeneous} for the
-heterogeneous case, and the monolayer limit for adsorption.
+full posterior distributions over the physical parameters, quantifying
+uncertainty and revealing correlations that point estimates cannot
+provide (\cref{ch:bayesian,ch:hmc}). Third, the framework was applied
+to three reaction mechanisms of increasing complexity: a single
+electron transfer, a heterogeneous reaction, and an adsorption
+reaction (\cref{ch:hmc,ch:heterogeneous,ch:adsorption}).
+
+The forward solver for each reaction was verified against analytical
+solutions before inference. Under matched runtime, NUTS converged in
+$\hat{R}$ from the first checkpoint for almost every parameter in every
+reaction, while RWMH about $30\%$ of the samples before its
+pooled empirical moments were valid estimates. The NUTS/RWMH ESS ratio grew from
+$1.6$--$1.9\times$ in three dimensions to $2.1$--$2.7\times$ in
+seven, and $2.6$--$4.1\times$ in nine, where the lower end
+of the range corresponds to the adsorption/desorption rate constants
+with their strongly correlated posteriors.
 
 The adsorption reaction also illustrated how the framework adapts to
 numerical constraints. The Langmuir coupling terms make the discrete
@@ -72,10 +69,8 @@ over larger parameter spaces or more complex reaction networks practical.
 \paragraph{Alternative samplers.}
 NUTS is not the only gradient-based sampler. Microcanonical Langevin
 Monte Carlo and other adaptive HMC variants may offer further
-efficiency gains, particularly in the high-dimensional,
-correlated posteriors encountered in the adsorption case, where the
-NUTS advantage over RWMH was reduced for the
-adsorption/desorption rate constants.
+efficiency gains, particularly for the correlated posteriors
+encountered in the adsorption case.
 
 \medskip
 
@@ -83,7 +78,7 @@ The framework developed here is not specific to the three reactions
 studied. Any voltammetric forward model that can be expressed as a
 sequence of banded linear solves admits the same adjoint treatment, and
 the inference workflow applies without modification. As differentiable
-programming becomes standard infrastructure in the computational
-sciences~\cite{kitchin2025beyond}, coupling differentiable PDE solvers
-with gradient-based samplers offers a systematic route to full
+programming becomes a common methodology in the computational
+sciences, coupling differentiable PDE solvers
+with gradient-based samplers offers a systematic route to efficient, full
 uncertainty quantification for electrochemical inverse problems.

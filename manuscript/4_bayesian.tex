@@ -1,6 +1,6 @@
 \chapter{Bayesian Approach to the Inverse Problem}\label{ch:bayesian}
 
-The parameter correlations and negligible impact of parameters discussed in
+The correlations and negligible impact of parameters discussed in
 \cref{sec:bv-effects} make the inverse problem ill-posed: a unique,
 stable solution may not exist. We therefore take a Bayesian approach and
 seek probability distributions over the parameters rather than point
@@ -31,7 +31,7 @@ noise levels of $1$--$2\%$ of the peak
 current~\cite{morris2013comparison}, corresponding to $\eta \in [0.01,\,
 0.02]$. For a given $\eta$, the noise level $\varsigma$ is determined by
 the noiseless forward solve and is treated as a known constant throughout
-the inference. An example of synthetic noisy data is shown in
+the inference. Examples of synthetic noisy data are shown in
 \cref{fig:noisy-samples}.
 
 \begin{figure}[ht]
@@ -89,8 +89,8 @@ drawn from a symmetric Gaussian centred at the current state:
   \mathcal{N}(\phi^{(t)},\, \Sigma).
   \label{eq:rwmh-proposal}
 \end{equation}
-The symmetry of the proposal simplifies the Metropolis--Hastings
-acceptance probability~\cite{hastings1970monte} to
+Proposals are accepted or rejected according to the
+Metropolis--Hastings acceptance probability~\cite{hastings1970monte}
 \begin{equation}
   r = \min\!\left\{
     \exp\!\big(\ell(\phi_{\mathrm{cand}}) - \ell(\phi^{(t)})\big),\; 1
@@ -106,9 +106,8 @@ targets~\cite{gelman1997weak}.
 We apply RWMH to synthetic data generated with true parameters
 $\phi^* = (0.6,\, 10.0,\, 0.5)$ at scan rate $\sigma = 1000$ and noise
 level $\eta = 0.02$. \Cref{fig:rwmh-hist} shows the marginal posterior
-histograms: all three marginals concentrate around the true values
-(dashed lines), confirming that the sampler recovers the correct region
-of the parameter space.
+histograms which confirm all three marginals concentrate around the true values
+(dashed lines).
 
 \begin{figure}[ht]
   \centering
@@ -116,34 +115,36 @@ of the parameter space.
   \caption[Marginal posterior histograms from RWMH sampling]{Marginal
     posterior histograms for the three Butler--Volmer
     parameters obtained by RWMH sampling on synthetic data with noise
-    level $\eta = 0.02$. Dashed lines indicate the true parameter
+    level $\eta = 0.02$. Red dashed lines indicate the true parameter
   values used to generate the data.}
   \label{fig:rwmh-hist}
 \end{figure}
 
-The histograms exhibit extended tails whose origin is visible in
-\cref{fig:rwmh-burn-in}. This is because the chain was initialised far from the
-high-density region and spends many iterations traversing low-probability
-areas before settling near the true values. Typically, these initial samples are
-discarded as \emph{burn-in}. But since each likelihood evaluation requires a
-full forward solve, this burn-in represents a significant waste of
-computation.
+The histograms exhibit extended tails originating from the chain's
+early samples, visible in \cref{fig:rwmh-burn-in}. The chain spends
+many iterations traversing low-probability areas before settling near
+the true values this is due to it being initialised far from the
+high-density region. These initial samples are typically discarded as
+\emph{burn-in}. But since each likelihood evaluation requires a full
+forward solve, this burn-in represents a significant waste of computation.
+
+A gradient of the log-likelihood would address this. We could locate
+the high-density region by optimisation before sampling begins;
+gradient-free optimisers can do the same, but gradients offer faster
+and more robust convergence. Moreover, gradients can be incorporated
+into the MCMC proposal itself, yielding samplers that explore the
+posterior more efficiently than random walks. Both uses require
+differentiating through the forward map~$\mathcal{P}$, which we
+develop in the following chapter.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.7\textwidth]{figures/4-rwmh-scatter.png}
+  \includegraphics[width=0.95\textwidth]{figures/4-rwmh-scatter.png}
   \caption[RWMH chain burn-in in the $(\alpha, K_0)$ plane]{Scatter
     plot of the RWMH chain projected onto the
-    $(\alpha,\, K_0)$ plane. Points are coloured by sample index: early
-    samples (dark) show the chain traversing a low-density region far
-    from the true parameters (red cross), while later samples (light)
-  concentrate near the posterior mode.}
+    $(\alpha,\, K_0)$ plane. Points are coloured by sample index:
+    early samples (dark) show the chain traversing a low-density
+    region far from the true parameters (red cross), while later
+  samples (light) concentrate near the true values.}
   \label{fig:rwmh-burn-in}
 \end{figure}
-
-A natural remedy is to locate the posterior mode by
-optimisation before sampling begins. More ambitiously, gradient
-information can be incorporated into the MCMC proposal itself, yielding
-samplers that explore the posterior geometry more efficiently than the
-random walk. Both ideas require differentiating through the forward
-map~$\mathcal{P}$, which we develop in the following chapter.

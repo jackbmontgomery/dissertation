@@ -3,24 +3,23 @@
 The inverse problem requires recovering physical parameters
 from indirect measurements. This problem is ubiquitous throughout the
 sciences; occurring whenever the quantities of interest cannot be observed
-directly. In electrochemistry, the parameters governing a reaction at
-an electrode surface must be inferred from the current response to an
-applied potential. This inference is the electrochemical inverse
-problem.
+directly. In electrochemistry, the parameters governing a reaction
+must be inferred from the current response. This inference is the
+electrochemical inverse problem.
 
 Predicting the current response for a given set of parameters is the
-corresponding forward problem, which in the present context, reduces to
-solving a diffusion PDE with kinetic boundary conditions
-\cite{compton2014understanding}. Solving the inverse problem then
+corresponding forward problem. In the present context this reduces to
+solving a diffusion PDE with kinetic boundary conditions. Solving the
+inverse problem then
 amounts to finding the parameters whose forward solution best
 explains the observed data. The difficulty is threefold: the
 mapping from parameters to current is nonlinear, distinct parameter
 configurations can produce similar voltammograms, and in certain
-kinetic regimes some parameters cease to influence the current altogether.
+kinetic regimes parameters may cease to influence the current altogether.
 Point estimates cannot capture these difficulties. They provide no
-account of uncertainty, cannot distinguish a well-constrained parameter
-from one that is insensitive to the data, and do not reveal correlations
-between parameters. Bayesian inference addresses this by computing the
+account of uncertainty, nor can they reveal
+correlations between parameters.
+Bayesian inference addresses this by computing the
 posterior distribution conditioned on the observed
 data \cite{gavaghan2018bayesian}.
 
@@ -31,23 +30,22 @@ Gradient-free samplers such as random-walk Metropolis--Hastings (RWMH)
 explore the parameter space by undirected local proposals and
 consequently waste many of these solves on rejected candidates,
 particularly as the number of parameters grows. Gradient information
-helps in two ways: it can initialise the sampler near a posterior mode
+helps in two ways: it can initialise the sampler in high density areas
 via optimisation; and it can inform the sampling itself
-through Hamiltonian Monte Carlo (HMC), which uses the gradient to
+with methods like Hamiltonian Monte Carlo (HMC), which uses the gradient to
 construct long-range, low-rejection proposals.
 
 The challenge is obtaining these gradients cheaply. Finite differences
 require at least one additional forward solve per parameter and introduce
 truncation error. Whereas, reverse-mode automatic differentiation computes exact
-gradients at a cost bounded by a small multiple of the forward solve,
-independent of parameter dimension \cite{griewank2008evaluating}.
-Na\"ively taping an entire PDE solver, however, records every
-intermediate of the linear solve -- elimination multipliers, modified
-diagonals, partial sums -- at each timestep. We instead derive a
-custom adjoint rule for the banded linear solve and
-register it with the automatic differentiation framework, \emph{JAX}
-\cite{jax2018github}, so that gradient computation uses only the matrix
-diagonals and solution vector.
+gradients for all parameters at a cost bounded by a small multiple of
+the forward solve~\cite{griewank2008evaluating}. However, na\"ively taping an
+entire PDE solver can be inefficient since it records every
+intermediate of the linear solve at each timestep. We instead derive
+a custom adjoint rule for the banded linear solve and register it
+with the automatic differentiation framework, \emph{JAX}
+\cite{jax2018github}, so that gradient computation uses only the
+matrix diagonals and solution vector at each timestep.
 
 This work sits within a broader shift toward differentiable scientific
 computing; Kitchin et~al.\ \cite{kitchin2025beyond} characterise
@@ -74,6 +72,10 @@ mechanisms of increasing complexity:  a single electron transfer
 (3~parameters), a heterogeneous reaction (7~parameters), and an
 adsorption reaction (9~parameters). We find that the advantage of
 NUTS over RWMH grows with the dimensionality of the parameter space.
-The methodology is developed through the single-electron-transfer
-reaction, which serves as a running example; the final two chapters
-apply the complete framework to the harder reactions concisely.
+
+We develop the methodology in
+\cref{ch:electrochem,ch:numerical-methods,ch:bayesian,ch:adjoint,ch:hmc}
+using the single-electron-transfer reaction as running example to
+introduce each concept within the electrochemical context.
+\Cref{ch:heterogeneous,ch:adsorption} then apply the methodology to
+chemically richer and more complex reactions.

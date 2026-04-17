@@ -2,14 +2,13 @@
 
 This chapter applies the inference framework to a reaction involving two
 electron transfers coupled by an irreversible heterogeneous chemical
-step. The parameter space grows from three to seven dimensions, providing
-a first test of how the relative efficiency of NUTS and RWMH scales with
-dimension. Because the methodology has been established, we focus on
+step. The parameter space grows from three to seven dimensions.
+Because the methodology has been established, we focus on
 what is new: the reaction scheme, the coupled PDE system, the reordering
 that yields a pentadiagonal linear system, and the inference results. A
-more detailed treatment of surface processes -- including explicit
-surface concentrations and adsorption/desorption kinetics -- is deferred
-to \cref{ch:adsorption}.
+more detailed treatment of surface processes with explicit
+surface concentrations and adsorption/desorption kinetics is covered
+in \cref{ch:adsorption}.
 
 \section{Reaction Scheme}\label{sec:het-scheme}
 
@@ -24,7 +23,7 @@ mechanism~\cite{compton2014understanding}:
 \end{equation}
 Species~$\mathrm{A}$ is reduced to~$\mathrm{B}$; $\mathrm{B}$ is
 converted irreversibly to~$\mathrm{C}$ by a surface-catalysed process
-with rate constant $k_{\mathrm{het}}$~($\mathrm{m\,s^{-1}}$); and
+with rate constant $k_{\mathrm{het}}$~($\mathrm{m\,s^{-1}}$).
 $\mathrm{C}$ undergoes a second electron transfer to form~$\mathrm{D}$.
 The chemical step occurs only at the electrode surface, so bulk transport
 of all four species is governed by Fick's second law. This mechanism
@@ -56,16 +55,16 @@ constant $K_{\mathrm{het}}$, the parameter vector is
 Under the equal-diffusion assumption ($d_j = 1$), each species satisfies
 the dimensionless diffusion equation~\cref{eq:nd_diffusion}. Unlike the
 single-electron case, the heterogeneous step breaks stoichiometric
-conservation at the surface -- $\mathrm{B}$ is consumed both by
-oxidation to~$\mathrm{A}$ and by conversion to~$\mathrm{C}$ -- so the
+conservation at the surface since $\mathrm{B}$ is consumed both by
+oxidation to~$\mathrm{A}$ and by conversion to~$\mathrm{C}$. Thus the
 system cannot be reduced to a single PDE and all four equations must be
 solved.
 
-Initially only $\mathrm{A}$ is present at bulk concentration:
+\subsection{Initial and Boundary Conditions}
+
+We assume only $\mathrm{A}$ is present initially:
 $C_\mathrm{A}(0,X) = 1$, $C_\mathrm{B} = C_\mathrm{C} = C_\mathrm{D}
 = 0$. These values are also imposed at $X = X_{\max}$.
-
-\subsection{Electrode Boundary Conditions}
 
 We apply the scalings of \cref{tab:normalisation}, defining
 $K_{\mathrm{red}}^{(i)}$ and $K_{\mathrm{ox}}^{(i)}$ for each electron
@@ -107,23 +106,19 @@ steps and the heterogeneous conversion:
     + K_{\mathrm{het}}\, C_\mathrm{B}(T, 0)
   \right\}.
 \end{equation}
-The $K_{\mathrm{het}}\, C_\mathrm{B}$ term accounts for the electron
-transferred indirectly when $\mathrm{B}$ is converted to~$\mathrm{C}$ at
-the surface.
 
 \section{Pentadiagonal System}\label{sec:het-disc}
 
 Each species is discretised on the same exponentially expanding mesh of
 \cref{sec:discretisation}. The four species are coupled only through the
-boundary conditions at $X = 0$; in the interior each satisfies an
-independent tridiagonal system. A natural species-by-species ordering of
-the unknowns places the $K_{\mathrm{het}}$ coupling entries $n$ positions
-from the main diagonal, far outside any narrow band.
+boundary conditions at $X = 0$. A species-by-species ordering of
+the unknowns places the surface coupling entries $n$ positions
+from the main diagonal.
 
-The bandwidth is reduced by interleaving the unknowns: $\mathrm{A}$ and
-$\mathrm{B}$ are indexed from $X_{n-1}$ down to $X_0$ (far field to
-electrode), while $\mathrm{C}$ and $\mathrm{D}$ run from $X_0$ to
-$X_{n-1}$:
+The bandwidth can be reduced by interleaving the unknowns $A$ with
+$B$ and $C$ with $D$. Additionally, $\mathrm{A}$ and $\mathrm{B}$ are
+indexed from $X_{n-1}$ down to $X_0$, while $\mathrm{C}$ and
+$\mathrm{D}$ run from $X_0$ to $X_{n-1}$:
 \begin{equation}\label{eq:het-ordering}
   \mathbf{C} = \bigl(
     C_\mathrm{A}^{n-1}, C_\mathrm{B}^{n-1}, \ldots,
@@ -132,22 +127,26 @@ $X_{n-1}$:
     C_\mathrm{C}^{n-1}, C_\mathrm{D}^{n-1}
   \bigr)^T.
 \end{equation}
-The electrode-surface nodes of all species are now adjacent, and the
-$K_{\mathrm{het}}$ coupling between $C_\mathrm{B}^0$ and
-$C_\mathrm{C}^0$ falls within two positions of the main diagonal. The
-result is a pentadiagonal system solved in $O(n)$ per timestep. As noted
-in \cref{sec:pentadiagonal}, its transpose is again pentadiagonal, so the
-adjoint system is solved at the same cost.
+
+The $K_{\mathrm{het}}$ coupling between $C_\mathrm{B}^0$ and
+$C_\mathrm{C}^0$ is now adjacent with other surface coupling within
+two positions of the main diagonal. The result is a pentadiagonal
+system solved in $O(n)$ per timestep. As noted in
+\cref{sec:pentadiagonal}, its transpose is again pentadiagonal, so
+the adjoint system is solved at the same cost.
 
 \section{Inference Setup}\label{sec:het-inference}
 
 The inference workflow follows \cref{sec:workflow}. The seven parameters
 are transformed: $\alpha^{(i)} \mapsto \operatorname{logit}(\alpha^{(i)})$,
 $K_0^{(i)} \mapsto \log K_0^{(i)}$, $K_{\mathrm{het}} \mapsto \log
-K_{\mathrm{het}}$, with $\theta_f^{(i)}$ untransformed. Synthetic data
-are generated at $\phi^* = (0.5,\, 15.0,\, 0.2,\, 0.5,\, 6.0,\, 0.4,\,
-25.0)$ with $\sigma = 1000$ and $\eta = 0.02$. Under equal runtime
-budgets this gives $2{,}800$ NUTS samples and $40{,}000$ RWMH samples.
+K_{\mathrm{het}}$, with $\theta_f^{(i)}$ untransformed.
+
+Synthetic data is generated at $$\phi^* = ( 0.5,\,15.0,\,0.2,\,
+0.5,\, 6.0,\, 0.4,\, 25.0)$$ with $\sigma = 1000$, $\eta = 0.02$,
+$\theta_i = 10.0$ and $\theta_v = 10.0$.
+Under equal runtime
+budgets this gives $2{,}400$ NUTS samples and $32{,}000$ RWMH samples.
 
 \section{Results}\label{sec:het-results}
 
@@ -165,7 +164,7 @@ two-electron transfer with twice the peak current.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.8\textwidth]{figures/7-analytical.png}
+  \includegraphics[width=0.6\textwidth]{figures/7-analytical.png}
   \caption[Verification of the heterogeneous solver against analytical
   limits]{Verification in two limiting regimes.
     Blue: $K_{\mathrm{het}} \to 0$, recovering the single-electron
@@ -183,44 +182,86 @@ two-electron transfer with twice the peak current.
 Both samplers recover the true values across all seven dimensions;
 the diagonal overlays both marginals, while the
 off-diagonal shows the NUTS joint structure alone for clarity.
-Within each electron transfer, $\alpha^{(i)}$ and $K_0^{(i)}$ are
-negatively correlated, consistent with the compensation effect of
-\cref{sec:bv-effects}. Between electron transfers, the rate constants
-$K_0^{(1)}$ and $K_0^{(2)}$ also correlate negatively: an increase in
-the rate of the first electron transfer can be offset by a decrease in
-the second, since both contribute additively to the measured current
+Within the first electron transfer, $\alpha^{(1)}$ and $K_0^{(1)}$ are
+negatively correlated, which differs from what we saw in the previous
+chapter. From~\cref{eq:kred_kox}, an increase in $\alpha^{(1)}$ can be
+compensated by a decrease in $K_0^{(1)}$ to leave
+$K_{\mathrm{red}}^{(1)}$ near the cathodic peak approximately
+unchanged; the sign of this trade-off depends on which side of
+$\theta_f^{(1)}$ the peak sits. The two transfer coefficients
+$\alpha^{(1)}$ and $\alpha^{(2)}$ are also correlated, propagated
+through the shared surface coupling between $C_\mathrm{B}$ and
+$C_\mathrm{C}$. Between electron transfers, the rate constants
+$K_0^{(1)}$ and $K_0^{(2)}$ correlate negatively: an increase in the
+rate of the first transfer can be offset by a decrease in the second,
+since both contribute additively to the measured current
 in~\cref{eq:het-current}.
 
 The $K_{\mathrm{het}}$ marginal has a width comparable to that of
-$K_0^{(2)}$ (approximately $0.5$ units), despite its larger value
-($K_{\mathrm{het}} = 25$ vs $K_0^{(2)} = 6$). By contrast, $K_0^{(1)}$
+$K_0^{(2)}$, despite its larger value ($K_{\mathrm{het}} = 25$ vs
+$K_0^{(2)} = 6$). By contrast, $K_0^{(1)}$
 has a width of approximately $5$ units around its true value of $15$.
-The heterogeneous rate constant thus remains identifiable even at large
-values, reflecting the distinct signature of the chemical step in the
+The heterogeneous rate constant thus remains identifiable even at larger
+values, reflecting the distinct contribution of the chemical step in the
 current.
 
-\begin{figure}[ht]
+\begin{figure}[p]
   \centering
-  \includegraphics[width=0.95\textwidth]{figures/7-corner.png}
+  \includegraphics[width=1.0\textwidth]{figures/7-corner.png}
   \caption[Selected pairwise posteriors for the heterogeneous
   reaction]{Selected pairwise marginal posteriors. Diagonal:
-    Hisograms of NUTS (blue) with $2{,}800$ samples
-    and RWMH (orange) with $40{,}000$ samples. Off-diagonal: NUTS KDE
+    histograms of NUTS (blue) with $2{,}400$ samples
+    and RWMH (orange) with $32{,}000$ samples. Off-diagonal: NUTS KDE
     contours. Dashed lines indicate true values. Formal potentials
   omitted for clarity.}
   \label{fig:het-corner}
 \end{figure}
 
-\subsection{Sampling Efficiency}\label{sec:het-ess}
+\Cref{fig:het-current-fit} shows the posterior-mean voltammogram and
+95\% credible interval against the noisy data; the fit confirms that
+the sampled posteriors are consistent with the observations.
 
-\Cref{fig:het-ess} compares ESS growth for NUTS and RWMH on a normalised
-cost axis. \Cref{tab:het-ess} reports the final values: NUTS achieves
-$2.7$--$3.6\times$ the ESS of RWMH across all seven parameters,
-up from $1.5$--$2.4\times$ in the three-parameter case. The widening
-gap is consistent with the scaling discussed in
-\cref{sec:hmc-results}: in seven dimensions the RWMH proposal must
-shrink further to maintain its acceptance rate, while NUTS continues
-to take gradient-informed steps of comparable length.
+\begin{figure}[ht]
+  \begin{center}
+    \includegraphics[width=1.0\textwidth]{figures/7-current-fit.png}
+  \end{center}
+  \caption[Posterior-mean current fit for the heterogeneous
+  reaction]{Posterior-mean voltammogram (solid) with 95\% credible
+    interval (shaded) of the NUTS posterior against the true current
+    (dashed) and noisy data
+    (points). The mean is indistinguishable from the true current with
+  tight credibility intervals.}
+  \label{fig:het-current-fit}
+\end{figure}
+
+\subsection{Convergence and Sampling Efficiency}\label{sec:het-ess}
+
+\Cref{fig:het-gr} shows $\hat{R}$ over sampling budget. NUTS remains
+below the $1.01$ threshold throughout. RWMH
+requires a substantially larger fraction of the budget to converge
+than in the three-parameter case: the
+$\hat{R}$ curves for $\theta_f^{(1)}$ and $K_0^{(1)}$ remain above
+$1.01$ for the majority of the run.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=1.00\textwidth]{figures/7-gr.png}
+  \caption[$\hat{R}$ for the heterogeneous reaction]{$\hat{R}$ as a
+    function of sample proportion for NUTS (blue) and RWMH (orange)
+    for each parameter of the ECirrhetE mechanism. NUTS remains below
+    the $1.01$ threshold throughout; RWMH requires a larger fraction
+    of the budget to converge than in the three-parameter case
+  (\cref{fig:electron-gr}).}
+  \label{fig:het-gr}
+\end{figure}
+
+NUTS achieves $2.1$--$2.8\times$ the ESS of RWMH across all seven
+parameters (\Cref{tab:het-ess}), up from $1.6$--$1.9\times$ in the
+electron reaction. As the number of parameters grows, a random-walk
+proposal is increasingly likely to land in low-density regions and
+must shrink to maintain a reasonable acceptance rate, increasing the
+within-chain correlation. The gradient-informed proposals do not
+suffer from this issue.
 
 \begin{table}[ht]
   \centering
@@ -231,35 +272,25 @@ to take gradient-informed steps of comparable length.
     & $K_{\mathrm{het}}$ \\
     \hline
     NUTS & 3108.0 & 2845.3 & 2841.7 & 2968.4 & 3056.3 & 3869.3 & 3843.7 \\
-    RWMH & 1029.6 & 939.5 & 946.7 & 1071.3 & 1143.5 & 1083.5 & 1102.6 \\
-    Ratio & 3.0 & 3.0 & 3.0 & 2.8 & 2.7 & 3.6 & 3.5 \\
+    RWMH & 1347.0 & 1227.8 & 1234.4 & 1408.8 & 1415.0 & 1372.3 & 1404.1 \\
+    Ratio & 2.3 & 2.3 & 2.3 & 2.1 & 2.2 & 2.8 & 2.7 \\
     \hline
   \end{tabular}
-  \caption[ESS for the heterogeneous reaction]{Effective sample size for
-  each parameter at equal runtime budget, with NUTS/RWMH ratio.}
+  \caption[ESS for the heterogeneous reaction]{Effective sample size
+    for each parameter at equal runtime budget, with NUTS/RWMH
+  ratio.}
   \label{tab:het-ess}
 \end{table}
-
-\begin{figure}[ht]
-  \centering
-  \includegraphics[width=0.95\textwidth]{figures/7-ess.png}
-  \caption[ESS comparison for the heterogeneous reaction]{ESS as a
-    function of sample proportion. NUTS (blue) accumulates independent
-    samples at a higher rate than RWMH (orange) across all seven
-    parameters, with a wider gap than in the three-parameter case of
-  \cref{sec:hmc-results}.}
-  \label{fig:het-ess}
-\end{figure}
 
 \section{AC Voltammetry}\label{sec:het-ac}
 
 In AC voltammetry a sinusoidal perturbation is superimposed on the DC
 ramp:
 \begin{equation}\label{eq:ac-potential}
-  \theta(T) = \theta_{\mathrm{DC}}(T) + \Delta\theta\,
+  \theta(T) = \theta_{\mathrm{DC}}(T) + \delta\theta\,
   \sin(2\pi f\, T),
 \end{equation}
-where $\Delta\theta$ is the amplitude and $f$ the frequency. The
+where $\delta\theta$ is the amplitude and $f$ the frequency. The
 oscillatory component of the current probes the electrode kinetics on a
 faster timescale than the DC sweep alone, providing additional
 information about the rate constants and transfer
@@ -267,27 +298,34 @@ coefficients. Gavaghan et~al.~\cite{gavaghan2018bayesian} demonstrated
 this for the single-electron reaction; we extend the comparison to the
 heterogeneous case.
 
-We use $\Delta\theta = 0.5$ and $128$ oscillations over
-the experiment, with the temporal grid chosen to ensure at least $10$
-points per oscillation so that the sinusoidal waveform is adequately
-resolved. No changes are required to the forward solver or inference
-workflow: the perturbation enters only through the time-dependent
-$K_{\mathrm{red}}^{(i)}$ and $K_{\mathrm{ox}}^{(i)}$ in the boundary
-conditions.
+We use $\delta\theta = 0.5$ and $128$ oscillations over the
+experiment, giving $f = 2 \times 128\pi / T_{\max}$. The temporal
+grid is chosen to ensure at least $10$ points per oscillation so
+that the sinusoidal waveform is adequately resolved. No changes are
+required to the forward solver or inference workflow.
 
 \Cref{fig:ac-voltam} shows the resulting voltammogram at the true
 parameters; the oscillations are largest near the formal potentials,
 where the Butler--Volmer kinetics are most sensitive to potential changes.
 
-\begin{figure}[ht]
-  \centering
-  \includegraphics[width=0.7\textwidth]{figures/7-ac-voltam.png}
+% \begin{figure}[ht]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{figures/7-ac-voltam.png}
+%   \caption[AC voltammogram for the heterogeneous reaction]{AC
+%     voltammogram at the true parameter values ($\delta\theta = 0.5$,
+%     $128$ oscillations). Oscillations are largest near the formal
+%   potentials of the two electron transfers.}
+%   \label{fig:ac-voltam}
+% \end{figure}
+
+\begin{SCfigure}[0.6][ht]
+  \includegraphics[width=0.8\textwidth]{figures/7-ac-voltam.png}
   \caption[AC voltammogram for the heterogeneous reaction]{AC
-    voltammogram at the true parameter values ($\Delta\theta = 0.5$,
+    voltammogram at the true parameter values ($\delta\theta = 0.5$,
     $128$ oscillations). Oscillations are largest near the formal
   potentials of the two electron transfers.}
   \label{fig:ac-voltam}
-\end{figure}
+\end{SCfigure}
 
 \Cref{fig:ac-dc-comparison} overlays the marginal posteriors from DC and
 AC data using NUTS. The AC posteriors are narrower for all parameters,
@@ -297,7 +335,7 @@ perturbation probes the electrode kinetics at the frequency~$f$, a
 timescale independent of the DC sweep rate~$\sigma$, providing
 additional constraint on the rate constants and transfer coefficients.
 The DC posteriors are adequate for describing the current, as the
-results of \cref{sec:het-posteriors} confirm, but the AC data
+results of \cref{fig:het-current-fit} confirm, but the AC data
 tighten them further.
 
 \begin{figure}[ht]
