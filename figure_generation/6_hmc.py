@@ -176,7 +176,7 @@ ax_top.fill_between(
 ax_top.plot(x, rwmh_pooled, color="C1", lw=1.5, label="RWMH (pooled mean)")
 ax_top.axhline(true_value, color="k", ls="--", lw=0.8, label=r"true $K_0$")
 ax_top.set_ylabel(r"$\mathbb{E}[K_0]$")
-ax_top.legend(fontsize=8, loc="best")
+ax_top.legend(fontsize=8, loc="lower right")
 
 # Bottom: Rhat
 ax_bot.plot(x, nuts_rhat, color="C0", lw=1.5, label="NUTS")
@@ -184,7 +184,7 @@ ax_bot.plot(x, rwmh_rhat, color="C1", lw=1.5, label="RWMH")
 ax_bot.axhline(1.01, color="k", ls="--", lw=0.8, label=r"$\hat{R}=1.01$")
 ax_bot.set_ylabel(r"$\hat{R}$")
 ax_bot.set_xlabel("Sample Proportion")
-ax_bot.legend(fontsize=8, loc="best")
+ax_bot.legend(fontsize=8)
 
 plt.tight_layout()
 plt.savefig("./manuscript/figures/6-k0-gr.png", dpi=1000)

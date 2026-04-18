@@ -5,10 +5,13 @@ build/
 dist/
 wheels/
 dissertation.egg-info
-data/optimisation/
-data/sampling/
-
 .DS_Store
-# Virtual environments
 
+
+# Virtual environments
 .venv
+
+# Data files
+
+*.npz
+*.pkl.gz 

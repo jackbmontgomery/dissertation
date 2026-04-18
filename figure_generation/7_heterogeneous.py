@@ -453,43 +453,12 @@ fig.legend(handles, labels, loc="lower right", ncol=1)
 plt.savefig("./manuscript/figures/7-ac-hist-comparison.png", dpi=1000)
 plt.show()
 
-# %% Numerical Convergence Checks
+# %% Discretisation refinement study
 
 voltammetry = CyclicDC()
 params = HeterogeneousReaction().true_parameters
-base_dtheta = 1e-4
-base_h0 = 1e-10
-fd_solver = HeterogeneousReactionFDSolver(voltammetry, h0=base_h0, dtheta=base_dtheta)
-base_current = fd_solver.solve(params).block_until_ready()
-base_time = jnp.arange(len(base_current)) * base_dtheta
 
-h0_range = jnp.power(10.0, jnp.arange(-9, -2))
-dtheta_range = [2e-4, 5e-4, 8e-4, 1e-3, 2e-3, 5e-3, 1e-2]
-
-for dtheta in dtheta_range:
-    dtheta_vals = []
-    coarse_time = jnp.arange(int(base_time[-1] / dtheta) + 1) * dtheta
-    base_interp = jnp.interp(coarse_time, base_time, base_current)
-    for h0 in h0_range:
-        fd_solver = HeterogeneousReactionFDSolver(voltammetry, h0=h0, dtheta=dtheta)
-        current = fd_solver.solve(params).block_until_ready()
-        n = min(len(current), len(base_interp))
-        rel_l2 = jnp.linalg.norm(current[:n] - base_interp[:n]) / jnp.linalg.norm(
-            base_interp[:n]
-        )
-        dtheta_vals.append(float(rel_l2))
-
-    plt.plot(h0_range, dtheta_vals, label=dtheta)
-
-
-plt.yscale("log")
-plt.xscale("log")
-plt.xlabel("h0")
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-# %%
+# Reference: fine in both space and time
 
 ref_dtheta = 1e-5
 ref_h0 = 1e-10
@@ -497,25 +466,54 @@ ref_solver = HeterogeneousReactionFDSolver(voltammetry, h0=ref_h0, dtheta=ref_dt
 ref_current = ref_solver.solve(params).block_until_ready()
 ref_time = jnp.arange(len(ref_current)) * ref_dtheta
 
-# Fix h0 in the flat region, sweep dtheta
-h0_fixed = 1e-8
-dtheta_range = [2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 1e-1]
-errors = []
 
-for dtheta in dtheta_range:
-    solver = HeterogeneousReactionFDSolver(voltammetry, h0=h0_fixed, dtheta=dtheta)
+def rel_l2_vs_ref(h0, dtheta):
+    solver = HeterogeneousReactionFDSolver(voltammetry, h0=h0, dtheta=dtheta)
     current = solver.solve(params).block_until_ready()
-    coarse_time = jnp.arange(len(current)) * dtheta
-    ref_interp = jnp.interp(coarse_time, ref_time, ref_current)
-    rel_l2 = float(jnp.linalg.norm(current - ref_interp) / jnp.linalg.norm(ref_interp))
-    errors.append(rel_l2)
-    print(f"dtheta = {dtheta:.4f}, rel L2 error = {rel_l2:.2e}")
+    t = jnp.arange(len(current)) * dtheta
+    ref_interp = jnp.interp(t, ref_time, ref_current)
+    return float(jnp.linalg.norm(current - ref_interp) / jnp.linalg.norm(ref_interp))
 
-print("\nConvergence order:")
-for i in range(1, len(dtheta_range)):
-    ratio = errors[i] / errors[i - 1]
-    dt_ratio = dtheta_range[i] / dtheta_range[i - 1]
-    order = jnp.log(ratio) / jnp.log(dt_ratio)
-    print(
-        f"dtheta {dtheta_range[i - 1]:.4f} -> {dtheta_range[i]:.4f}: order = {float(order):.2f}"
-    )
+
+# --- Spatial sweep: vary h0 at several dtheta ---
+h0_range = jnp.power(10.0, jnp.arange(-9, -2))
+dtheta_sweep = [1e-3, 5e-3, 1e-2, 5e-2]
+spatial_errors = {dt: [rel_l2_vs_ref(h0, dt) for h0 in h0_range] for dt in dtheta_sweep}
+
+# --- Temporal sweep: vary dtheta at fixed small h0 ---
+h0_fixed = 1e-6
+dtheta_range = jnp.array([2e-4, 5e-4, 1e-3, 2e-3, 4e-3, 5e-3, 1e-2, 2e-2, 5e-2])
+temporal_errors = jnp.array([rel_l2_vs_ref(h0_fixed, dt) for dt in dtheta_range])
+
+# Empirical convergence order (least-squares slope in log-log)
+
+slope, intercept = jnp.polyfit(jnp.log(dtheta_range), jnp.log(temporal_errors), 1)
+print(f"Empirical temporal order: {slope:.2f}")
+
+# --- Plot ---
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+ax = axes[0]
+for dt, errs in spatial_errors.items():
+    ax.plot(h0_range, errs, marker="o", label=rf"$\Delta\theta = {dt:g}$")
+ax.set_xscale("log")
+ax.set_yscale("log")
+ax.set_xlabel(r"$h_0$")
+ax.set_ylabel(r"Relative $L^2$ error")
+ax.axvline(1e-6, color="k", linestyle=":", linewidth=1)
+ax.legend()
+
+ax = axes[1]
+ax.plot(dtheta_range, temporal_errors, marker="o", label="Measured")
+# Reference slope 1 anchored at the finest point
+ref_line = temporal_errors[0] * (dtheta_range / dtheta_range[0]) ** 1.0
+ax.plot(dtheta_range, ref_line, linestyle="--", label=r"Slope 1")
+ax.set_xscale("log")
+ax.set_yscale("log")
+ax.set_xlabel(r"$\Delta\theta$")
+ax.set_ylabel(r"Relative $L^2$ error")
+ax.axvline(4e-3, color="k", linestyle=":", linewidth=1)
+ax.legend()
+
+fig.tight_layout()
+plt.show()

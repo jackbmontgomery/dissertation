@@ -50,18 +50,6 @@ $\{X_0, \ldots, X_{n-1}\}$ are defined by
 with $X_0 = 0$ at the electrode surface and local spacings $\Delta X_+ =
 X_{i+1} - X_i$, $\Delta X_- = X_i - X_{i-1}$. We fix $\omega = 1.1$ throughout.
 
-The discretisation parameters were selected by refinement against a
-reference solution computed on a fine mesh ($h_0 = 10^{-10}$,
-$\Delta\theta = 10^{-5}$). We swept $h_0$ and $\Delta\theta$
-independently, measuring the relative $L^2$ error of the current against
-the reference. The spatial error plateaus for $h_0 \lesssim 10^{-6}$; the
-temporal error converges at the expected first-order rate for the backward
-Euler scheme and becomes significant for $\Delta\theta > 0.05$. We adopt
-$h_0 = 10^{-6}$ and $\Delta\theta = 0.01$ throughout, which places the
-solution well within the converged regime at acceptable runtime. The same
-methodology was applied to determine the discretisation for the
-heterogeneous and adsorption solvers, with comparable results.
-
 \section{Finite Difference Scheme}\label{sec:fd-scheme}
 
 Applying backward Euler in time and a three-point central difference on
@@ -101,6 +89,20 @@ which rearranges to $\beta_0\, C_0^k + \gamma_0\, C_1^k = b_0$ with
 \end{equation}
 The far-field node imposes $C_{n-1}^k = 1$. The resulting
 tridiagonal system is solved in $O(n)$ operations by the Thomas algorithm.
+
+\section{Convergence Study}\label{sec:convergence}
+
+The discretisation parameters were selected by refinement against a
+reference solution computed on a fine mesh ($h_0 = 10^{-10}$,
+$\Delta\theta = 10^{-5}$). We swept $h_0$ and $\Delta\theta$
+independently, measuring the relative $L^2$ error of the current against
+the reference. The spatial error plateaus for $h_0 \lesssim 10^{-6}$; the
+temporal error converges at the expected first-order rate for the backward
+Euler scheme and becomes significant for $\Delta\theta > 0.05$. We adopt
+$h_0 = 10^{-6}$ and $\Delta\theta = 0.01$ throughout, which places the
+solution well within the converged regime at acceptable runtime. The same
+methodology was applied to determine the discretisation for the
+heterogeneous and adsorption solvers, with comparable results.
 
 \section{The Forward Map}\label{sec:forward-map}
 

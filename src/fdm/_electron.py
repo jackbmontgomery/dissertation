@@ -31,9 +31,9 @@ class ElectronReactionFDSolver(AbstractFDSolver):
     def __init__(
         self,
         voltammetry: AbstractVoltammetryTechnique,
-        h0: float = 1e-5,
+        h0: float = 1e-6,
         omega: float = 1.1,
-        dtheta: float = 2e-2,
+        dtheta: float = 4e-3,
     ):
         T, dt, X, alpha_inner, gamma_inner = setup_fd_discritisation(
             voltammetry, dtheta, h0, omega
