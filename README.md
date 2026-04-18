@@ -1,261 +1,180 @@
-# Dissertation Guide
+# Differentiable Simulation for the Electrochemical Inverse Problem
 
-**Title:** Differentiable Simulation for the Electrochemical Inverse Problem
-
-**Examiner assumptions:**
-
-- A lot: finite difference methods, applied mathematics
-- A bit: Bayesian statistics
-- Almost nothing: electrochemistry
-
-**Goal:** Develop a differentiable PDE solver for voltammetric simulation and
-integrate it with gradient-based Bayesian inference (NUTS) to solve the
-electrochemical inverse problem. Three contributions: (1) adjoint-based
-differentiable forward solver, (2) full Bayesian treatment via NUTS giving
-posterior distributions, (3) extension to chemically complex reactions in higher
-parameter dimensions.
-
-**Key result:** Both NUTS and RWMH recover true parameters well. The advantage
-of NUTS is clear when we consider the information in the posterior samples, this
-is greater at higher dimensions though not linearly since we see the advantage
-reduce when there are high correlations in the parameters. Further, we see
-better convergence in the GR statistic for NUTS which means we obtain stable
-posterior estimates throughout the sampling process.
-
-**Narrative arc:** Each chapter introduces a tool and immediately applies it to
-the electron-transfer reaction, so results accumulate throughout. The final two
-chapters apply the complete framework to harder reactions concisely, without
-repeating exposition.
-
-## Constraints
-
-- `texcount`: We use the "Words in text" field not the "Sum count"
+OMMS Dissertation -- Jack Montgomery, 2026
 
 ---
 
-## Chapter 1: Introduction
+## What is this?
 
-**Purpose:** Frame the problem, motivate each methodological layer, state what
-was achieved. No numerical results -- each chapter presents its own.
+Voltammetry experiments measure current response as electrode potential is swept
+-- the shape of that current encodes electrochemical parameters (rate constants,
+transfer coefficients, formal potentials). Recovering those parameters from a
+noisy current trace is the **electrochemical inverse problem**.
 
-**Arc:** Inverse problem (recover parameters from noisy current) -> forward
-problem well understood, inverse is ill-posed (correlations, small influences
-depending on scan rate/kinetic regime) -> point estimates insufficient, need
-full posterior -> MCMC expensive, gradients via adjoint accelerate both
-initialisation and sampling -> demonstrated on electron transfer (3 params),
-heterogeneous (7), adsorption (9).
+This project builds a full pipeline to solve it:
 
-**Positioning:**
+1. **Differentiable PDE solver** -- finite difference simulation of coupled
+   diffusion-reaction PDEs on an exponentially expanding mesh, with exact
+   gradients via a custom adjoint
+2. **Gradient-based optimisation** -- fast mode-finding to initialise inference
+   (ADAM vs CMA-ES)
+3. **Bayesian inference** -- full posterior distributions over parameters via
+   both Random-Walk Metropolis-Hastings (RWMH) and No-U-Turn Sampler (NUTS),
+   powered by [BlackJAX](https://github.com/blackjax-devs/blackjax)
 
-- Kitchin et al. (2025) -- "fifth paradigm." This work is a concrete instance.
-- Chen et al. (2026) -- we complement: Bayesian not just optimisation; custom
-  adjoint not taping.
-- Gavaghan et al. (2018) -- we build on this with gradient-based methods.
-- Compton & Banks -- _Understanding Voltammetry_.
-
-**Tone:** Qualitative -- no numerical results. Finalise once all reactions
-complete.
-
----
-
-## Chapter 2: Electrochemical Systems
-
-**Job:** Teach the markers the electrochemistry. Only chapter that does this.
-
-**Key points:**
-
-- Physical picture of CV: kinetic vs diffusional control -> peak shape
-- Butler-Volmer as the constitutive law (standard first treatment; note other
-  models exist e.g. MHC -- pick up in conclusions as further work)
-- Dimensionless BVP as the chapter's deliverable -> normalisation table is the
-  contract with Ch 3
-- Equal-diffusion reduction and K_red/K_ox shorthand
-
-**Core references:** Compton & Banks, Dickinson & Wain (2020), Crank (1979)
+Applied to three reaction mechanisms of increasing complexity: simple electron
+transfer (3 params), heterogeneous ECE reaction (7 params), and Langmuir
+adsorption (9 params).
 
 ---
 
-## Chapter 3: Numerical Methods
+## Key Features
 
-**Job:** Discretise the forward problem, verify it, then show why inference is
-hard.
+### Custom VJP Rule for the Tridiagonal Solve
 
-**Key points:**
-
-- Exponentially expanding mesh (non-standard, explain properly)
-- BV entering the first row (the non-standard, parameter-dependent part)
-- Standard FD material stated concisely -- the markers know this
-- Verify against analytical solutions: Randles-Sevcik peak current (reversible
-  limit), Compton & Banks (irreversible limit)
-- Define forward map P: parameters -> predicted current
-- Parameter effects and kinetic regimes -> motivation for Bayesian approach
-- Scan rate and its choice for the optimal chemical: The scan rate is chosen for
-  each reaction mechanism to ensure that the kinetic processes of interest
-  operate in a regime where the current response is sensitive to the target
-  parameters.
-
-**Arc:** Build solver -> verify -> define P -> show parameters are
-correlated/degenerate -> Ch 4
-
-**Core references:** Compton & Banks, Sevcik (1948), Randles (1948)
-
----
-
-## Chapter 4: Bayesian Approach
-
-**Job:** Frame the inverse problem probabilistically, run RWMH, show it works
-but wastes computation on burn-in.
-
-**Key points:**
-
-- Noise model: observed current = P(phi) + eps, sigma fixed as percentage of
-  peak current (Morris 2013). Not a tuned parameter -- a design choice for
-  synthetic data generation.
-- Bayes -> uniform prior -> state l(phi) directly (don't derive intermediate
-  steps)
-- RWMH: explain the algorithm, tuning Sigma, 23% acceptance heuristic
-- **Results:** marginal posteriors recover true values. Corner plot (3x3) --
-  introduce this visualisation as baseline. Burn-in scatter plot showing
-  computational waste. We have vanilla failing when the scan rate is too low.
-- Key observation: each likelihood = one forward solve. Burn-in is expensive.
-  Gradients could locate the mode and improve proposals -> Ch 5
-
-**Arc:** Define inference problem -> RWMH -> works but slow -> gradients help ->
-Ch 5
-
-**Core references:** Gavaghan et al. (2018), Hastings (1970), Gelman Roberts &
-Gilks (1997), Morris (2013)
-
----
-
-## Chapter 5: Differentiating Through the Forward Solver
-
-**Job:** Core technical contribution. Efficient grad(l) via adjoint of the
-tridiagonal solve.
-
-**Key points:**
-
-- Discretise-then-optimise: exact gradient of the discrete computation
-- Reverse-mode AD natural (scalar output), but naive taping is O(mn) memory
-- Adjoint: A^T lambda = xbar is itself tridiagonal -> O(n) per timestep, cache A
-  and x only. Abar = -lambda x^T for matrix entry gradients. Implemented via
-  Custom VJP rule in JAX
-- Generalises to pentadiagonal -- state briefly, payoff in Ch 7
-- **Optimisation results:** ADAM vs CMA-ES on equalised forward-solve budget, 32
-  random starts, two noise levels. ADAM converges faster, lower variance.
-
-**Arc:** Need gradients -> naive AD too expensive -> tridiagonal adjoint ->
-demonstrate via optimisation -> Ch 6
-
-**Core references:** Griewank & Walther (2008), Kidger (2021), Kingma & Ba
-(2014), Hansen & Ostermeier (2001), JAX (Bradbury et al.)
-
----
-
-## Chapter 6: Hamiltonian Monte Carlo
-
-**Job:** Introduce HMC/NUTS, describe the full inference workflow, show it
-outperforms RWMH.
-
-**Key points:**
-
-- Physical intuition for HMC -- new to markers, spend words here
-- H(q,p) = U(q) + K(p), leapfrog -- concise, markers know ODEs
-- Each leapfrog step = one forward + adjoint solve
-- NUTS: adaptive trajectory length, no hand-tuned L
-- **Canonical transformation:** alpha -> logit, K0 -> log, theta_f
-  unconstrained. Window adaptation tunes mass matrix and step size.
-- **Workflow:** (1) LHS -> diverse starts, (2) optimise with fixed budget ->
-  high density, (3) best chain -> window adapt -> mass matrix (NUTS) and
-  proposal covariance (RWMH, 23%), (4) sample NUTS and RWMH for equal wall-time
-- **Results:** posteriors overlaid with RWMH. Simulated current from posterior
-  means. ESS -- NUTS wins.
-
-**Note:** Neglidible influence of alpha in reversible regime (from Ch 3) -- show
-how the posterior handles this if space permits, otherwise note as further work.
-
-**Arc:** HMC theory -> transformation -> workflow -> results -> NUTS wins ->
-apply to harder reactions
-
-**Core references:** Neal (2011), Betancourt (2018), Hoffman & Gelman (2014),
-Gelman Roberts & Gilks (1997)
-
----
-
-## Chapter 7: Heterogeneous Reaction
-
-**Job:** First application to a harder system. Concise -- no re-exposition.
-
-**What's new:**
-
-- Reaction: A + e- <=> B, B ->(k_het) C, C + e- <=> D
-- Four coupled diffusion equations
-- Pentadiagonal reordering trick: index A,B from N->1, C,D from 1->N so K_het
-  coupling is adjacent -> pentadiagonal not nonadiagonal. Include band-structure
-  schematic.
-- Pentadiagonal adjoint generalises trivially from Ch 5
-- 7 parameters: alpha_1, K0_1, theta_f_1, alpha_2, K0_2, theta_f_2, K_het
-- **AC voltammetry:** same workflow with sinusoidal perturbation. Show
-  posteriors tighten vs DC. Gavaghan et al. (2018) result. And mention briefly
-  the non-dimensionalisation scheme
-- Frame as simplification of Ch 8 (irreversible surface step, no explicit
-  surface concentrations)
-
-**Results:** Analytical verification. Selected pairwise corner plot. ESS (gap
-widens 3->7). Current fit. AC vs DC posterior comparison.
-
-**Core references:** Compton & Banks, Gavaghan et al. (2018)
-
----
-
-## Chapter 8: Adsorption Reaction
-
-**Job:** Most complex system. Novelty is nonlinear coupling and AD compatibility
-argument.
-
-**What's new:**
-
-- Langmuir adsorption/desorption with surface coverage ODE coupled to diffusion
-  PDE at boundary
-- Nonlinear terms prevent direct banded solve
-- Three solvers: Newton (accurate but AD-incompatible -- while loop), explicit
-  linearisation (AD-compatible), Britz backward implicit
-- **Key choice:** ground truth from Newton, inference with explicit scheme.
-  Justify by showing equivalent current traces.
-- 9 parameters -- highest dimensional case
-- Frame as rigorous version of Ch 7
-
-**Results:** Linearisation comparison. 9-param posteriors (selected marginals).
-ESS (largest gap -- dimension story completes). Current fit.
-
-**Core references:** Britz -- _Digital Simulation in Electrochemistry_, Compton
-& Banks
-
----
-
-## Chapter 9: Conclusions
-
-**Job:** Brief summary, substantive further work, connect back to introduction.
-
-**Summary (~1 paragraph):** Three contributions delivered. NUTS advantage over
-RWMH grows with dimensionality.
-
-**Further work:**
-
-- _Experimental data:_ All results synthetic. Real voltammograms bring model
-  misspecification (capacitive current, ohmic drop, electrode roughness).
-- _Alternative kinetic models:_ BV -> MHC extension. Bayesian model comparison
-  BV vs MHC. Connects to Ch 2 note and Chen et al.
-- _Neural operator emulator:_ Solver computes full C(X,T) but inference uses
-  only surface flux J(T). Train neural operator on forward solver.
-  Differentiable by construction, orders of magnitude faster, NUTS-compatible.
-- _Alternative samplers:_ MCLMC, other adaptive HMC variants.
-
-**Closing (~1-2 sentences):** Callback to Kitchin "fifth paradigm." Framework is
-not specific to the reactions studied.
-
-**Core references:** Kitchin et al. (2025), Chen et al. (2026)
+Naively differentiating through a PDE solver via automatic differentiation tapes
+every intermediate state -- O(mn) memory for m timesteps of size n. Instead, the
+solver implements a **custom reverse-mode (VJP) rule** exploiting the adjoint
+structure:
 
 ```
+A x = b  ->  A^T lam = x_bar  (adjoint is also tridiagonal)
+A_bar = -lam x^T
+```
+
+This reduces memory to O(n) per timestep, caching only `A` and `x`. The same
+adjoint pattern extends to pentadiagonal systems for the coupled ECE reaction.
+Registered directly in JAX via `jax.custom_vjp`.
+
+### JAX-Native Throughout
+
+The entire solver stack -- mesh construction, finite difference assembly,
+time-stepping, likelihood evaluation, and sampling -- runs under JAX. This means:
+
+- `jit` compilation of full forward + adjoint passes
+- `vmap` over parameter batches for parallel chain initialisation
+- Seamless interop with BlackJAX's NUTS and RWMH kernels
+
+### C++ Banded Linear Solvers via FFI
+
+The tridiagonal and pentadiagonal solves are backed by **C++ implementations**
+called via JAX's Foreign Function Interface (FFI). Thomas algorithm for
+tridiagonal, banded LU for pentadiagonal -- both compiled as shared libraries
+(`tri_ffi.so`, `penta_ffi.so`) and registered as JAX primitives. Custom VJP
+rules are defined at the JAX level, delegating the forward solve to C++.
+
+### Pentadiagonal Reordering Trick
+
+The ECE reaction couples four diffusion equations. A naive spatial ordering
+produces a nonadiagonal system. By **reversing the index direction** for species
+B and C, all coupling terms become adjacent -- collapsing to a pentadiagonal
+system. This halves solver complexity and lets the same banded adjoint machinery
+apply directly.
+
+### Full Bayesian Workflow
+
+Rather than point estimates, the framework produces **posterior distributions**
+over all parameters:
+
+- Latin Hypercube Sampling for diverse chain initialisation
+- ADAM optimisation to find high-density regions before sampling
+- Window adaptation for mass matrix and step size tuning
+- Equal wall-time comparison between NUTS and RWMH
+
+NUTS advantage over RWMH grows with parameter dimension (3 -> 7 -> 9 params),
+consistent with the geometry-exploiting proposal structure.
+
+---
+
+## Structure
 
 ```
+src/
+    fdm/                  # Finite difference solvers (electron, heterogeneous, adsorption)
+    linear_solvers/       # Tridiagonal + pentadiagonal solvers with custom VJPs
+        ffi/              # C++ FFI backends (CMake build)
+    reaction/             # Reaction mechanism definitions and parameters
+    sampling/             # NUTS / RWMH inference wrappers (BlackJAX)
+    optimisers/           # ADAM and CMA-ES optimisation
+    diagnostics.py        # ESS, Gelman-Rubin, convergence tools
+    plotting.py           # Corner plots, current traces, diagnostics
+
+run_scripts/
+    sampling.py           # Run full inference pipeline
+    optimisation.py       # Run optimisation experiment
+
+manuscript/               # LaTeX dissertation source
+```
+
+---
+
+## Setup
+
+Requires Python 3.12+. Uses [uv](https://github.com/astral-sh/uv) for dependency
+management.
+
+```bash
+git clone <repo>
+cd dissertation
+
+# Install dependencies
+uv sync
+
+# Build C++ FFI solvers
+cd src/linear_solvers/ffi
+cmake -B build && cmake --build build
+cd ../../..
+```
+
+---
+
+## Running
+
+### Inference (sampling)
+
+```bash
+uv run python run_scripts/sampling.py --name {e,h,a} [--seed INT] [--save BOOL]
+```
+
+Arguments:
+
+- `--name` -- reaction: `e` (electron transfer), `h` (heterogeneous ECE), `a` (adsorption)
+- `--seed` -- random seed (default: 0); seed 1 selects alternate config (reversible electron / AC voltammetry for heterogeneous)
+- `--save` -- save results to disk (default: True)
+
+### Optimisation experiment
+
+```bash
+uv run python run_scripts/optimisation.py --name {e,h,a} [--noise FLOAT] [--seed INT] [--save BOOL]
+```
+
+Arguments:
+
+- `--name` -- reaction: `e`, `h`, or `a` (same as above)
+- `--noise` -- noise level as fraction of peak current (default: 0.02)
+- `--seed` -- random seed (default: 0)
+- `--save` -- save results to disk (default: True)
+
+Runs ADAM vs CMA-ES on a fixed forward-solve budget with 32 random starts.
+
+### Tests
+
+```bash
+uv run pytest tests/
+```
+
+Includes verification against Randles-Sevcik analytical peak currents
+(reversible and irreversible limits).
+
+---
+
+## Dependencies
+
+| Package                  | Role                     |
+| ------------------------ | ------------------------ |
+| `jax`                    | Array ops, JIT, autodiff |
+| `blackjax`               | NUTS and RWMH kernels    |
+| `optax`                  | ADAM optimiser           |
+| `equinox`                | PyTree utilities         |
+| `evosax`                 | CMA-ES                   |
+| `matplotlib` / `seaborn` | Plotting                 |
