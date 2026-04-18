@@ -458,8 +458,6 @@ plt.show()
 voltammetry = CyclicDC()
 params = HeterogeneousReaction().true_parameters
 
-# Reference: fine in both space and time
-
 ref_dtheta = 1e-5
 ref_h0 = 1e-10
 ref_solver = HeterogeneousReactionFDSolver(voltammetry, h0=ref_h0, dtheta=ref_dtheta)
@@ -475,22 +473,18 @@ def rel_l2_vs_ref(h0, dtheta):
     return float(jnp.linalg.norm(current - ref_interp) / jnp.linalg.norm(ref_interp))
 
 
-# --- Spatial sweep: vary h0 at several dtheta ---
 h0_range = jnp.power(10.0, jnp.arange(-9, -2))
 dtheta_sweep = [1e-3, 5e-3, 1e-2, 5e-2]
 spatial_errors = {dt: [rel_l2_vs_ref(h0, dt) for h0 in h0_range] for dt in dtheta_sweep}
 
-# --- Temporal sweep: vary dtheta at fixed small h0 ---
 h0_fixed = 1e-6
 dtheta_range = jnp.array([2e-4, 5e-4, 1e-3, 2e-3, 4e-3, 5e-3, 1e-2, 2e-2, 5e-2])
 temporal_errors = jnp.array([rel_l2_vs_ref(h0_fixed, dt) for dt in dtheta_range])
 
-# Empirical convergence order (least-squares slope in log-log)
 
 slope, intercept = jnp.polyfit(jnp.log(dtheta_range), jnp.log(temporal_errors), 1)
 print(f"Empirical temporal order: {slope:.2f}")
 
-# --- Plot ---
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 
 ax = axes[0]
@@ -501,19 +495,19 @@ ax.set_yscale("log")
 ax.set_xlabel(r"$h_0$")
 ax.set_ylabel(r"Relative $L^2$ error")
 ax.axvline(1e-6, color="k", linestyle=":", linewidth=1)
-ax.legend()
+ax.legend(fontsize=12)
 
 ax = axes[1]
 ax.plot(dtheta_range, temporal_errors, marker="o", label="Measured")
-# Reference slope 1 anchored at the finest point
 ref_line = temporal_errors[0] * (dtheta_range / dtheta_range[0]) ** 1.0
 ax.plot(dtheta_range, ref_line, linestyle="--", label=r"Slope 1")
 ax.set_xscale("log")
 ax.set_yscale("log")
 ax.set_xlabel(r"$\Delta\theta$")
-ax.set_ylabel(r"Relative $L^2$ error")
 ax.axvline(4e-3, color="k", linestyle=":", linewidth=1)
-ax.legend()
+ax.legend(fontsize=12)
 
 fig.tight_layout()
+
+plt.savefig("./manuscript/figures/7-discretisation.png", dpi=1000)
 plt.show()

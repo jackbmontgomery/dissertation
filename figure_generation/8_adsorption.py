@@ -446,19 +446,19 @@ ax.set_yscale("log")
 ax.set_xlabel(r"$h_0$")
 ax.set_ylabel(r"Relative $L^2$ error")
 ax.axvline(1e-6, color="k", linestyle=":", linewidth=1)
-ax.legend()
+ax.legend(fontsize=12)
 
 ax = axes[1]
 ax.plot(dtheta_range, temporal_errors, marker="o", label="Measured")
-# Reference slope 1 anchored at the finest point
 ref_line = temporal_errors[0] * (dtheta_range / dtheta_range[0]) ** 1.0
 ax.plot(dtheta_range, ref_line, linestyle="--", label=r"Slope 1")
 ax.set_xscale("log")
 ax.set_yscale("log")
 ax.set_xlabel(r"$\Delta\theta$")
-ax.set_ylabel(r"Relative $L^2$ error")
 ax.axvline(4e-3, color="k", linestyle=":", linewidth=1)
-ax.legend()
+ax.legend(fontsize=12)
 
 fig.tight_layout()
+
+plt.savefig("./manuscript/figures/8-discretisation.png", dpi=1000)
 plt.show()

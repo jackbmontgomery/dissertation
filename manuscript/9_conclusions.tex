@@ -29,9 +29,9 @@ numerical constraints. The Langmuir coupling terms make the discrete
 system nonlinear, preventing a direct banded solve. A backward implicit
 linearisation provided an AD-compatible approximation two to three
 orders of magnitude more accurate than an explicit alternative, at a
-33\% runtime overhead. Inference with this approximate solver
-introduced no detectable bias relative to the Newton reference at the
-noise levels considered. The adsorption/desorption rate constants
+33\% runtime overhead. The linearisation error was smaller than the
+observation noise and did not shift the posterior mode relative to the
+Newton reference. The adsorption/desorption rate constants
 exhibited elongated posteriors along directions of constant equilibrium
 ratio, reducing the NUTS advantage for those parameters specifically.
 

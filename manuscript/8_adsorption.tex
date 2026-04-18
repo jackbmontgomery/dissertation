@@ -7,14 +7,13 @@ without explicit surface concentrations, the adsorption model
 introduces surface coverage variables governed by ordinary differential
 equations coupled to the diffusion PDE through the boundary conditions.
 Such systems arise experimentally when an electrode is modified with
-a redox-active film (for example, a self-assembled monolayer of
-ferrocene-terminated thiols on gold~\cite{compton2014understanding})
-and the voltammetry is performed in a blank electrolyte. The Langmuir
-adsorption terms contain products of surface coverages and
-surface concentrations, making the discrete system nonlinear and
-preventing a direct banded solve. We compare three discretisation
-strategies -- Newton--Raphson, explicit linearisation, and backward
-implicit linearisation. The parameter space grows to nine dimensions.
+a redox-active film and the voltammetry is performed in a blank
+electrolyte~\cite{compton2014understanding}. The Langmuir adsorption
+terms contain products of surface coverages and surface
+concentrations, making the discrete system nonlinear and preventing a
+direct banded solve. We compare three discretisation strategies --
+Newton--Raphson, explicit linearisation, and backward implicit
+linearisation. The parameter space grows to nine dimensions.
 
 \section{Reaction Scheme}\label{sec:ads-scheme}
 
@@ -154,10 +153,9 @@ consistency \cite{compton2014understanding}:
     {K_{\mathrm{ads}}^{\mathrm{B}} / K_{\mathrm{des}}^{\mathrm{B}}}
   \right).
 \end{equation}
-This is not a free parameter: $\theta_f^{\mathrm{ads}}$ is
-determined by $\theta_f^{\mathrm{sol}}$ and the four
-adsorption/desorption dimensionless rate constants already in~$\phi$
-which are of the form
+$\theta_f^{\mathrm{ads}}$ is determined by $\theta_f^{\mathrm{sol}}$
+and the four adsorption/desorption dimensionless rate constants
+already in~$\phi$ which are of the form
 \begin{equation}\label{eq:ads-kads-kdes}
   K_{\mathrm{ads}}^{j}
   = \frac{k_{\mathrm{ads}}^{j}\,\Gamma_{\mathrm{max}}\,r_e}
@@ -340,7 +338,7 @@ solution reproduces the full analytical trajectory.
 \subsection{Posterior Distributions}\label{sec:ads-posteriors}
 
 \Cref{fig:ads-corner} shows pairwise marginal posteriors from NUTS
-($2{,}400$ samples) and RWMH ($40{,}000$ samples) under equal computational
+($2{,}400$ samples) and RWMH ($32{,}000$ samples) under equal computational
 budgets, with $\theta_f^{\mathrm{sol}}$ omitted for brevity. Both
 samplers recover the true parameter values.
 
@@ -360,17 +358,16 @@ precise steps, reducing efficiency for both samplers.
 
 Inference uses the backward implicit linearisation, whereas the data
 were generated with the Newton solver. Both samplers still recover
-the true parameters, confirming that the
-approximation~\cref{eq:ads-britz} does not introduce systematic bias
-at this noise level.
-
+the true parameters, confirming that the linearisation error in
+\cref{eq:ads-britz} is smaller than the observation noise and does
+not shift the posterior mode.
 \begin{figure}[p]
   \centering
   \includegraphics[width=1.00\textwidth]{figures/8-corner.png}
   \caption[Pairwise posteriors for the adsorption
   reaction]{Pairwise marginal posteriors for the adsorption
     reaction. NUTS (blue, $2{,}400$ samples) and RWMH
-    (orange, $40{,}000$ samples)
+    (orange, $32{,}000$ samples)
     are overlaid; dashed lines
     indicate the true parameter values. $\theta_f^{\mathrm{sol}}$
   omitted for brevity}
@@ -390,15 +387,13 @@ the sweep but broadens at the various peaks in the voltammogram.
   \label{fig:ads-current-fit}
 \end{figure}
 
-\subsection{Convergence and Sampling Efficiency}\label{sec:ads-ess}
+\subsection{$\hat{R}$ Convergence and Sampling Efficiency}\label{sec:ads-ess}
 
 \Cref{fig:ads-gr} shows $\hat{R}$ over sampling budget. NUTS sits
 below the $1.01$ threshold from almost the first checkpoint for all nine
 parameters. RWMH starts as high as $\hat{R} \approx 1.4$ for
 $K_0^{\mathrm{ads}}$ and requires $20\%$--$30\%$ of the budget to
-cross the threshold for most parameters. $K_0^{\mathrm{sol}}$ is the
-exception: both samplers converge almost
-immediately, reflecting its well-constrained marginal.
+cross the threshold for most parameters.
 
 \begin{figure}[ht]
   \centering
@@ -407,7 +402,9 @@ immediately, reflecting its well-constrained marginal.
     function of sample proportion for NUTS (blue) and RWMH (orange)
     for each of the nine parameters of the adsorption mechanism. NUTS
     remains at the threshold throughout; RWMH requires $20\%$--$30\%$
-  of the budget to cross $\hat{R} = 1.01$ for most parameters.}
+    of the budget to cross $\hat{R} = 1.01$ for most parameters. The
+    dashed line marks the $\hat{R} = 1.01$ convergence
+  threshold~\cite{vehtari2021rank}.}
   \label{fig:ads-gr}
 \end{figure}
 

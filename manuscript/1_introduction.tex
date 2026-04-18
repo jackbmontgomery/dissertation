@@ -2,26 +2,24 @@
 
 The inverse problem requires recovering physical parameters
 from indirect measurements. This problem is ubiquitous throughout the
-sciences; occurring whenever the quantities of interest cannot be observed
+sciences; occurring whenever quantities of interest cannot be observed
 directly. In electrochemistry, the parameters governing a reaction
 must be inferred from the current response. This inference is the
 electrochemical inverse problem.
 
-Predicting the current response for a given set of parameters is the
-corresponding forward problem. In the present context this reduces to
+The corresponding forward problem is predicing the current response
+for a given set of parameters. In the present context this reduces to
 solving a diffusion PDE with kinetic boundary conditions. Solving the
-inverse problem then
-amounts to finding the parameters whose forward solution best
-explains the observed data. The difficulty is threefold: the
-mapping from parameters to current is nonlinear, distinct parameter
-configurations can produce similar voltammograms, and in certain
-kinetic regimes parameters may cease to influence the current altogether.
-Point estimates cannot capture these difficulties. They provide no
-account of uncertainty, nor can they reveal
-correlations between parameters.
-Bayesian inference addresses this by computing the
-posterior distribution conditioned on the observed
-data \cite{gavaghan2018bayesian}.
+inverse problem then amounts to finding the parameters whose forward
+solution best explains the observed data. The difficulty is
+threefold: the mapping from parameters to current is nonlinear,
+distinct parameter configurations can produce similar voltammograms,
+and in certain kinetic regimes parameters may cease to influence the
+current altogether. Point estimates cannot capture these
+difficulties. They provide no account of uncertainty, nor can they
+reveal correlations between parameters. Bayesian inference addresses
+this by computing the posterior distribution conditioned on the
+observed data \cite{gavaghan2018bayesian}.
 
 The standard tool for sampling such posteriors is Markov chain Monte
 Carlo. In this setting each likelihood evaluation requires a PDE solve,
@@ -29,11 +27,11 @@ so every proposed sample, whether accepted or rejected, is expensive.
 Gradient-free samplers such as random-walk Metropolis--Hastings (RWMH)
 explore the parameter space by undirected local proposals and
 consequently waste many of these solves on rejected candidates,
-particularly as the number of parameters grows. Gradient information
-helps in two ways: it can initialise the sampler in high density areas
-via optimisation; and it can inform the sampling itself
-with methods like Hamiltonian Monte Carlo (HMC), which uses the gradient to
-construct long-range, low-rejection proposals.
+particularly as the dimensionality of parameter space grows. Gradient
+information helps in two ways: it can initialise the sampler in high
+density areas via optimisation; and it can inform the sampling itself
+with methods like Hamiltonian Monte Carlo (HMC), which uses the
+gradient to construct long-range, low-rejection proposals.
 
 The challenge is obtaining these gradients cheaply. Finite differences
 require at least one additional forward solve per parameter and introduce

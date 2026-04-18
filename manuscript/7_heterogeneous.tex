@@ -98,7 +98,7 @@ subsystems.
 \subsection{Current}
 
 The measured current includes contributions from both electrochemical
-steps and the heterogeneous conversion:
+steps and the heterogeneous conversion~\cite{compton2014understanding}:
 \begin{equation}\label{eq:het-current}
   J = -\left\{
     \left(\frac{\partial C_\mathrm{A}}{\partial X}\right)_{X=0}
@@ -110,7 +110,7 @@ steps and the heterogeneous conversion:
 \section{Pentadiagonal System}\label{sec:het-disc}
 
 Each species is discretised on the same exponentially expanding mesh of
-\cref{sec:discretisation}. The four species are coupled only through the
+\cref{sec:fd-scheme}. The four species are coupled only through the
 boundary conditions at $X = 0$. A species-by-species ordering of
 the unknowns places the surface coupling entries $n$ positions
 from the main diagonal.
@@ -146,7 +146,7 @@ Synthetic data is generated at $$\phi^* = ( 0.5,\,15.0,\,0.2,\,
 0.5,\, 6.0,\, 0.4,\, 25.0)$$ with $\sigma = 1000$, $\eta = 0.02$,
 $\theta_i = 10.0$ and $\theta_v = 10.0$.
 Under equal runtime
-budgets this gives $2{,}400$ NUTS samples and $32{,}000$ RWMH samples.
+budgets this gives $2{,}400$ NUTS samples and $40{,}000$ RWMH samples.
 
 \section{Results}\label{sec:het-results}
 
@@ -211,7 +211,7 @@ current.
   \caption[Selected pairwise posteriors for the heterogeneous
   reaction]{Selected pairwise marginal posteriors. Diagonal:
     histograms of NUTS (blue) with $2{,}400$ samples
-    and RWMH (orange) with $32{,}000$ samples. Off-diagonal: NUTS KDE
+    and RWMH (orange) with $40{,}000$ samples. Off-diagonal: NUTS KDE
     contours. Dashed lines indicate true values. Formal potentials
   omitted for clarity.}
   \label{fig:het-corner}
@@ -234,7 +234,7 @@ the sampled posteriors are consistent with the observations.
   \label{fig:het-current-fit}
 \end{figure}
 
-\subsection{Convergence and Sampling Efficiency}\label{sec:het-ess}
+\subsection{$\hat{R}$ Convergence and Sampling Efficiency}\label{sec:het-ess}
 
 \Cref{fig:het-gr} shows $\hat{R}$ over sampling budget. NUTS remains
 below the $1.01$ threshold throughout. RWMH
@@ -251,7 +251,8 @@ $1.01$ for the majority of the run.
     for each parameter of the ECirrhetE mechanism. NUTS remains below
     the $1.01$ threshold throughout; RWMH requires a larger fraction
     of the budget to converge than in the three-parameter case
-  (\cref{fig:electron-gr}).}
+    (\cref{fig:electron-gr}). The dashed line marks the $\hat{R} = 1.01$
+  convergence threshold~\cite{vehtari2021rank}.}
   \label{fig:het-gr}
 \end{figure}
 
@@ -299,10 +300,10 @@ this for the single-electron reaction; we extend the comparison to the
 heterogeneous case.
 
 We use $\delta\theta = 0.5$ and $128$ oscillations over the
-experiment, giving $f = 2 \times 128\pi / T_{\max}$. The temporal
-grid is chosen to ensure at least $10$ points per oscillation so
-that the sinusoidal waveform is adequately resolved. No changes are
-required to the forward solver or inference workflow.
+experiment, giving $f = 2 \times 128\pi / T_{\max}$. The $10{,}000$
+timesteps from the convergence study resolve the sinusoidal waveform
+without further refinement. No changes are required to the forward
+solver or inference workflow.
 
 \Cref{fig:ac-voltam} shows the resulting voltammogram at the true
 parameters; the oscillations are largest near the formal potentials,

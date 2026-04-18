@@ -8,8 +8,7 @@ import blackjax
 import jax.numpy as jnp
 import jax.random as jr
 import jax.tree_util as jtu
-from jax import tree_util, vmap
-from jax.flatten_util import ravel_pytree
+from jax import block_until_ready, tree_util, vmap
 from tabulate import tabulate
 
 from src.fdm import AbstractFDSolver
@@ -97,8 +96,8 @@ def sampling_experiment(
     )
 
     optimised_parameters, log_densities, _ = vmap(adam_minimise)(init_params)
-    log_densities.block_until_ready()
 
+    block_until_ready(log_densities)
     print(f"Optimisation Time: {perf_counter() - adam_start_time:.2f}s")
     print_optim(optimised_parameters, log_densities, num_chains)
 
@@ -118,8 +117,7 @@ def sampling_experiment(
 
     (last_states, window_adaption_params), _ = warmup.run(key_warmup, best_params)
 
-    flat_last_states, _ = ravel_pytree(last_states)
-    flat_last_states.block_until_ready()
+    block_until_ready(last_states)
 
     print(f"Adaption Time: {perf_counter() - adaption_start_time:.2f}s")
     print(f"Step size: {window_adaption_params['step_size']:.2f}")
@@ -141,9 +139,7 @@ def sampling_experiment(
     rwmh_params = {"random_step": blackjax.mcmc.random_walk.normal(sigma_rwmh)}
 
     rwmh_samples, infos = rwmh.run(optimised_parameters, rwmh_params, key=key_rwmh)
-
-    flat_rwmh_samples, _ = ravel_pytree(rwmh_samples)
-    flat_rwmh_samples.block_until_ready()
+    block_until_ready(rwmh_samples)
 
     print(f"Sampling Time: {perf_counter() - rwmh_start_time:.2f}s")
     print_infos(infos)
@@ -158,9 +154,7 @@ def sampling_experiment(
     nuts_samples, infos = nuts.run(
         optimised_parameters, window_adaption_params, key=key_nuts
     )
-
-    flat_nuts_samples, _ = ravel_pytree(rwmh_samples)
-    flat_nuts_samples.block_until_ready()
+    block_until_ready(nuts_samples)
 
     print(f"Sampling Time: {perf_counter() - nuts_start_time:.2f}s")
     print_infos(infos)

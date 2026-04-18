@@ -121,7 +121,7 @@ asymptotically optimal scaling for Gaussian targets~\cite{gelman1997weak}.
 NUTS and RWMH chains are run in parallel from the eight dispersed
 ADAM endpoints. Each NUTS iteration costs $L$ leapfrog steps; each
 RWMH iteration costs one forward solve. At a matched sampling
-wall-time of approximately $20$\,s, we obtain $2{,}400$ NUTS samples
+wall-time of approximately $80$\,s, we obtain $2{,}400$ NUTS samples
 and $24{,}000$ RWMH samples in total.
 
 \section{Results}\label{sec:hmc-results}
@@ -296,7 +296,8 @@ $\hat{R}$ crossing the threshold at roughly $0.3$ of the sample proportion.
     chains, which is the between-chain dispersion entering $B$ in
     \cref{eq:rhat}. Lower: $\hat{R}$ over the same budget. The RWMH
     running estimate stabilises as $\hat{R}$ crosses the $1.01$
-  threshold.}
+    threshold. The dashed line marks the $\hat{R} = 1.01$ convergence
+  threshold~\cite{vehtari2021rank}.}
   \label{fig:gr-k0}
 \end{figure}
 
@@ -305,16 +306,21 @@ reaction follows a similar pattern: NUTS at $\hat{R} \leq 1.01$ from
 the first checkpoint, RWMH crossing the threshold at roughly $30\%$
 of the samples for $\alpha$ and $K_0$, but sooner for $\theta_f$. The
 long-range NUTS proposals, preconditioned by the window-adapted mass
-matrix, leave the initial state after a handful of iterations;
+matrix, leave the initial state after a handful of iterations.
 RWMH's local steps retain memory of their starting points for much
 longer.
 
-The NUTS curves in \cref{fig:electron-gr} dip below~$1$
-early in the run before converging to it. With a well-conditioned
-mass matrix NUTS mixes essentially immediately, so $B$ is already
-small while $N$ is too small for $W$ to be estimated precisely; the
-resulting finite-sample noise can push $\hat{V}$ below $W$ and
-$\hat{R}$ below~$1$.
+The NUTS curves in \cref{fig:electron-gr} dip below~$1$ early in the
+run before settling at it. NUTS mixes essentially immediately, so
+the eight chain means scatter around the posterior mean from the
+first checkpoint, giving $\mathbb{E}[B] \approx \varsigma^2 \approx
+\mathbb{E}[W]$. In \cref{eq:rhat}, however, $W$ averages eight
+per-chain variances while $B$ is built from the variance of only
+eight chain means, with $M-1 = 7$ degrees of freedom. The sampling
+distribution of $B$ is therefore right-skewed with median below its
+mean, so the $B/W$ ratio is typically less than one and pulls
+$\hat{R}$ below~$1$. The dip is thus a small-sample property of the
+estimator under immediate mixing rather than evidence of non-convergence.
 
 \begin{figure}[ht]
   \begin{center}
@@ -323,8 +329,8 @@ $\hat{R}$ below~$1$.
   \caption[$\hat{R}$ for the electron-transfer reaction]{$\hat{R}$ as
     a function of sample proportion for NUTS (blue) and RWMH (orange)
     for each parameter of the quasi-reversible electron-transfer
-    reaction. Dashed black line is the threshold for convergence. NUTS
-    remains below the $1.01$; RWMH requires roughly $30\%$ of the
-  samples to converge.}
+    reaction. NUTS remains below the $1.01$. RWMH requires roughly $30\%$ of the
+    samples to converge. The dashed line marks the $\hat{R} = 1.01$
+  convergence threshold~\cite{vehtari2021rank}.}
   \label{fig:electron-gr}
 \end{figure}

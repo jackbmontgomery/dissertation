@@ -17,7 +17,7 @@ condition~\cref{eq:equal_diff_bc} becomes
 where $K_{\mathrm{red}}$ and $K_{\mathrm{ox}}$ were defined
 in~\cref{eq:kred_kox}.
 
-\section{Discretisation}\label{sec:discretisation}
+\section{Finite Difference Scheme}\label{sec:fd-scheme}
 
 Time is discretised uniformly into $m$ steps
 
@@ -49,8 +49,6 @@ $\{X_0, \ldots, X_{n-1}\}$ are defined by
 \end{equation}
 with $X_0 = 0$ at the electrode surface and local spacings $\Delta X_+ =
 X_{i+1} - X_i$, $\Delta X_- = X_i - X_{i-1}$. We fix $\omega = 1.1$ throughout.
-
-\section{Finite Difference Scheme}\label{sec:fd-scheme}
 
 Applying backward Euler in time and a three-point central difference on
 the non-uniform mesh to~\cref{eq:nd_diffusion} (with $d_j = 1$), the
@@ -98,11 +96,26 @@ $\Delta\theta = 10^{-5}$). We swept $h_0$ and $\Delta\theta$
 independently, measuring the relative $L^2$ error of the current against
 the reference. The spatial error plateaus for $h_0 \lesssim 10^{-6}$; the
 temporal error converges at the expected first-order rate for the backward
-Euler scheme and becomes significant for $\Delta\theta > 0.05$. We adopt
-$h_0 = 10^{-6}$ and $\Delta\theta = 0.01$ throughout, which places the
-solution well within the converged regime at acceptable runtime. The same
-methodology was applied to determine the discretisation for the
-heterogeneous and adsorption solvers, with comparable results.
+Euler scheme. We adopt $h_0 = 10^{-6}$ and $\Delta\theta = 0.004$
+throughout (\cref{fig:electron-discritisation}), which places the
+solution well within the converged regime at acceptable runtime. The
+same methodology was applied to the heterogeneous and adsorption
+solvers (\cref{ch:appendix-convergence}).
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/3-discretisation.png}
+  \caption[Convergence of the electron-transfer solver]{Convergence of
+    the electron-transfer solver. Relative $L^2$ error of the simulated
+    current against a reference solution ($h_0 = 10^{-10}$,
+    $\Delta\theta = 10^{-5}$). Left: spatial refinement at four fixed
+    $\Delta\theta$; the error plateaus for $h_0 \lesssim 10^{-6}$ where
+    the temporal error dominates. Right: temporal refinement at $h_0 =
+    10^{-6}$; the measured slope matches the first-order rate expected
+    for backward Euler. Dotted lines mark the adopted values $h_0 =
+  10^{-6}$ and $\Delta\theta = 4 \times 10^{-3}$.}
+  \label{fig:electron-discritisation}
+\end{figure}
 
 \section{The Forward Map}\label{sec:forward-map}
 
@@ -118,11 +131,10 @@ $\phi = (\alpha,\, K_0,\, \theta_f)$ and $\mathcal{J}$ is the space of
 dimensionless flux trajectories evaluated at the discrete time levels. A
 single evaluation of $\mathcal{P}$ consists of assembling and solving the
 tridiagonal system at each of the $m$ timesteps and extracting the
-surface flux. Although the boundary condition uses a two-point
-approximation, the surface flux used to compute the current is evaluated
-with a three-point formula: fitting a quadratic through
-$(X_0, C_0^k)$, $(X_1, C_1^k)$, $(X_2, C_2^k)$ and differentiating at
-$X_0$ gives
+surface flux. The current is the experimental observable and the sole
+target of inference, so we evaluate it with a higher-order three-point formula.
+Fitting a quadratic through $(X_0, C_0^k)$, $(X_1, C_1^k)$, $(X_2,
+C_2^k)$ and differentiating at $X_0$ gives
 \begin{equation}
   J_{0,A}^k
   = -\left(\frac{\partial C}{\partial X}\right)\bigg|_{X=0}
@@ -156,7 +168,7 @@ electron-transfer experiments in subsequent chapters.
 
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.95\textwidth]{figures/3-analytical.png}
+  \includegraphics[width=0.8\textwidth]{figures/3-analytical.png}
   \caption[Verification of the forward solver against analytical
   peak-current expressions]{Verification of the forward solver with
     $\sigma = 1000$.
@@ -217,9 +229,10 @@ The combination of parameter correlations in the quasi-reversible
 regime and negligible differences in the reversible regime motivates a
 probabilistic treatment that can quantify these uncertainties and
 reveal the correlation structure. We develop this in the next chapter.
+
 \begin{figure}[ht]
   \begin{center}
-    \includegraphics[width=0.95\textwidth]{figures/3-alpha-K0-effect-reversible.png}
+    \includegraphics[width=0.8\textwidth]{figures/3-alpha-K0-effect-reversible.png}
   \end{center}
   \caption[Negligible impact of the transfer coefficient and rate
   constant in the reversible regime]{Left: effect of $\alpha$ in the

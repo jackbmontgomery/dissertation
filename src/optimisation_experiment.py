@@ -5,7 +5,7 @@ from typing import Dict
 import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
-from jax import vmap
+from jax import block_until_ready, vmap
 
 from src.fdm import AbstractFDSolver
 from src.optimisers import make_adam_optimise, make_cmaes_optimise
@@ -62,13 +62,13 @@ def optimisation_experiment(
     print(pretty_header("CMA-ES", char="-"))
     cmaes_keys = jr.split(key, num_params)
     _, cmaes_ld, cmaes_pp = vmap(cmaes_optimise)(init_params, cmaes_keys)
-    cmaes_ld.block_until_ready()
+    block_until_ready(cmaes_ld)
     cmaes_done_time = perf_counter()
     print(f"Time Taken: {cmaes_done_time - start_time:.4f}")
 
     print(pretty_header("ADAM", char="-"))
     _, adam_ld, adam_pp = vmap(adam_optimise)(init_params)
-    adam_ld.block_until_ready()
+    block_until_ready(adam_ld)
     adam_done_time = perf_counter()
     print(f"Time Taken: {adam_done_time - cmaes_done_time:.4f}")
 
