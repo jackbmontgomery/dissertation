@@ -9,7 +9,7 @@ optimisation.
 
 \section{Discretise Then Optimise}\label{sec:disc-then-opt}
 
-There are two strategies for differentiating through a numerical solver.
+There are two main strategies for differentiating through a numerical solver.
 The \emph{optimise then discretise} approach derives continuous adjoint
 equations and then discretises them; the \emph{discretise then optimise}
 approach differentiates the discrete computation directly. We adopt the
@@ -136,10 +136,10 @@ is solved at the same $O(n)$ cost per timestep. We exploit this in
 \cref{ch:heterogeneous,ch:adsorption}, where coupled multi-species
 reactions lead to pentadiagonal structure. The saving grows with
 bandwidth. For the heterogeneous reaction of \cref{ch:heterogeneous}
-(pentadiagonal, 7 parameters) the backward pass takes $43.7$\,ms with
-the custom VJP against $481$\,ms for standard AD. This more than
-$10\times$ reduction in the backward pass makes scaling to wider-band
-problems practical within our runtime budget.
+the backward pass takes $43.7$\,ms with the custom VJP against
+$481$\,ms for standard AD. This more than $10\times$ reduction in the
+backward pass makes scaling to wider-band problems practical within
+our runtime budget.
 
 \section{Optimisation Results}\label{sec:init-results}
 

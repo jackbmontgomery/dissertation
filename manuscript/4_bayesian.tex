@@ -106,8 +106,8 @@ targets~\cite{gelman1997weak}.
 We apply RWMH to synthetic data generated with true parameters
 $\phi^* = (0.6,\, 10.0,\, 0.5)$ at scan rate $\sigma = 1000$ and noise
 level $\eta = 0.02$. \Cref{fig:rwmh-hist} shows the marginal posterior
-histograms which confirm all three marginals concentrate around the true values
-(dashed lines).
+histograms which confirm all three distributions concentrate around
+the true values (dashed lines).
 
 \begin{figure}[ht]
   \centering
@@ -129,13 +129,13 @@ high-density region. These initial samples are typically discarded as
 forward solve, this burn-in represents a significant waste of computation.
 
 A gradient of the log-likelihood would address this. We could locate
-the high-density region by optimisation before sampling begins;
-gradient-free optimisers can do the same, but gradients offer faster
-and more robust convergence. Moreover, gradients can be incorporated
-into the MCMC proposal itself, yielding samplers that explore the
-posterior more efficiently than random walks. Both uses require
-differentiating through the forward map~$\mathcal{P}$, which we
-develop in the following chapter.
+the high-density region by optimisation before sampling begins.
+Gradient-free optimisers could do the same, but gradient-based methods
+offer faster and more robust convergence. Moreover, gradients can be
+incorporated into the MCMC proposal itself, yielding samplers that
+explore the posterior more efficiently than random walks. Both uses
+require differentiating through the forward map~$\mathcal{P}$, which
+we develop in the following chapter.
 
 \begin{figure}[ht]
   \centering

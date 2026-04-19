@@ -13,7 +13,7 @@ solving a diffusion PDE with kinetic boundary conditions. Solving the
 inverse problem then amounts to finding the parameters whose forward
 solution best explains the observed data. The difficulty is
 threefold: the mapping from parameters to current is nonlinear,
-distinct parameter configurations can produce similar voltammograms,
+distinct parameter configurations can produce similar current responses,
 and in certain kinetic regimes parameters may cease to influence the
 current altogether. Point estimates cannot capture these
 difficulties. They provide no account of uncertainty, nor can they
@@ -41,7 +41,7 @@ the forward solve~\cite{griewank2008evaluating}. However, na\"ively taping an
 entire PDE solver can be inefficient since it records every
 intermediate of the linear solve at each timestep. We instead derive
 a custom adjoint rule for the banded linear solve and register it
-with the automatic differentiation framework, \emph{JAX}
+with an automatic differentiation framework, \emph{JAX}
 \cite{jax2018github}, so that gradient computation uses only the
 matrix diagonals and solution vector at each timestep.
 

@@ -118,11 +118,11 @@ proposal covariance is set to $\Sigma = (2.38^{2}/d)\, M^{-1}$, the
 asymptotically optimal scaling for Gaussian targets~\cite{gelman1997weak}.
 
 \paragraph{Step~4: Equal-budget parallel sampling.}
-NUTS and RWMH chains are run in parallel from the eight dispersed
-ADAM endpoints. Each NUTS iteration costs $L$ leapfrog steps; each
-RWMH iteration costs one forward solve. At a matched sampling
-wall-time of approximately $80$\,s, we obtain $2{,}400$ NUTS samples
-and $24{,}000$ RWMH samples in total.
+NUTS and RWMH chains are run in parallel from the eight ADAM
+endpoints. Each NUTS iteration costs $L$ leapfrog steps; each RWMH
+iteration costs one forward solve. At a matched sampling wall-time of
+approximately $80$\,s, we obtain $2{,}400$ NUTS samples and
+$24{,}000$ RWMH samples in total.
 
 \section{Results}\label{sec:hmc-results}
 
@@ -130,8 +130,7 @@ and $24{,}000$ RWMH samples in total.
 
 Both samplers recover good posteriors across the regimes tested below.
 This is due to the optimisation stage of \cref{sec:workflow} placing every
-chain inside the
-high-density region before sampling begins.
+chain inside the high-density region before sampling begins.
 
 \Cref{fig:electron-posteriors} shows the joint and marginal posteriors
 from NUTS and RWMH for the quasi-reversible electron-transfer reaction
@@ -159,10 +158,10 @@ and~$\theta_f$.
 We repeat the experiment in the reversible regime with $\phi^* =
 (0.6,\, 500.0,\, 0.5)$, giving $\Lambda \approx 15.8 \gg 1$.
 \Cref{fig:electron-posteriors-rev} shows that the $\alpha$ and $K_0$
-marginals are now wide. The $(\alpha, K_0)$ joint density is wide
-compared to the quasi-reversible regimes. While the formal potential
-$\theta_f$ remains tightly constrained and largely independent of the
-other two. Both samplers remain centred very close to the true values.
+marginals are now wide compared to the quasi-reversible regimes.
+While the formal potential $\theta_f$ remains tightly constrained and
+largely independent of the other two. Both samplers remain centred
+very close to the true values.
 
 \begin{figure}[ht]
   \begin{center}
@@ -237,7 +236,7 @@ behaviour for parameters whose marginal posterior is close to
 Gaussian with weak dependence on the remaining
 parameters~\cite{stan2024reference}. \Cref{tab:electron-ess} compares
 the ESS for NUTS and RWMH. NUTS achieves $1.6$--$1.9\times$ the ESS
-of RWMH across all parameters. For~$K_0$, the NUTS ESS exceeds the
+of RWMH across the parameters. For~$K_0$, the NUTS ESS exceeds the
 chain length ($2834.3 > 2400$) meaning the samples are antithetic.
 
 \begin{table}[ht]
@@ -304,7 +303,7 @@ $\hat{R}$ crossing the threshold at roughly $0.3$ of the sample proportion.
 \Cref{fig:electron-gr} shows that each parameter in the electron
 reaction follows a similar pattern: NUTS at $\hat{R} \leq 1.01$ from
 the first checkpoint, RWMH crossing the threshold at roughly $30\%$
-of the samples for $\alpha$ and $K_0$, but sooner for $\theta_f$. The
+of the samples for $\alpha$, $K_0$, and $\theta_f$. The
 long-range NUTS proposals, preconditioned by the window-adapted mass
 matrix, leave the initial state after a handful of iterations.
 RWMH's local steps retain memory of their starting points for much

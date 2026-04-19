@@ -88,35 +88,6 @@ which rearranges to $\beta_0\, C_0^k + \gamma_0\, C_1^k = b_0$ with
 The far-field node imposes $C_{n-1}^k = 1$. The resulting
 tridiagonal system is solved in $O(n)$ operations by the Thomas algorithm.
 
-\section{Convergence Study}\label{sec:convergence}
-
-The discretisation parameters were selected by refinement against a
-reference solution computed on a fine mesh ($h_0 = 10^{-10}$,
-$\Delta\theta = 10^{-5}$). We swept $h_0$ and $\Delta\theta$
-independently, measuring the relative $L^2$ error of the current against
-the reference. The spatial error plateaus for $h_0 \lesssim 10^{-6}$; the
-temporal error converges at the expected first-order rate for the backward
-Euler scheme. We adopt $h_0 = 10^{-6}$ and $\Delta\theta = 0.004$
-throughout (\cref{fig:electron-discritisation}), which places the
-solution well within the converged regime at acceptable runtime. The
-same methodology was applied to the heterogeneous and adsorption
-solvers (\cref{ch:appendix-convergence}).
-
-\begin{figure}[ht]
-  \centering
-  \includegraphics[width=0.95\textwidth]{figures/3-discretisation.png}
-  \caption[Convergence of the electron-transfer solver]{Convergence of
-    the electron-transfer solver. Relative $L^2$ error of the simulated
-    current against a reference solution ($h_0 = 10^{-10}$,
-    $\Delta\theta = 10^{-5}$). Left: spatial refinement at four fixed
-    $\Delta\theta$; the error plateaus for $h_0 \lesssim 10^{-6}$ where
-    the temporal error dominates. Right: temporal refinement at $h_0 =
-    10^{-6}$; the measured slope matches the first-order rate expected
-    for backward Euler. Dotted lines mark the adopted values $h_0 =
-  10^{-6}$ and $\Delta\theta = 4 \times 10^{-3}$.}
-  \label{fig:electron-discritisation}
-\end{figure}
-
 \section{The Forward Map}\label{sec:forward-map}
 
 The solver computes the full concentration field $C(T, X)$, but the
@@ -180,6 +151,35 @@ electron-transfer experiments in subsequent chapters.
   \label{fig:electron-analytical}
 \end{figure}
 
+\section{Convergence Study}\label{sec:convergence}
+
+The discretisation parameters were selected by refinement against a
+reference solution computed on a fine mesh ($h_0 = 10^{-10}$,
+$\Delta\theta = 10^{-5}$). We swept $h_0$ and $\Delta\theta$
+independently, measuring the relative $L^2$ error of the current against
+the reference. The spatial error plateaus for $h_0 \lesssim 10^{-6}$. The
+temporal error converges at the expected first-order rate for the backward
+Euler scheme. We adopt $h_0 = 10^{-6}$ and $\Delta\theta = 0.004$
+throughout (\cref{fig:electron-discritisation}), which places the
+solution well within the converged regime at acceptable runtime. The
+same methodology was applied to the heterogeneous and adsorption
+solvers (\cref{ch:appendix-convergence}).
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/3-discretisation.png}
+  \caption[Convergence of the electron-transfer solver]{Convergence of
+    the electron-transfer solver. Relative $L^2$ error of the simulated
+    current against a reference solution ($h_0 = 10^{-10}$,
+    $\Delta\theta = 10^{-5}$). Left: spatial refinement at four fixed
+    $\Delta\theta$; the error plateaus for $h_0 \lesssim 10^{-6}$ where
+    the temporal error dominates. Right: temporal refinement at $h_0 =
+    10^{-6}$; the measured slope matches the first-order rate expected
+    for backward Euler. Dotted lines mark the adopted values $h_0 =
+  10^{-6}$ and $\Delta\theta = 4 \times 10^{-3}$.}
+  \label{fig:electron-discritisation}
+\end{figure}
+
 \section{Effect of Butler--Volmer Parameters}\label{sec:bv-effects}
 
 The behaviour of the voltammogram depends on the \emph{kinetic regime},
@@ -232,7 +232,7 @@ reveal the correlation structure. We develop this in the next chapter.
 
 \begin{figure}[ht]
   \begin{center}
-    \includegraphics[width=0.8\textwidth]{figures/3-alpha-K0-effect-reversible.png}
+    \includegraphics[width=0.9\textwidth]{figures/3-alpha-K0-effect-reversible.png}
   \end{center}
   \caption[Negligible impact of the transfer coefficient and rate
   constant in the reversible regime]{Left: effect of $\alpha$ in the

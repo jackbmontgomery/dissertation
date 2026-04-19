@@ -37,21 +37,21 @@ information about both the reaction kinetics and the transport of species
 in solution.
 
 In a cyclic voltammetry (CV) experiment the potential is swept linearly
-from a starting value~$E_i$, where no reaction takes place, to a vertex
+from an initial value~$E_i$, where no reaction takes place, to a vertex
 potential~$E_v$ where conversion between species occurs, and then
 back to~$E_i$. The current $I$ is recorded throughout. An example of
 the triangular waveform and the resulting voltammogram are shown in
 \cref{fig:potential-voltammogram}.
 
 The forward sweep produces a reduction (cathodic) peak; the return sweep
-produces an oxidation (anodic) peak~\footnote{Following IUPAC
+produces an oxidation (anodic) peak\footnote{Following IUPAC
   recommendations for sign conventions of
   electrochemical data, positive values will be assigned to anodic currents.
 }. The peak shape arises from
 competition between two rate-limiting processes. Early in the forward
 sweep the driving force for reduction is small and negligible current
 flows. As the potential moves to more negative values the current
-increases: the system is under \emph{kinetic control}, with the rate of
+increases. The system is now under \emph{kinetic control}, with the rate of
 electron transfer as the limiting step. Eventually species $\mathrm{A}$ near the
 electrode is depleted and the current peaks. Beyond this point the
 current decreases despite the applied potential increasing.
@@ -77,8 +77,8 @@ $(\mathrm{V\,s^{-1}})$ controls the timescale
 of the experiment. Faster scans probe faster kinetic processes, while
 slower scans allow more time for diffusion and can reveal coupled chemical
 reactions. The scan rate is chosen for each reaction mechanism so that the
-current response is sensitive to the target parameters; the rationale for
-each choice is given when the mechanism is introduced.
+current response is sensitive to the target parameters. The rationale for
+each choice is given when the reaction mechanism is introduced.
 
 \section{Mathematical Description}
 
@@ -263,7 +263,7 @@ with electrode boundary condition
   \label{eq:equal_diff_bc}
 \end{equation}
 
-For notational convenience in the discretisation that follows, we define
+For notational convenience in the chapters that follow, we define
 \begin{equation}
   \begin{aligned}
     K_{\text{red}} &= K_0 \exp\bigg[-\alpha(\theta(T) - \theta_f)\bigg], \\

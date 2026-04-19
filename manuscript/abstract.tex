@@ -1,6 +1,6 @@
 \begin{abstract}
   We develop a differentiable forward solver for voltammetric simulation
-  and integrate it with the No-U-Turn sampler to perform Bayesian
+  and integrate it with the No-U-Turn~(NUTS) sampler to perform Bayesian
   inference over electrochemical kinetic parameters.
   A custom adjoint rule for banded linear solves yields exact
   gradients from one adjoint system per timestep, caching only the

@@ -129,8 +129,8 @@ $\mathrm{D}$ run from $X_0$ to $X_{n-1}$:
 \end{equation}
 
 The $K_{\mathrm{het}}$ coupling between $C_\mathrm{B}^0$ and
-$C_\mathrm{C}^0$ is now adjacent with other surface coupling within
-two positions of the main diagonal. The result is a pentadiagonal
+$C_\mathrm{C}^0$ is now adjacent and so are all other surface
+couplings in \cref{eq:het-bc-nondim}. The result is a pentadiagonal
 system solved in $O(n)$ per timestep. As noted in
 \cref{sec:pentadiagonal}, its transpose is again pentadiagonal, so
 the adjoint system is solved at the same cost.
@@ -238,8 +238,7 @@ the sampled posteriors are consistent with the observations.
 
 \Cref{fig:het-gr} shows $\hat{R}$ over sampling budget. NUTS remains
 below the $1.01$ threshold throughout. RWMH
-requires a substantially larger fraction of the budget to converge
-than in the three-parameter case: the
+requires a substantially larger fraction of the budget to converge: the
 $\hat{R}$ curves for $\theta_f^{(1)}$ and $K_0^{(1)}$ remain above
 $1.01$ for the majority of the run.
 
